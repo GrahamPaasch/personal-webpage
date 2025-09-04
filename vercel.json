@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "**": {
+      "runtime": "nodejs22.x"
+    }
+  },
   "redirects": [
     {
       "source": "/:path*",
@@ -8,4 +13,3 @@
     }
   ]
 }
-
