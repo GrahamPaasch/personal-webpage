@@ -1,0 +1,11 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "grahampaasch.com" }],
+      "destination": "https://www.grahampaasch.com/:path*",
+      "permanent": true
+    }
+  ]
+}
+
