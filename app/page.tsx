@@ -1,5 +1,10 @@
 import Link from 'next/link';
 
+export const metadata = {
+  title: 'Graham Paasch — Vigil Pathfinder',
+  description: 'Hobbies, writings, and professional work by Graham Paasch.',
+};
+
 export default function HomePage() {
   return (
     <section className="grid">
