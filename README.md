@@ -58,6 +58,7 @@ That’s it—each post page will show a comments section.
 1. Import this repo into Vercel as a Next.js project.
 2. Build & output settings: defaults are fine (`npm run build`).
 3. Environment variables: add the Giscus vars if using comments.
+   - For the A2A chat agent, optionally add `GOOGLE_API_KEY` to enable Gemini responses. Without it, the agent returns a basic deterministic reply.
 4. Connect custom domain `www.grahampaasch.com` in Vercel → Domains.
    - Add/verify the domain and follow DNS prompts (CNAME to `cname.vercel-dns.com`).
 5. Redeploy to ensure `sitemap.xml` includes your posts.
@@ -67,3 +68,21 @@ That’s it—each post page will show a comments section.
 - No database required. Posts are Markdown files; comments use Giscus.
 - Styling is minimal and clean using vanilla CSS in `app/globals.css`.
 - If you want MDX, we can add it later with `@next/mdx`.
+
+## A2A Chat Agent
+
+This site exposes a minimal Agent2Agent (A2A) server and an on-site chat UI:
+
+- Agent Card: `/api/a2a/.well-known/agent-card.json`
+- JSON-RPC endpoint: `POST /api/a2a`
+- Chat page: `/agent`
+
+Implementation details:
+- Server built with `@a2a-js/sdk` directly inside Next Route Handlers.
+- Non-streaming replies; streaming can be enabled later.
+- If `GOOGLE_API_KEY` is present, the agent uses Gemini 1.5 Flash for answers; otherwise it provides a basic canned response.
+
+Local development:
+1. `npm install` (requires symlink support; if on Windows WSL/drive you may need to run as admin or adjust permissions)
+2. `npm run dev`
+3. Visit `http://localhost:3000/agent`
