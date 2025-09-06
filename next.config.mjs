@@ -1,9 +1,8 @@
-import pkg from './package.json' assert { type: 'json' };
-
 const buildTime = new Date().toISOString();
 const commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || '';
 const short = commit ? commit.slice(0, 7) : '';
-const baseVersion = pkg.version || '0.0.0';
+// Use npm-provided env instead of importing package.json to avoid config import issues on some builders
+const baseVersion = process.env.npm_package_version || '0.0.0';
 const composedVersion = short ? `${baseVersion}+${short}` : baseVersion;
 
 /** @type {import('next').NextConfig} */
