@@ -82,6 +82,15 @@ Implementation details:
 - Non-streaming replies; streaming can be enabled later.
 - If `GOOGLE_API_KEY` is present, the agent uses Gemini 1.5 Flash for answers; otherwise it provides a basic canned response.
 
+### Deployment Versioning
+
+Each deployment bakes in a visible version string so you can confirm which build is live:
+
+- Footer shows: `v<package.json version>+<short-commit> · <build ISO time>`
+- API: `GET /api/version` returns `{ version, buildTime, commit }`
+
+The commit SHA is populated from `VERCEL_GIT_COMMIT_SHA` when building on Vercel; the build time is computed at build.
+
 Local development:
 1. `npm install` (requires symlink support; if on Windows WSL/drive you may need to run as admin or adjust permissions)
 2. `npm run dev`

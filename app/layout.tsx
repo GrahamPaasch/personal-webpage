@@ -43,6 +43,7 @@ export default function RootLayout({ children }: any) {
           <div className="container footer-inner">
             <span>© {new Date().getFullYear()} Graham Paasch</span>
             <span>Pen name: Vigil Pathfinder</span>
+            <span className="muted">v{process.env.NEXT_PUBLIC_APP_VERSION} · {process.env.NEXT_PUBLIC_BUILD_TIME?.slice(0, 19).replace('T', ' ')}Z</span>
           </div>
         </footer>
         <FullScreenChat />
