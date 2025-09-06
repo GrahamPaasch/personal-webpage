@@ -1,5 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
+import FullScreenChat from '@/app/components/FullScreenChat';
 
 export const metadata = {
   metadataBase: new URL('https://www.grahampaasch.com'),
@@ -44,13 +45,7 @@ export default function RootLayout({ children }: any) {
             <span>Pen name: Vigil Pathfinder</span>
           </div>
         </footer>
-        <a href="/agent" className="chat-fab" aria-label="Chat">
-          💬
-        </a>
-        <style jsx global>{`
-          .chat-fab { position: fixed; right: 20px; bottom: 20px; width: 48px; height: 48px; border-radius: 50%; background: #0a5025; color: #dcfce7; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #14532d; box-shadow: 0 4px 20px rgba(0,0,0,0.25); font-size: 20px; }
-          .chat-fab:hover { background: #0b6a31; }
-        `}</style>
+        <FullScreenChat />
       </body>
     </html>
   );

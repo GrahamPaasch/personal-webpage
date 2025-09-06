@@ -9,7 +9,7 @@ type ChatItem = {
   text: string;
 };
 
-export default function A2AChat() {
+export default function A2AChat({ fullscreen = false }: { fullscreen?: boolean }) {
   const [ready, setReady] = useState(false);
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const [input, setInput] = useState('');
@@ -91,7 +91,7 @@ export default function A2AChat() {
   }
 
   return (
-    <div className="a2a-chat">
+    <div className={`a2a-chat ${fullscreen ? 'fullscreen' : ''}`}>
       <div className="a2a-chat-window">
         <div className="a2a-messages">
           {messages.map((m) => (
@@ -114,15 +114,19 @@ export default function A2AChat() {
         {typing && <div className="typing">Agent is typing…</div>}
       </div>
       <style jsx>{`
-        .a2a-chat { display: flex; justify-content: center; }
-        .a2a-chat-window { width: 100%; max-width: 720px; border: 1px solid var(--border); background: var(--panel); border-radius: 12px; padding: 12px; }
+        .a2a-chat { display: flex; justify-content: center; height: auto; }
+        .a2a-chat.fullscreen { height: 100%; }
+        .a2a-chat-window { width: 100%; max-width: 720px; border: 1px solid var(--border); background: var(--panel); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; }
+        .a2a-chat.fullscreen .a2a-chat-window { max-width: none; height: 100%; }
         .a2a-messages { display: flex; flex-direction: column; gap: 8px; min-height: 240px; max-height: 50vh; overflow-y: auto; padding: 6px; }
+        .a2a-chat.fullscreen .a2a-messages { flex: 1; max-height: none; }
         .a2a-msg { display: flex; }
         .a2a-msg.user { justify-content: flex-end; }
         .a2a-msg.agent { justify-content: flex-start; }
         .bubble { padding: 10px 12px; border-radius: 10px; background: #1b2030; border: 1px solid #2a3443; max-width: 80%; white-space: pre-wrap; }
         .a2a-msg.user .bubble { background: #0a5025; border-color: #14532d; color: #dcfce7; }
         .a2a-input { display: flex; gap: 8px; margin-top: 8px; }
+        .a2a-chat.fullscreen .a2a-input { margin-top: 12px; }
         .a2a-input input { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: #121521; color: var(--text); }
         .a2a-input button { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: #151823; color: var(--text); }
         .a2a-input button:disabled { opacity: 0.5; }
