@@ -23,6 +23,8 @@ body {
 .header-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
 .brand { font-weight: 700; letter-spacing: 0.2px; color: var(--text); text-decoration: none; }
 .brand:hover { color: white; }
+.version-chip { margin-left: 8px; font-size: 0.8rem; padding: 2px 8px; border-radius: 9999px; border: 1px solid var(--border); background: #151823; color: var(--muted); text-decoration: none; }
+.version-chip:hover { color: #dcfce7; border-color: #2a3443; }
 .nav { display: flex; gap: 16px; }
 .nav a { color: var(--muted); text-decoration: none; padding: 8px 10px; border-radius: 8px; }
 .nav a:hover { color: white; background: #151823; }
@@ -59,4 +61,3 @@ p { color: var(--text); opacity: 0.95; }
 
 .site-footer { border-top: 1px solid var(--border); background: #0c0e14; }
 .footer-inner { display: flex; justify-content: space-between; gap: 12px; padding: 18px 0; color: var(--muted); font-size: 0.95rem; }
-

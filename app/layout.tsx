@@ -30,6 +30,7 @@ export default function RootLayout({ children }: any) {
         <header className="site-header">
           <div className="container header-inner">
             <Link href="/" className="brand">Graham Paasch</Link>
+            <Link href="/version" className="version-chip">v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}</Link>
             <nav className="nav">
               <Link href="/hobbies">Hobbies</Link>
               <Link href="/writings">Writings</Link>
