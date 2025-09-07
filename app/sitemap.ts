@@ -3,7 +3,7 @@ import { listPostSlugs } from '@/lib/posts';
 export default async function sitemap() {
   const base = 'https://www.grahampaasch.com';
   const now = new Date().toISOString();
-  const staticPages = ['', '/hobbies', '/professional', '/writings'].map((p) => ({
+  const staticPages = ['', '/hobbies', '/professional', '/writings', '/career-vision'].map((p) => ({
     url: base + p,
     lastModified: now,
   }));
@@ -13,4 +13,3 @@ export default async function sitemap() {
   }));
   return [...staticPages, ...posts];
 }
-
