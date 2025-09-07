@@ -7,7 +7,7 @@ import {
   type RequestContext,
   type ExecutionEventBus,
 } from '@a2a-js/sdk/server';
-import { JsonRpcTransportHandler } from '@a2a-js/sdk/server/transports/jsonrpc_transport_handler';
+import { JsonRpcTransportHandler } from '@a2a-js/sdk/server';
 import { AGENT_NAME, AGENT_PROFILE } from '@/lib/agentProfile';
 import type { TaskStatusUpdateEvent } from '@a2a-js/sdk';
 
