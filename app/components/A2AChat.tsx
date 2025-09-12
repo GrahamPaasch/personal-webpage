@@ -17,22 +17,27 @@ export default function A2AChat({ fullscreen = false }: { fullscreen?: boolean }
   const clientRef = useRef<A2AClient | null>(null);
   const contextIdRef = useRef<string | null>(null);
 
-  const cardUrl = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    return `${window.location.origin}/api/a2a/.well-known/agent-card.json`;
-  }, []);
+  // Use a stable relative path so SSR doesn't memoize an empty value
+  const cardUrl = '/api/a2a/.well-known/agent-card.json';
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const mod = await import('@a2a-js/sdk/client');
-      const client = await mod.A2AClient.fromCardUrl(cardUrl);
+      const { A2AClient } = await import('@a2a-js/sdk/client');
+      const client = await A2AClient.fromCardUrl(cardUrl);
       if (!cancelled) {
         clientRef.current = client;
         contextIdRef.current = crypto.randomUUID();
         setReady(true);
       }
-    })().catch(() => {});
+    })().catch(() => {
+      if (!cancelled) {
+        setMessages((m) => [
+          ...m,
+          { id: crypto.randomUUID(), role: 'agent', text: 'There was a problem loading the agent. Please reload the page.' },
+        ]);
+      }
+    });
     return () => {
       cancelled = true;
     };

@@ -1,0 +1,10 @@
+https://trinzik.app.n8n.cloud/webhook/857abe3b-8b35-4adf-9d31-f60345ea4c6a/chat
+https://trinzik.app.n8n.cloud/webhook/936f4a3e-6ae8-4539-a1ef-30e6da809f4b/chat
+https://trinzik.app.n8n.cloud/webhook/6c1a1bfb-aacc-441f-90b0-75ce869a52f5/chat
+https://trinzik.app.n8n.cloud/webhook/e4adf346-0b86-408f-8be4-9de9a19c6498/chat
+https://trinzik.app.n8n.cloud/webhook/e59790e8-e967-47c0-a8b2-461ad91f1203/chat
+https://trinzik.app.n8n.cloud/webhook/e3ee2e81-bafd-4b17-9d9b-bf8f8d5e1895/chat
+https://trinzik.app.n8n.cloud/webhook/f65094ab-5e35-4ae2-89e1-da4605a2efe8/chat
+https://trinzik.app.n8n.cloud/webhook/a24dfd7f-2870-41c9-9288-3e480360f581/chat
+https://trinzik.app.n8n.cloud/webhook/30e2f77d-c277-452a-a23f-bb7f66709f72/chat
+https://trinzik.app.n8n.cloud/webhook/b7f776c2-fa5a-483a-8e92-a6a811768a9a/chat

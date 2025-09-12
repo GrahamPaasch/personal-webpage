@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "directory_url": "https://execagent.ai/",
+    "total_endpoints": 10,
+    "timestamp": "2025-09-08T21:02:06.151565+00:00"
+  },
+  "endpoints": [
+    "https://trinzik.app.n8n.cloud/webhook/30e2f77d-c277-452a-a23f-bb7f66709f72/chat",
+    "https://trinzik.app.n8n.cloud/webhook/6c1a1bfb-aacc-441f-90b0-75ce869a52f5/chat",
+    "https://trinzik.app.n8n.cloud/webhook/857abe3b-8b35-4adf-9d31-f60345ea4c6a/chat",
+    "https://trinzik.app.n8n.cloud/webhook/936f4a3e-6ae8-4539-a1ef-30e6da809f4b/chat",
+    "https://trinzik.app.n8n.cloud/webhook/a24dfd7f-2870-41c9-9288-3e480360f581/chat",
+    "https://trinzik.app.n8n.cloud/webhook/b7f776c2-fa5a-483a-8e92-a6a811768a9a/chat",
+    "https://trinzik.app.n8n.cloud/webhook/e3ee2e81-bafd-4b17-9d9b-bf8f8d5e1895/chat",
+    "https://trinzik.app.n8n.cloud/webhook/e4adf346-0b86-408f-8be4-9de9a19c6498/chat",
+    "https://trinzik.app.n8n.cloud/webhook/e59790e8-e967-47c0-a8b2-461ad91f1203/chat",
+    "https://trinzik.app.n8n.cloud/webhook/f65094ab-5e35-4ae2-89e1-da4605a2efe8/chat"
+  ],
+  "results": [
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/6c1a1bfb-aacc-441f-90b0-75ce869a52f5/chat",
+      "ok": true,
+      "status": 200,
+      "elapsed_secs": 2.437,
+      "response_preview": "{\"output\":\"Hello! I\u2019m Dan\u2019s Executive AI Agent. Would you like to learn more about Dan\u2019s leadership at StarHire or his global talent acquisition strategies?\"}"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/857abe3b-8b35-4adf-9d31-f60345ea4c6a/chat",
+      "ok": true,
+      "status": 200,
+      "elapsed_secs": 2.628,
+      "response_preview": "{\"output\":\"Hello! I'm Bob Michaels' Executive AI Agent. It's great to connect with you! Would you like to learn more about Bob's pioneering work in streaming media or his current innovations in AI solutions with Trinzik?\"}"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/a24dfd7f-2870-41c9-9288-3e480360f581/chat",
+      "ok": true,
+      "status": 200,
+      "elapsed_secs": 3.805,
+      "response_preview": "{\"output\":\"Hello! I'm Rik Avalos's AI Personal Assistant. It's great to connect with you! Would you like to learn more about Rik's Tesla scaling expertise or his relationship-first recruiting methodology?\"}"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/30e2f77d-c277-452a-a23f-bb7f66709f72/chat",
+      "ok": false,
+      "status": 0,
+      "elapsed_secs": 4.52,
+      "response_preview": "Exception: HTTP Error 500: Internal Server Error"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/936f4a3e-6ae8-4539-a1ef-30e6da809f4b/chat",
+      "ok": true,
+      "status": 200,
+      "elapsed_secs": 4.611,
+      "response_preview": "{\"output\":\"Hello! I\u2019m the Executive AI Agent for Judge Charles \\\"Chuck\\\" Vanover. How can I assist you today? Would you like to learn more about his groundbreaking specialty courts or his military leadership experience?\"}"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/b7f776c2-fa5a-483a-8e92-a6a811768a9a/chat",
+      "ok": true,
+      "status": 200,
+      "elapsed_secs": 2.752,
+      "response_preview": "{\"output\":\"Hello! I'm Vern Davis's AI Personal Assistant. It's great to connect with you! Would you like to learn more about Vern's six-component organizational transformation framework or his executive search and talent optimization expertise?\"}"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/e3ee2e81-bafd-4b17-9d9b-bf8f8d5e1895/chat",
+      "ok": true,
+      "status": 200,
+      "elapsed_secs": 2.96,
+      "response_preview": "{\"output\":\"Hello! I am Mike's Executive AI Agent. Would you like to learn more about his operational excellence methodologies or his approach to agile transformation?\"}"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/e59790e8-e967-47c0-a8b2-461ad91f1203/chat",
+      "ok": true,
+      "status": 200,
+      "elapsed_secs": 1.878,
+      "response_preview": "{\"output\":\"Hello! I'm Justin McKenzie's Executive AI Agent. Would you like to learn more about his entrepreneurial leadership and business incubation strategies or his community building and economic development initiatives?\"}"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/e4adf346-0b86-408f-8be4-9de9a19c6498/chat",
+      "ok": false,
+      "status": 0,
+      "elapsed_secs": 3.67,
+      "response_preview": "Exception: HTTP Error 500: Internal Server Error"
+    },
+    {
+      "endpoint": "https://trinzik.app.n8n.cloud/webhook/f65094ab-5e35-4ae2-89e1-da4605a2efe8/chat",
+      "ok": false,
+      "status": 0,
+      "elapsed_secs": 4.054,
+      "response_preview": "Exception: HTTP Error 500: Internal Server Error"
+    }
+  ]
+}
