@@ -9,6 +9,7 @@ import {
 } from '@a2a-js/sdk/server';
 import { JsonRpcTransportHandler } from '@a2a-js/sdk/server';
 import { AGENT_NAME, AGENT_PROFILE } from '@/lib/agentProfile';
+import { searchSiteContext } from '@/lib/siteContext';
 import type { TaskStatusUpdateEvent } from '@a2a-js/sdk';
 
 // Build Agent Card once
@@ -53,52 +54,73 @@ function buildAgentCard(baseUrl: string): AgentCard {
   };
 }
 
-// Minimal executor: uses Google Gemini if GOOGLE_API_KEY is set; otherwise a canned reply
-async function generateReply(prompt: string): Promise<string> {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  const system = AGENT_PROFILE;
+// Provider helpers
+async function callGemini(apiKey: string, body: any): Promise<Response> {
+  return fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+  );
+}
 
-  if (!apiKey) {
-    // Fallback deterministic response
-    return (
-      `Hi! I’m Graham’s A2A agent. I can help with:
- - Writings: /writings
- - Hobbies: /hobbies
- - Professional: /professional
-Ask me anything about the site or Graham.`
-    );
-  }
-
+async function callOpenAI(apiKey: string, messages: any[]): Promise<string | null> {
   try {
-    const body = {
-      contents: [
-        { role: 'user', parts: [{ text: `${system}\n\nUser: ${prompt}` }] },
-      ],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 512,
-      },
-    };
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }
-    );
-    if (!res.ok) {
-      const text = await res.text();
-      return `Sorry, I had trouble generating a response (status ${res.status}).`;
-    }
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.3, max_tokens: 512 }),
+    });
+    if (!res.ok) return null;
     const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text === 'string' && text.trim().length > 0) return text.trim();
-    return 'Sorry, I could not produce a response.';
-  } catch (err) {
-    return 'Sorry, an error occurred while contacting the model.';
+    return data?.choices?.[0]?.message?.content ?? null;
+  } catch {
+    return null;
   }
+}
+
+// Minimal executor with RAG context; uses Gemini by default, falls back to OpenAI if configured
+async function generateReply(prompt: string): Promise<string> {
+  const geminiKey = process.env.GOOGLE_API_KEY || '';
+  const openaiKey = process.env.OPENAI_API_KEY || '';
+  const system = AGENT_PROFILE;
+  const ctx = await searchSiteContext(prompt, { k: 3, perExcerptChars: 700 });
+
+  const baseUser = `${ctx.text ? ctx.text + '\n\n' : ''}User: ${prompt}`;
+
+  // If no keys configured, provide a deterministic helpful reply
+  if (!geminiKey && !openaiKey) {
+    return (
+      `Hi! I’m Graham’s A2A agent. I can help with:\n- Writings: /writings\n- Hobbies: /hobbies\n- Professional: /professional\nAsk me anything about the site or Graham.`
+    );
+  }
+
+  // Try Gemini first if available
+  if (geminiKey) {
+    try {
+      const body = {
+        contents: [ { role: 'user', parts: [{ text: `${system}\n\n${baseUser}` }] } ],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 512 },
+      };
+      const res = await callGemini(geminiKey, body);
+      if (res.ok) {
+        const data = await res.json();
+        const t = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (typeof t === 'string' && t.trim()) return t.trim();
+      } else if (!(openaiKey && (res.status === 429 || res.status === 403 || res.status >= 500))) {
+        return `Sorry, I had trouble generating a response (status ${res.status}).`;
+      }
+    } catch {}
+  }
+
+  // Fallback to OpenAI if configured
+  if (openaiKey) {
+    const alt = await callOpenAI(openaiKey, [
+      { role: 'system', content: system },
+      { role: 'user', content: baseUser },
+    ]);
+    if (alt && alt.trim()) return alt.trim();
+  }
+
+  return 'Sorry, I could not produce a response.';
 }
 
 class SiteAgentExecutor implements AgentExecutor {
