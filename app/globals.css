@@ -61,3 +61,12 @@ p { color: var(--text); opacity: 0.95; }
 
 .site-footer { border-top: 1px solid var(--border); background: #0c0e14; }
 .footer-inner { display: flex; justify-content: space-between; gap: 12px; padding: 18px 0; color: var(--muted); font-size: 0.95rem; }
+
+/* Agent page layout */
+.agent-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.agent-title { flex: 1; }
+.agent-avatar { flex: 0 0 auto; opacity: 0.95; }
+@media (max-width: 600px) {
+  .agent-header { flex-direction: column-reverse; align-items: flex-start; }
+  .agent-avatar img { width: 96px; height: 96px; }
+}

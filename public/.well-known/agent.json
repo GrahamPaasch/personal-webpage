@@ -1,0 +1,19 @@
+{
+  "name": "Graham Paasch’s A2A Site Agent",
+  "description": "Conversational Q&A about Graham’s writings, hobbies, and professional background using the open Agent2Agent (A2A) protocol.",
+  "homepage": "https://www.grahampaasch.com/agent",
+  "agentCardUrl": "https://www.grahampaasch.com/api/a2a/.well-known/agent-card.json",
+  "protocols": ["A2A@0.3.0", "JSON-RPC 2.0 over HTTP/SSE"],
+  "transport": {
+    "jsonrpc": {
+      "endpoint": "https://www.grahampaasch.com/api/a2a",
+      "streaming": "SSE",
+      "contentTypes": { "input": ["text/plain"], "output": ["text/plain"] }
+    }
+  },
+  "capabilities": ["site_chat", "streaming"],
+  "contact": { "url": "https://www.grahampaasch.com/professional" },
+  "tags": ["chat", "info", "site", "a2a"],
+  "version": "0.1.0"
+}
+

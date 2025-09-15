@@ -54,20 +54,31 @@ function buildAgentCard(baseUrl: string): AgentCard {
   };
 }
 
-// Provider helpers
-async function callGemini(apiKey: string, body: any): Promise<Response> {
-  return fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
+// Provider helpers (OpenAI-compatible)
+async function callGemini(apiKey: string, system: string, user: string): Promise<string | null> {
+  try {
+    const body = {
+      contents: [ { role: 'user', parts: [{ text: `${system}\n\n${user}` }] } ],
+      generationConfig: { temperature: 0.3, maxOutputTokens: 512 },
+    };
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    );
+    if (!res.ok) return res.status >= 400 ? null : null;
+    const data = await res.json();
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  } catch {
+    return null;
+  }
 }
 
-async function callOpenAI(apiKey: string, messages: any[]): Promise<string | null> {
+async function callOpenAICompat(baseUrl: string, headers: Record<string,string>, model: string, messages: any[]): Promise<string | null> {
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(baseUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.3, max_tokens: 512 }),
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 512 }),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -77,50 +88,102 @@ async function callOpenAI(apiKey: string, messages: any[]): Promise<string | nul
   }
 }
 
-// Minimal executor with RAG context; uses Gemini by default, falls back to OpenAI if configured
+// Minimal executor with RAG context; tries providers in order
 async function generateReply(prompt: string): Promise<string> {
   const geminiKey = process.env.GOOGLE_API_KEY || '';
+  const groqKey = process.env.GROQ_API_KEY || '';
+  const cerebrasKey = process.env.CEREBRAS_API_KEY || '';
+  const cfToken = process.env.CF_API_TOKEN || '';
+  const cfAccount = process.env.CF_ACCOUNT_ID || '';
+  const openrouterKey = process.env.OPENROUTER_API_KEY || '';
   const openaiKey = process.env.OPENAI_API_KEY || '';
+  const providerOrder = (process.env.A2A_PROVIDER_ORDER || 'GEMINI,GROQ,CEREBRAS,CLOUDFLARE,OPENROUTER,OPENAI')
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
   const system = AGENT_PROFILE;
   const ctx = await searchSiteContext(prompt, { k: 3, perExcerptChars: 700 });
 
   const baseUser = `${ctx.text ? ctx.text + '\n\n' : ''}User: ${prompt}`;
 
   // If no keys configured, provide a deterministic helpful reply
-  if (!geminiKey && !openaiKey) {
+  if (![geminiKey, groqKey, cerebrasKey, cfToken && cfAccount, openrouterKey, openaiKey].some(Boolean)) {
     return (
       `Hi! I’m Graham’s A2A agent. I can help with:\n- Writings: /writings\n- Hobbies: /hobbies\n- Professional: /professional\nAsk me anything about the site or Graham.`
     );
   }
 
-  // Try Gemini first if available
-  if (geminiKey) {
-    try {
-      const body = {
-        contents: [ { role: 'user', parts: [{ text: `${system}\n\n${baseUser}` }] } ],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 512 },
-      };
-      const res = await callGemini(geminiKey, body);
-      if (res.ok) {
-        const data = await res.json();
-        const t = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (typeof t === 'string' && t.trim()) return t.trim();
-      } else if (!(openaiKey && (res.status === 429 || res.status === 403 || res.status >= 500))) {
-        return `Sorry, I had trouble generating a response (status ${res.status}).`;
-      }
-    } catch {}
-  }
+  const messages = [
+    { role: 'system', content: system },
+    { role: 'user', content: baseUser },
+  ];
 
-  // Fallback to OpenAI if configured
-  if (openaiKey) {
-    const alt = await callOpenAI(openaiKey, [
-      { role: 'system', content: system },
-      { role: 'user', content: baseUser },
-    ]);
-    if (alt && alt.trim()) return alt.trim();
+  for (const p of providerOrder) {
+    try {
+      if (p === 'GEMINI' && geminiKey) {
+        const text = await callGemini(geminiKey, system, baseUser);
+        if (text && text.trim()) return finalize(text, ctx.text);
+      }
+      if (p === 'GROQ' && groqKey) {
+        const text = await callOpenAICompat(
+          'https://api.groq.com/openai/v1/chat/completions',
+          { Authorization: `Bearer ${groqKey}` },
+          process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+          messages
+        );
+        if (text && text.trim()) return finalize(text, ctx.text);
+      }
+      if (p === 'CEREBRAS' && cerebrasKey) {
+        const text = await callOpenAICompat(
+          'https://api.cerebras.ai/v1/chat/completions',
+          { Authorization: `Bearer ${cerebrasKey}` },
+          process.env.CEREBRAS_MODEL || 'llama-3.1-70b-instruct',
+          messages
+        );
+        if (text && text.trim()) return finalize(text, ctx.text);
+      }
+      if (p === 'CLOUDFLARE' && cfToken && cfAccount) {
+        const text = await callOpenAICompat(
+          `https://api.cloudflare.com/client/v4/accounts/${cfAccount}/ai/v1/chat/completions`,
+          { Authorization: `Bearer ${cfToken}` },
+          process.env.CF_MODEL || '@cf/meta/llama-3.1-8b-instruct-fp8',
+          messages
+        );
+        if (text && text.trim()) return finalize(text, ctx.text);
+      }
+      if (p === 'OPENROUTER' && openrouterKey) {
+        const text = await callOpenAICompat(
+          'https://openrouter.ai/api/v1/chat/completions',
+          {
+            Authorization: `Bearer ${openrouterKey}`,
+            'HTTP-Referer': 'https://www.grahampaasch.com',
+            'X-Title': 'GrahamPaaschSite',
+          },
+          process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat',
+          messages
+        );
+        if (text && text.trim()) return finalize(text, ctx.text);
+      }
+      if (p === 'OPENAI' && openaiKey) {
+        const text = await callOpenAICompat(
+          'https://api.openai.com/v1/chat/completions',
+          { Authorization: `Bearer ${openaiKey}` },
+          process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          messages
+        );
+        if (text && text.trim()) return finalize(text, ctx.text);
+      }
+    } catch {
+      // continue to next provider
+    }
   }
 
   return 'Sorry, I could not produce a response.';
+
+  function finalize(text: string, sources?: string | null): string {
+    if (sources) return `${text.trim()}\n\n${sources}`;
+    return text.trim();
+  }
 }
 
 class SiteAgentExecutor implements AgentExecutor {

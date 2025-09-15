@@ -1,0 +1,82 @@
+[
+  {
+    "slug": "bobmichaels",
+    "agent_name": "Bob Michaels",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/857abe3b-8b35-4adf-9d31-f60345ea4c6a/chat",
+    "session_id": "65c112b5-d52c-4f1a-bc38-24b2f325082e",
+    "key_takeaway": "1. **Introduction and Overview**: Brief introductions and insights into Trinzik\u2019s mission and capabilities.",
+    "output_path": "automation/execagent/output/bobmichaels.md"
+  },
+  {
+    "slug": "charlesvanover",
+    "agent_name": "Judge Charles Vanover",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/936f4a3e-6ae8-4539-a1ef-30e6da809f4b/chat",
+    "session_id": "d5d38959-6f9d-4131-952d-5c05dddcceda",
+    "key_takeaway": "Judge Charles Vanover leverages over 25 years of law enforcement, prosecutorial, and judicial experience to innovate specialty court programs that effectively rehabilitate veterans and first responders, significantly reducing recidivism and enhancing community safety.",
+    "output_path": "automation/execagent/output/charlesvanover.md"
+  },
+  {
+    "slug": "danmedlin",
+    "agent_name": "Dan Medlin",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/6c1a1bfb-aacc-441f-90b0-75ce869a52f5/chat",
+    "session_id": "7cd4667d-941a-44f5-ab15-8db41ed53814",
+    "key_takeaway": "(a) **Key Takeaway**: Dan Medlin offers a data-driven, scalable recruitment process outsourcing model that transforms talent acquisition through strategic insights, servant leadership, and measurable outcomes tailored to meet the unique needs of organizations in diverse industries.",
+    "output_path": "automation/execagent/output/danmedlin.md"
+  },
+  {
+    "slug": "jimdrees",
+    "agent_name": "Jim Drees",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/e4adf346-0b86-408f-8be4-9de9a19c6498/chat",
+    "session_id": "62ed071d-5021-4101-9bc8-efaa39166a56",
+    "key_takeaway": "1. **Introduction and Objectives**: Understanding your current situation, challenges, and what you hope to achieve in terms of IT operations management.",
+    "output_path": "automation/execagent/output/jimdrees.md"
+  },
+  {
+    "slug": "justinmckenzie",
+    "agent_name": "Justin McKenzie",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/e59790e8-e967-47c0-a8b2-461ad91f1203/chat",
+    "session_id": "5c19e7c4-5de9-484f-900e-db81a2c62adf",
+    "key_takeaway": "(a) **Key Takeaway**: Justin McKenzie uniquely combines his extensive expertise in community-driven innovation, operational excellence, and strategic funding to empower entrepreneurs and create sustainable impact in their ecosystems.",
+    "output_path": "automation/execagent/output/justinmckenzie.md"
+  },
+  {
+    "slug": "michaeltribble",
+    "agent_name": "Michael Tribble",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/e3ee2e81-bafd-4b17-9d9b-bf8f8d5e1895/chat",
+    "session_id": "903ac61f-3551-4d47-b576-d4f384ad97a5",
+    "key_takeaway": "(a) **Key Takeaway**: Michael Tribble combines over 20 years of military leadership and consulting excellence to deliver data-driven operational transformations that enhance efficiency, reduce costs, and drive sustainable results for organizations in high-stakes environments.",
+    "output_path": "automation/execagent/output/michaeltribble.md"
+  },
+  {
+    "slug": "nicoleconley",
+    "agent_name": "Nicole K. Conley",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/f65094ab-5e35-4ae2-89e1-da4605a2efe8/chat",
+    "session_id": "5e989db0-086f-4d2e-949c-fd4c0134a9c4",
+    "key_takeaway": "1. Introduction and Overview: Nicole's career trajectory and unique experiences in public finance.",
+    "output_path": "automation/execagent/output/nicoleconley.md"
+  },
+  {
+    "slug": "rikavalos",
+    "agent_name": "Rik Avalos",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/a24dfd7f-2870-41c9-9288-3e480360f581/chat",
+    "session_id": "96a91820-348d-469a-b352-4758bf715774",
+    "key_takeaway": "(a)** **Key Takeaway**: Rik Avalos combines 30+ years of global talent acquisition expertise with a relationship-first approach, enabling organizations to build world-class teams that align talent with mission-driven growth.",
+    "output_path": "automation/execagent/output/rikavalos.md"
+  },
+  {
+    "slug": "stephenchang",
+    "agent_name": "Stephen M.-H. Chang",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/30e2f77d-c277-452a-a23f-bb7f66709f72/chat",
+    "session_id": "d5e9f3e5-1025-4f06-95fb-fa4572a346cd",
+    "key_takeaway": "1. **Introductions and Objective Setting**: Briefly discuss backgrounds and lay out the objectives of the meeting.",
+    "output_path": "automation/execagent/output/stephenchang.md"
+  },
+  {
+    "slug": "verndavis",
+    "agent_name": "Vern Davis",
+    "webhook_url": "https://trinzik.app.n8n.cloud/webhook/b7f776c2-fa5a-483a-8e92-a6a811768a9a/chat",
+    "session_id": "774c2e65-a4d3-4f85-af7e-57b3cb360aaf",
+    "key_takeaway": "(a) **Key Takeaway**: Vern Davis transforms early-stage and emerging companies into great businesses through a proven six-component organizational transformation framework, leveraging 40+ years of CPG expertise and strategic talent optimization to drive sustainable growth.",
+    "output_path": "automation/execagent/output/verndavis.md"
+  }
+]

@@ -45,6 +45,11 @@ export default function RootLayout({ children }: any) {
           <div className="container footer-inner">
             <span>© {new Date().getFullYear()} Graham Paasch</span>
             <span>Pen name: Vigil Pathfinder</span>
+            <nav className="nav" style={{ display: 'flex', gap: 12 }}>
+              <a href="/agent/for-agents">For Agents</a>
+              <a href="/.well-known/agent.json" target="_blank" rel="noreferrer">Agent Manifest</a>
+              <a href="/api/a2a/.well-known/agent-card.json" target="_blank" rel="noreferrer">Agent Card</a>
+            </nav>
             <span className="muted">v{process.env.NEXT_PUBLIC_APP_VERSION} · {process.env.NEXT_PUBLIC_BUILD_TIME?.slice(0, 19).replace('T', ' ')}Z</span>
           </div>
         </footer>
