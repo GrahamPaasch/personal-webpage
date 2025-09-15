@@ -1,9 +1,8 @@
----
-title: Career Journey & Vision
-date: 2025-09-07
-excerpt: Career vision, must-haves, must-nots, strengths, weaknesses, and goals.
----
+# Career Journey &amp; Vision
 
+# Career Journey & Vision
+
+9/7/2025
 ## Building a Meaningful Future in Technology
 
 ## 1. What I Love and Hate Doing
@@ -11,28 +10,47 @@ excerpt: Career vision, must-haves, must-nots, strengths, weaknesses, and goals.
 ### Love Doing
 
 - Peaceful Quiet Solitude: Being in an environment where I can think deeply about things and am not constantly distracted.
+
 - Purposeful Impact: Tackling critical issues such as AI alignment, environmental sustainability, mental health, obesity, healthcare improvement, and elevating human well-being.
+
 - Deep Engagement: Being fully absorbed in meaningful tasks driven by genuine passion.
+
 - Leveraging Unique Talents: Roles blending my skills in juggling, music, and technology, with dedicated time for daily practice, community orchestra involvement, chamber music, and hobbyist activities, funded adequately to maintain passion (e.g., a replaceable but quality instrument like a $1,800 viola, or a $10,000 AI home lab; a home with a stage area where I can invite friends and performers to play). I'd love to host concerts in one of my homes like John Harbison does.
+
 - Continuous Growth Environment: Regularly learning from respected mentors and leaders, happily being the least experienced, skilled, and intelligent person in the room.
+
 - Healthy, Resilient Culture: Distinctive workplaces promoting genuine employee health and longevity through practical initiatives like science-based personal training, plant-based diets, adequate rest, and meaningful rewards (cash bonuses, vacations).
+
 - Collaborative and Inspired Coworkers: Colleagues who maintain peak health, pursue meaningful hobbies, and actively engage in personal growth—especially those passionate about juggling.
+
 - Optimized Remote Work: Embracing remote environments designed for peak health and longevity, minimal unnecessary meetings or commuting, ideally a 32-hour, four-day workweek. Occasional face-to-face retreats that include camping or hiking trips would be okay. Working alongside competent, exciting individuals who are positively oriented, healthy, and high-achieving. I want seeing my co-workers to be an amazing experience. Convening at cutting-edge tech conferences or similar for special occasions, on the company dollar.
+
 - Psychologically Advanced Organizations: Valuing cutting-edge psychological research, openly encouraging truth-seeking dialogues, and celebrating evolving opinions based on evidence. Supportive of mental health. Antiauthoritarianism.
+
 - Meaningful Outcomes: Engaging in work producing tangible, impactful results addressing critical societal issues.
 
 ### Hate Doing
 
 - Meaningless Tasks: Jobs with arbitrary goals lacking personal significance; false promises of autonomy undermined by constant criticism.
+
 - Fear Based Cultures: Fearing all your choices because you know there is nothing you can do that will not be unfairly criticized. Immediate firing rather than constructive feedback and growth through learning. Poorly implemented frameworks such as performance reviews based on arbitrary metrics. IBM Design Thinking principles or Agile methodologies implemented in a way that has the opposite effect of their intent.
+
 - Harmful Work: Developing or promoting products/services negatively impacting society, including fast food, environmental harm, isolation-promoting technology, and weapons (especially wartime AI).
+
 - Incompetent Hierarchies: Arbitrary power structures managed by demonstrably incompetent leaders.
+
 - Passionless Roles: Positions filled by uninspired individuals compelled by necessity rather than genuine interest, fostering resentment and stagnation.
+
 - Toxic Micromanagement: Cultures demanding sudden overtime, prioritizing immediate fixes over long-term, preventative solutions; rewarding "heroic" reactions to preventable emergencies rather than those who do careful work and do not cause the problems in the first place.
+
 - Replaceable Roles: Generic positions treating workers as expendable and interchangeable, lacking recognition of individual skills.
+
 - Unhealthy Corporate Cultures: Environments emphasizing the grind to an unhealthy and counterproductive degree. Cultures where employees burn themselves out without much to show for their effort.
+
 - Communication Challenges: Workplaces discouraging open and safe communication. I need to safely express myself—even during extreme situations—without career derailment. Employers should recognize and accommodate my mental health needs, even intervening proactively in crisis scenarios.
+
 - Unrealistic Expectations: Ambiguous roles with impossible goals, resistant to feedback or realistic adjustments.
+
 - Pointless Participation: Engaging in tasks without meaningful impact, feeling like participation in a meaningless cult.
 
 ## 2. Your "Must-Haves"
@@ -96,19 +114,29 @@ I don't want to be rewarded by pizza, wings, and cake. I think a co-op, democrac
 ### Strengths
 
 - Technical Ability: I have a genuine passion for technology and a strong aptitude for learning new skills that enhance my work.
+
 - Deep Network Engineering Expertise: 10 years of networking experience. Passed the CCNP Enterprise and JNCIP Service Provider exams. Attempted JNCIE.
+
 - Software Development: I code. I love to code. I've worked professionally as a python developer. Since I've started vibe coding my heatmap on Github looks great. I use code to build tools for me in my personal life as well as professionally. I built www.simpleharmonymaker.com
+
 - Life Long Learner: Nearly 1000 educational videos posted on my YouTube channel, covering a wide range of topics from networking to Python programming to Mindfulness Based Stress Reduction.
+
 - Leadership & Mentorship: I volunteer for the Agile Learning Institute, a free non-profit coaching service. I worked as a teaching assistant while in networking school.
+
 - AI Realist: I have situational awareness of the decade ahead regarding the impact of AI development. I participate on Hugging Face and use AI everyday to improve my life, especially for mental health.
+
 - Community Engagement: I am a core member of the Texas Juggling Society and the Central Texas Medical Orchestra.
+
 - Acknowledgment of Weakness: I recognize that I have areas for growth, particularly regarding my disability diagnoses. I actively research and implement strategies to address these challenges. I regularly see relevant, licensed, and qualified professionals for support. I do my best to be a good patient and not have any unforced errors in my treatment.
 
 ### Weaknesses
 
 - Social Connectiveness: I am mired by a number of mental health challenges, which makes me the perpetual odd man out. Included in my diagnoses is excoration disorder, which can be upsetting for others to witness. Since my number one value is health, physical and mental, I take my well-being seriously and seek environments that support it, which can limit my opportunities. I lack a clear and consistent mental model of which environments are conducive to my success and which are not.
+
 - Limited Cloud Experience: Primarily on-prem networking background, with limited hands-on cloud experience (AWS, Azure, GCP). Actively working to close this gap through self-study and labs, but finding myself mired with challenges in motivation to study.
+
 - Limited Software Best-Practice Experience: Much of my coding has been "glue and duct tape." The difference between my education in networking and in coding is stark. I am actively improving code quality and testing skills via autodidactic means, but I struggle to feel confident in my abilities.
+
 - Selective Opportunity Focus: Strong preferences (remote work, values alignment, health management compatibility) limit immediate opportunities. May not align well with what the job market has to offer, especially in the fields where I have the most qualifications.
 
 ## 5. Your Career Goals (Short-Term and Long-Term)

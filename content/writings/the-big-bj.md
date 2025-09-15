@@ -1,9 +1,8 @@
----
-title: Bryan Johnson is Right About Everything
-date: 2025-09-06
-excerpt: A message from Vigil Pathfinder.
----
+# Bryan Johnson is Right About Everything
 
+# Bryan Johnson is Right About Everything
+
+9/6/2025
 The man, the myth, the legend: the big BJ, Bryan Johnson. He is an ex‑Mormon who
 made around $800 million from the sale of his company and then decided the
 number one priority in his life was to become the healthiest man in the world.
@@ -118,7 +117,7 @@ take real medications that passed real scientific trials, and you can solve the
 problem of "doing what you know." But forget about that—there's no snazzy logo
 on a dram from the pharmacy. Also, big pharma, ahhhhh!
 
-#### I am a stupid gullible person, the perfect target
+I am a stupid gullible person, the perfect target
 
 Aren't we all? No. I am. Did you buy a product with
 the words "snake oil" printed on it? Did you make a series of review videos on this man's products that
@@ -149,7 +148,7 @@ I had my first manic episode. From then on I've been unable to get treatment for
 So yeah, I'm a sucker. I'm a loser. I'm lazy. I'm stupid. My discipline is trash and I desperately want to 
 do better. If only there was some magic solution out there for me...
 
-#### I have real issues with my health!
+I have real issues with my health!
 
 So this is another thing that drew me to Bryan. He talked at length about his "depression". Also, he talked
 about a thyroid issue where he had to take lifelong prescription medication to treat, which I admired because
@@ -172,7 +171,7 @@ only appropriate answer was to lavish praise onto our master big BJ. I had to go
 conversation, about joy, about passion. It was about convincing as many people as possible to hand over
 as much money as possible, and I was threatening that vision, despite myself being in their grasp. I had to go.
 
-#### I was big BJ before there was ever a big BJ.
+I was big BJ before there was ever a big BJ.
 
 I care about my health. I did an exercise where I picked out three words to define myself by, whether or not
 they were words that I continually embody. My three words are in order of importance. The first two words describe
@@ -187,7 +186,7 @@ when it came to getting high quality sleep. Bryan is a trailblazer when it comes
 on the internet, for better or worse. Obviously his messaging drew me like a moth to the flame. I sleep in the
 closet now because that is the place where there is the least amount of light. Bryan convinced me.
 
-#### Bryan is right.
+Bryan is right.
 
 Health is the #1 thing we should all be concerned about in totality as humanity as a species. We're the only species
 that is even capable of meaningfully considering our own death. The healthiest and longest lived among us live only
