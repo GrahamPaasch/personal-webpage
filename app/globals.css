@@ -7,13 +7,19 @@
   --accent: #3b82f6;
   --border: #232a39;
   --link-visited: #b38cff;
+  --voice-i: var(--font-voice-i, 'Fraunces', serif);
+  --voice-you: var(--font-sans, 'Inter', sans-serif);
+  --voice-we: var(--font-voice-we, 'Space Grotesk', sans-serif);
+  --voice-i-accent: #f9a8d4;
+  --voice-you-accent: #93c5fd;
+  --voice-we-accent: #5eead4;
 }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--voice-you), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   background: radial-gradient(1200px 800px at 20% -10%, #121623 0%, var(--bg) 60%);
   color: var(--text);
 }
@@ -75,4 +81,85 @@ p { color: var(--text); opacity: 0.95; }
 @media (max-width: 600px) {
   .agent-header { flex-direction: column-reverse; align-items: flex-start; }
   .agent-avatar img { width: 96px; height: 96px; }
+}
+
+.voice-system {
+  display: grid;
+  gap: 16px;
+}
+
+.voice-tone {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  background: var(--panel);
+  box-shadow: 0 10px 28px rgba(6, 10, 20, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.voice-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  opacity: 0.85;
+}
+
+.voice-label::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+.voice-tone p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.voice-tone.voice-i {
+  font-family: var(--voice-i);
+  color: #fdf2f8;
+  background: radial-gradient(600px 320px at 6% 0%, rgba(249, 168, 212, 0.18) 0%, rgba(12, 15, 24, 0.9) 55%), var(--panel);
+  border-color: rgba(249, 168, 212, 0.35);
+}
+
+.voice-tone.voice-i .voice-label {
+  color: var(--voice-i-accent);
+}
+
+.voice-tone.voice-i p {
+  color: rgba(255, 241, 248, 0.95);
+}
+
+.voice-tone.voice-you {
+  font-family: var(--voice-you);
+  color: var(--text);
+  background: radial-gradient(480px 240px at 12% -8%, rgba(147, 197, 253, 0.14) 0%, rgba(12, 15, 24, 0.92) 60%), var(--panel);
+  border-color: rgba(147, 197, 253, 0.3);
+}
+
+.voice-tone.voice-you .voice-label {
+  color: var(--voice-you-accent);
+}
+
+.voice-tone.voice-we {
+  font-family: var(--voice-we);
+  color: #e0fffb;
+  background: radial-gradient(520px 260px at 96% 12%, rgba(94, 234, 212, 0.22) 0%, rgba(12, 17, 24, 0.92) 62%), var(--panel);
+  border-color: rgba(94, 234, 212, 0.4);
+}
+
+.voice-tone.voice-we .voice-label {
+  color: var(--voice-we-accent);
+}
+
+.voice-tone.voice-we p {
+  color: rgba(224, 255, 251, 0.95);
 }

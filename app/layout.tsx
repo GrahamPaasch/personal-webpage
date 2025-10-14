@@ -1,6 +1,27 @@
 import './globals.css';
 import Link from 'next/link';
+import { Fraunces, Inter, Space_Grotesk } from 'next/font/google';
 import FullScreenChat from '@/app/components/FullScreenChat';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+});
+
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-voice-i',
+  weight: ['400', '500', '700'],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-voice-we',
+  weight: ['400', '500', '600'],
+});
 
 export const metadata = {
   metadataBase: new URL('https://www.grahampaasch.com'),
@@ -26,7 +47,7 @@ export const metadata = {
 export default function RootLayout({ children }: any) {
   return (
     <html lang="en">
-      <body>
+      <body className={`${inter.variable} ${fraunces.variable} ${spaceGrotesk.variable}`}>
         <header className="site-header">
           <div className="container header-inner">
             <Link href="/" className="brand">Graham Paasch</Link>
