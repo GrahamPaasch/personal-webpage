@@ -6,20 +6,20 @@ import FullScreenChat from '@/app/components/FullScreenChat';
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-sans',
+  variable: '--font-voice-unified',
 });
 
 const fraunces = Fraunces({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-voice-i',
+  variable: '--font-voice-human',
   weight: ['400', '500', '700'],
 });
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-voice-we',
+  variable: '--font-voice-ai',
   weight: ['400', '500', '600'],
 });
 

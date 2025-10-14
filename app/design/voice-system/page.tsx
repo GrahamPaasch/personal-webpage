@@ -2,28 +2,28 @@ import Link from 'next/link';
 
 const samples = [
   {
-    id: 'i',
-    label: 'I said',
-    className: 'voice-tone voice-i',
-    text: 'I lead with a reflective, craft-forward tone. These passages should feel intentional, lyrical, and unmistakably me.',
-    fontName: 'Fraunces',
-    details: 'Display serif with gentle contrast for personal reflections, essays, and key pull quotes.',
-  },
-  {
-    id: 'you',
-    label: 'You said',
-    className: 'voice-tone voice-you',
-    text: 'Your feedback and collaborator notes stay grounded and approachable. This voice reads like a trusted colleague adding context.',
-    fontName: 'Inter',
-    details: 'Workhorse sans for body copy, annotations, and community contributions.',
-  },
-  {
-    id: 'we',
-    label: 'We said',
-    className: 'voice-tone voice-we',
-    text: 'Collective insights, AI outputs, and shared frameworks lean into a precise, slightly futuristic register.',
+    id: 'ai',
+    label: 'AI voice',
+    className: 'voice-tone voice-ai',
+    text: 'Agent-authored contributions adopt a crisp, intentional cadence. They should feel precise, optimistic, and slightly futuristic.',
     fontName: 'Space Grotesk',
-    details: 'Geometric sans used for summaries, timecapsules, and co-created artifacts.',
+    details: 'Geometric sans for agent notes, system prompts, and machine-generated summaries.',
+  },
+  {
+    id: 'human',
+    label: 'Human voice',
+    className: 'voice-tone voice-human',
+    text: 'Your personal narrative can stay lush and expressive. Think reflective journal entries, manifesto excerpts, and heartfelt asides.',
+    fontName: 'Fraunces',
+    details: 'Display serif with gentle contrast for deeply personal stories and crafted essays.',
+  },
+  {
+    id: 'unified',
+    label: 'Unified voice',
+    className: 'voice-tone voice-unified',
+    text: 'Collaborative artifacts weave both perspectives together. Keep the tone welcoming, practical, and ready for the next experiment.',
+    fontName: 'Inter',
+    details: 'Workhorse sans for co-created playbooks, annotations, and shared context.',
   },
 ];
 
@@ -32,7 +32,7 @@ export default function VoiceSystemPage() {
     <div className="prose" style={{ maxWidth: 720 }}>
       <h1>Voice System Mockup</h1>
       <p>
-        Draft palette for the emerging <em>I said / You said / We said</em> framing. Nothing is final—this page is a sandbox so we can react together
+        Draft palette for the emerging <em>AI / Human / Unified</em> framing. Nothing is final—this page is a sandbox so we can react together
         before threading styles through live content.
       </p>
       <p>
