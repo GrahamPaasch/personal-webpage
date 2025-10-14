@@ -24,11 +24,10 @@ export default function CareerVisionPage() {
   });
 
   return (
-    <article className="card prose">
+    <article className="card prose" data-voice="unified">
       <h1>Career Journey & Vision</h1>
       <div className="post-meta">Last updated {new Date(post.meta.date).toLocaleDateString()}</div>
       <div dangerouslySetInnerHTML={{ __html: html }} />
     </article>
   );
 }
-

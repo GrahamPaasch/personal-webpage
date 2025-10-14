@@ -32,7 +32,7 @@ export default function PostPage({ params }: Props) {
   });
 
   return (
-    <article className="card prose">
+    <article className="card prose" data-voice="unified">
       <h1>{post.meta.title}</h1>
       <div className="post-meta">{new Date(post.meta.date).toLocaleDateString()}</div>
       <div dangerouslySetInnerHTML={{ __html: html }} />

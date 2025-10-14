@@ -53,7 +53,7 @@ export default function VoiceSystemPage() {
             >
               {sample.text}
             </p>
-            <footer style={{ marginTop: 16, fontSize: '0.85rem', opacity: 0.85 }}>
+            <footer style={{ marginTop: 16, fontSize: '0.85rem' }}>
               <strong>{sample.fontName}</strong> · {sample.details}
             </footer>
           </article>

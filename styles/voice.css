@@ -404,3 +404,83 @@
   border-radius: 0.5rem;
   background: rgba(148, 163, 184, 0.14);
 }
+
+/* ==== A11Y SAFETY NET – DO NOT REMOVE ==== */
+:root {
+  --surface-bg-default: var(--panel);
+  --surface-text-default: var(--text);
+}
+
+[data-voice='ai'] {
+  --surface-bg: #0b0d12;
+  --surface-text: #e6f7ff;
+}
+
+[data-voice='human'] {
+  --surface-bg: var(--paper);
+  --surface-text: #231f20;
+}
+
+[data-voice='unified'] {
+  --surface-bg: var(--panel);
+  --surface-text: #e6ebf3;
+}
+
+[data-voice] {
+  --surface-bg: var(--surface-bg, var(--surface-bg-default));
+  --surface-text: var(--surface-text, var(--surface-text-default));
+  background-color: var(--surface-bg);
+  color: var(--surface-text);
+  --bg: var(--surface-bg);
+  --text: var(--surface-text);
+}
+
+[data-voice] :where(
+  h1,h2,h3,h4,h5,h6,
+  p,span,small,strong,em,mark,
+  a,blockquote,figcaption,
+  ul,ol,li,dl,dt,dd,
+  code,pre,kbd,samp
+) {
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+[data-voice] li::marker {
+  color: currentColor;
+}
+
+[data-voice] a {
+  text-decoration-thickness: 0.1em;
+  text-underline-offset: 0.18em;
+}
+
+[data-voice='ai'] a,
+[data-voice='unified'] a {
+  color: var(--link);
+}
+
+[data-voice='human'] a {
+  color: #254274;
+}
+
+[data-voice='human'] a:hover {
+  color: #172d50;
+}
+
+[data-voice='ai'] a:hover,
+[data-voice='unified'] a:hover {
+  color: #90c8ff;
+}
+
+[data-voice='ai'] .prose,
+[data-voice='unified'] .prose,
+[data-voice='human'] .prose {
+  color: inherit;
+}
+
+[data-voice='ai'] .prose :where(h1,h2,h3,h4,h5,h6,p,li,blockquote),
+[data-voice='human'] .prose :where(h1,h2,h3,h4,h5,h6,p,li,blockquote),
+[data-voice='unified'] .prose :where(h1,h2,h3,h4,h5,h6,p,li,blockquote) {
+  color: inherit;
+}
