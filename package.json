@@ -15,6 +15,7 @@
   "dependencies": {
     "@a2a-js/sdk": "^0.3.4",
     "@mdx-js/react": "^3.0.0",
+    "@mdx-js/loader": "^3.0.0",
     "@next/mdx": "^14.2.5",
     "gray-matter": "^4.0.3",
     "hastscript": "^9.0.0",
