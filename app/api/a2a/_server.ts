@@ -43,10 +43,10 @@ function buildAgentCard(baseUrl: string): AgentCard {
         inputModes: ['text/plain'],
         outputModes: ['text/plain'],
         examples: [
-          'Tell me about Vigil Pathfinder',
-          'Where can I read your writings?',
+          'Tell me about Graham Paasch’s background.',
+          'Where can I read your latest writing?',
           'What instruments do you play?',
-          'How to contact you?'
+          'How can I get in touch with you?'
         ],
       },
     ],

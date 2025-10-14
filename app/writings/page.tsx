@@ -3,7 +3,7 @@ import { listPosts } from '@/lib/posts';
 
 export const metadata = {
   title: 'Writings',
-  description: 'Essays and thoughts by Vigil Pathfinder.',
+  description: 'Essays and thoughts by Graham Paasch.',
 };
 
 export default function WritingsIndex() {
@@ -12,7 +12,7 @@ export default function WritingsIndex() {
     <section className="grid">
       <div className="card">
         <h1>Writings</h1>
-        <p className="muted">Published under the pen name Vigil Pathfinder.</p>
+        <p className="muted">Essays, notes, and reflections by Graham Paasch.</p>
       </div>
       <div className="card">
         {posts.length === 0 ? (
@@ -34,4 +34,3 @@ export default function WritingsIndex() {
     </section>
   );
 }
-

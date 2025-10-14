@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props) {
   if (!post) return {};
   return {
     title: post.meta.title,
-    description: post.meta.excerpt || 'Writing by Vigil Pathfinder',
+    description: post.meta.excerpt || 'Writing by Graham Paasch',
   };
 }
 

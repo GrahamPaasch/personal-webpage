@@ -1,6 +1,6 @@
 # www.grahampaasch.com — Personal Website
 
-This is a Next.js site for Graham Paasch (pen name: Vigil Pathfinder), with sections for hobbies, writings with public comments, and professional info. Built to deploy on Vercel.
+This is a Next.js site for Graham Paasch, with sections for hobbies, writings with public comments, and professional info. Built to deploy on Vercel.
 
 ## Quick Start
 

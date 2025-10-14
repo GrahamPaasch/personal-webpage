@@ -5,12 +5,12 @@ import FullScreenChat from '@/app/components/FullScreenChat';
 export const metadata = {
   metadataBase: new URL('https://www.grahampaasch.com'),
   title: {
-    default: 'Graham Paasch — Vigil Pathfinder',
+    default: 'Graham Paasch',
     template: '%s | Graham Paasch',
   },
-  description: 'Hobbies, writings (as Vigil Pathfinder), and professional work by Graham Paasch.',
+  description: 'Hobbies, writings, and professional work by Graham Paasch.',
   openGraph: {
-    title: 'Graham Paasch — Vigil Pathfinder',
+    title: 'Graham Paasch',
     description: 'Hobbies, writings, and professional life.',
     url: 'https://www.grahampaasch.com',
     siteName: 'Graham Paasch',
@@ -44,7 +44,6 @@ export default function RootLayout({ children }: any) {
         <footer className="site-footer">
           <div className="container footer-inner">
             <span>© {new Date().getFullYear()} Graham Paasch</span>
-            <span>Pen name: Vigil Pathfinder</span>
             <nav className="nav" style={{ display: 'flex', gap: 12 }}>
               <a href="/agent/for-agents">For Agents</a>
               <a href="/.well-known/agent.json" target="_blank" rel="noreferrer">Agent Manifest</a>

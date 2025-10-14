@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Graham Paasch — Vigil Pathfinder',
+  title: 'Graham Paasch',
   description: 'Hobbies, writings, and professional work by Graham Paasch.',
 };
 
@@ -9,7 +9,7 @@ export default function HomePage() {
   return (
     <section className="grid">
       <div className="card">
-        <h1>Hi, I’m Graham — also known as Vigil Pathfinder.</h1>
+        <h1>Hi, I’m Graham Paasch.</h1>
         <p>
           I blend a decade of network engineering with Python development, and I
           spend a lot of my time playing music, juggling, and writing. This site is a home for all of that.
@@ -34,7 +34,7 @@ export default function HomePage() {
 
       <div className="card half">
         <h2>Writings</h2>
-        <p className="muted">Essays and thoughts published under the pen name Vigil Pathfinder.</p>
+        <p className="muted">Essays and thoughts written by me, Graham Paasch.</p>
         <Link className="button" href="/writings">Browse posts</Link>
       </div>
 
