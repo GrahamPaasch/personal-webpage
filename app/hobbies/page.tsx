@@ -43,7 +43,7 @@ export default function HobbiesPage() {
       <div className="card">
         <h2>Community & Wellbeing</h2>
         <p>
-          Circus arts and collective music spaces transformed my relationship with focus and mental
+          Circus arts and collective spaces transformed my relationship with focus and mental
           health. I’m grateful to the{' '}
           <a href="https://madisoncircusspace.com/" target="_blank" rel="noreferrer">
             Madison Circus Space

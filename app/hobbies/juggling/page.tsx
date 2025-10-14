@@ -29,6 +29,18 @@ export default function JugglingPage() {
         agency, and a reason to keep showing up.
       </p>
       <p>
+        I still make a point to return for the annual{' '}
+        <a href="https://madjugglers.com/" target="_blank" rel="noreferrer">
+          Madison Area Jugglers Festival
+        </a>{' '}
+        and to share the new patterns I’m working on. Many of those variations—especially the ones
+        that add extra clubs without making the rhythm unmanageable—are written up in the{' '}
+        <a href="https://madjugglers.com/majpatternbook/" target="_blank" rel="noreferrer">
+          MAJ Patternbook
+        </a>
+        . The pattern-design side of juggling keeps my network-engineer brain happily occupied.
+      </p>
+      <p>
         Wherever you are, I encourage you to visit a local juggling or circus arts club. A few good
         starting points:
       </p>

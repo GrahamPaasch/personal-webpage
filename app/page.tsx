@@ -90,8 +90,8 @@ export default function HomePage() {
       <div className="card half">
         <h2>Supportive communities</h2>
         <p className="muted">
-          Juggling, circus arts, and collaborative music are how I stay grounded. They’re also how
-          I show up for others.
+          Juggling, circus arts, and other collective practice spaces help me stay grounded. They’re
+          also how I show up for others.
         </p>
         <div className="cta-row">
           <a href="https://madisoncircusspace.com/" className="button" target="_blank" rel="noreferrer">

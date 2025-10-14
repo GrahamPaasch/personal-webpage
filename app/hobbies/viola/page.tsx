@@ -12,7 +12,8 @@ export default function ViolaPage() {
         <a href="https://www.ctmorchestra.org/" target="_blank" rel="noreferrer">
           Central Texas Medical Orchestra
         </a>
-        . Playing viola keeps me listening closely—balance, timing, and harmony are everything.
+        . Rehearsals and concerts demand close listening—balance, timing, and harmony are
+        everything.
       </p>
       <p>
         CTMO unites Austin musicians and healthcare professionals to raise funds for local clinics.
