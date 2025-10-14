@@ -1,8 +1,7 @@
 import createMDX from '@next/mdx';
 import remarkFrontmatter from 'remark-frontmatter';
-import type { NextConfig } from 'next';
-import rehypeWrapVoice from './lib/mdx/rehypeWrapVoice';
-import withVoiceFrontmatter from './lib/mdx/withVoiceFrontmatter';
+import rehypeWrapVoice from './lib/mdx/rehypeWrapVoice.mjs';
+import withVoiceFrontmatter from './lib/mdx/withVoiceFrontmatter.mjs';
 
 const buildTime = new Date().toISOString();
 const commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || '';
@@ -18,7 +17,7 @@ const withMDX = createMDX({
   },
 });
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   reactStrictMode: true,
   experimental: {
     optimizePackageImports: [],
