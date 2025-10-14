@@ -75,6 +75,15 @@ export default function HomePage() {
               YouTube
             </a>
           </li>
+          <li>
+            <a
+              href="https://www.credly.com/users/graham-paasch"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Credly (certifications)
+            </a>
+          </li>
         </ul>
       </div>
 

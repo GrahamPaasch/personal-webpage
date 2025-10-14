@@ -18,6 +18,14 @@ export default function ViolaPage() {
         CTMO unites Austin musicians and healthcare professionals to raise funds for local clinics.
         The mission resonates with me: music as mutual care, not just performance.
       </p>
+      <p>
+        My musical foundation was shaped by{' '}
+        <a href="https://wysomusic.org/" target="_blank" rel="noreferrer">
+          Wisconsin Youth Symphony Orchestras (WYSO)
+        </a>{' '}
+        where I spent eight formative years as a violist. WYSO taught me discipline, ensemble
+        awareness, and what it means to pursue excellence with a community.
+      </p>
     </article>
   );
 }
