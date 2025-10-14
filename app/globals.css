@@ -1,3 +1,9 @@
+@import '../styles/voice.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --bg: #0b0d12;
   --panel: #151823;
@@ -173,55 +179,4 @@ p { color: var(--text); opacity: 0.95; }
 
 .voice-tone.voice-ai p {
   color: rgba(224, 255, 251, 0.95);
-}
-
-[data-voice='ai'] {
-  font-family: var(--voice-ai);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.94em;
-  text-rendering: optimizeLegibility;
-}
-
-[data-voice='ai'][data-case='sentence'] {
-  text-transform: none;
-  letter-spacing: 0.02em;
-  font-size: 1em;
-}
-
-[data-voice='ai'][data-tone='mono'] {
-  font-family: var(--voice-ai-mono);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-[data-voice='ai'][data-tone='mono'],
-.ai-mono {
-  font-family: var(--voice-ai-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-[data-voice='human'] {
-  font-family: var(--voice-human-text);
-  font-size: 1.05em;
-  line-height: 1.68;
-  letter-spacing: -0.005em;
-  color: #fce7f3;
-}
-
-[data-voice='human'][data-role='display'] {
-  font-family: var(--voice-human);
-  font-variation-settings: 'SOFT' 80, 'WONK' 20;
-  letter-spacing: -0.01em;
-}
-
-[data-voice='unified'] {
-  font-family: var(--voice-unified);
-}
-
-.uppercase-label {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.72rem;
 }
