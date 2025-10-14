@@ -1,12 +1,19 @@
 import './globals.css';
 import Link from 'next/link';
-import { Fraunces, Inter, Space_Grotesk } from 'next/font/google';
+import {
+  Fraunces,
+  IBM_Plex_Mono,
+  Inter,
+  Space_Grotesk,
+  Source_Serif_4,
+} from 'next/font/google';
 import FullScreenChat from '@/app/components/FullScreenChat';
 
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-voice-unified',
+  weight: ['400', '500', '600', '700'],
 });
 
 const fraunces = Fraunces({
@@ -21,6 +28,20 @@ const spaceGrotesk = Space_Grotesk({
   display: 'swap',
   variable: '--font-voice-ai',
   weight: ['400', '500', '600'],
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-voice-human-text',
+  weight: ['400', '500', '600', '700'],
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-voice-ai-mono',
+  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata = {
@@ -47,7 +68,9 @@ export const metadata = {
 export default function RootLayout({ children }: any) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${fraunces.variable} ${spaceGrotesk.variable}`}>
+      <body
+        className={`${inter.variable} ${fraunces.variable} ${spaceGrotesk.variable} ${sourceSerif.variable} ${plexMono.variable}`}
+      >
         <header className="site-header">
           <div className="container header-inner">
             <Link href="/" className="brand">Graham Paasch</Link>
