@@ -219,9 +219,9 @@ export default function ProfessionalPage() {
               target="_blank"
               rel="noreferrer"
             >
-              YouTube
+              YouTube (talks & demos)
             </a>{' '}
-            — viola, marimba, and juggling performances.
+            — walkthroughs and technical explorations.
           </li>
         </ul>
       </article>

@@ -72,7 +72,7 @@ export default function HomePage() {
               target="_blank"
               rel="noreferrer"
             >
-              YouTube
+              YouTube (professional channel)
             </a>
           </li>
           <li>

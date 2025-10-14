@@ -20,18 +20,6 @@ export default function ShonaMusicPage() {
         </a>
         .
       </p>
-      <p>
-        When we’re not on stage, I share performances and arrangement experiments on my{' '}
-        <a
-          href="https://www.youtube.com/channel/UCg3oUjrSYcqsL9rGk1g_lPQ"
-          target="_blank"
-          rel="noreferrer"
-        >
-          YouTube channel
-        </a>
-        . It’s a good place to hear how Shona repertoire, improvisation, and live looping intersect
-        with my network-engineer brain.
-      </p>
     </article>
   );
 }
