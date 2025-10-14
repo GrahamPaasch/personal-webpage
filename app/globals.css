@@ -58,7 +58,9 @@ a:visited { color: var(--link-visited); }
 h1, h2, h3 { line-height: 1.2; }
 h1 { font-size: 2rem; margin: 0 0 10px; }
 h2 { font-size: 1.4rem; margin: 24px 0 8px; }
-p { color: var(--text); opacity: 0.95; }
+p { color: var(--text); }
+.prose li,
+li { color: var(--text); line-height: 1.65; }
 .muted { color: var(--muted); }
 
 .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
