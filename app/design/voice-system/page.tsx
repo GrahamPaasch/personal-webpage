@@ -49,6 +49,7 @@ export default function VoiceSystemPage() {
                 sample.id === 'unified' ? 'unified' : sample.id === 'human' ? 'human' : 'ai'
               }
               data-role={sample.id === 'human' ? 'text' : undefined}
+              data-case={sample.id === 'ai' ? 'sentence' : undefined}
             >
               {sample.text}
             </p>
@@ -63,7 +64,7 @@ export default function VoiceSystemPage() {
       <ul>
         <li data-voice="unified">Unified defaults to Inter 18/1.6 with tabular digits and a slashed zero for metrics and UI.</li>
         <li data-voice="human">Human essays use Source Serif 4 for paragraphs; Fraunces appears only in headings or pull quotes.</li>
-        <li data-voice="ai">Agent callouts lean on Space Grotesk, and system/code snippets pivot to IBM Plex Mono.</li>
+        <li data-voice="ai">Agent callouts lean on Space Grotesk with assertive tracking; set <code data-voice="ai" data-tone="mono">data-case="sentence"</code> to relax uppercase when needed.</li>
         <li data-voice="unified">Keep readable measure around 65ch and audit contrast (≥4.5:1) on every background.</li>
       </ul>
 
@@ -74,6 +75,10 @@ voice=ai
 zero-shot=false
 deadline=2024-09-09T17:00Z`}</code>
       </pre>
+
+      <p data-voice="ai" style={{ marginTop: 12 }}>
+        STATUS · SYNC WINDOW OPENS IN 02:15:00
+      </p>
 
       <h3 data-voice="human" data-role="display">Pull Quote Sample</h3>
       <blockquote data-voice="human" data-role="display" style={{ fontSize: '1.4rem', lineHeight: 1.4 }}>
