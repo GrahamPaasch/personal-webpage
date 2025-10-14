@@ -79,8 +79,10 @@ strong, em { color: var(--text); }
 .post-item a:hover { text-decoration: underline; }
 .post-meta { font-size: 0.9rem; color: var(--muted); }
 
-.prose h1, .prose h2, .prose h3 { margin-top: 1.5rem; }
-.prose { max-width: var(--measure-readable); }
+.prose { max-width: var(--measure-readable); color: var(--text); }
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { margin-top: 1.5rem; color: var(--text); }
+.prose strong, .prose em { color: var(--text); }
+.prose li, .prose p { color: var(--text); }
 .prose p { line-height: 1.65; }
 .prose a { color: var(--link); }
 .prose a:visited { color: var(--link-visited); }
