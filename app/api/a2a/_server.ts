@@ -109,7 +109,7 @@ async function generateReply(prompt: string): Promise<string> {
   // If no keys configured, provide a deterministic helpful reply
   if (![geminiKey, groqKey, cerebrasKey, cfToken && cfAccount, openrouterKey, openaiKey].some(Boolean)) {
     return (
-      `Hi! I’m Graham’s A2A agent. I can help with:\n- Writings: /writings\n- Hobbies: /hobbies\n- Professional: /professional\nAsk me anything about the site or Graham.`
+      `Hi! I’m Graham’s A2A agent. I can help with:\n- Writings: /writings\n- Hobbies: /hobbies (circus, viola, marimba)\n- Professional: /professional\nYou can also find Graham on LinkedIn, GitHub, Hugging Face, and YouTube—see the homepage for links.`
     );
   }
 

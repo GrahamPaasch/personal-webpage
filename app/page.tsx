@@ -47,6 +47,52 @@ export default function HomePage() {
         </p>
         <Link className="button" href="/professional">View profile</Link>
       </div>
+
+      <div className="card half">
+        <h2>Around the web</h2>
+        <ul className="muted">
+          <li>
+            <a href="https://www.linkedin.com/in/grahampaasch/" target="_blank" rel="noreferrer">
+              LinkedIn
+            </a>
+          </li>
+          <li>
+            <a href="https://github.com/GrahamPaasch" target="_blank" rel="noreferrer">
+              GitHub
+            </a>
+          </li>
+          <li>
+            <a href="https://huggingface.co/gpaasch" target="_blank" rel="noreferrer">
+              Hugging Face
+            </a>
+          </li>
+          <li>
+            <a
+              href="https://www.youtube.com/channel/UCg3oUjrSYcqsL9rGk1g_lPQ"
+              target="_blank"
+              rel="noreferrer"
+            >
+              YouTube
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div className="card half">
+        <h2>Supportive communities</h2>
+        <p className="muted">
+          Juggling, circus arts, and collaborative music are how I stay grounded. They’re also how
+          I show up for others.
+        </p>
+        <div className="cta-row">
+          <a href="https://madisoncircusspace.com/" className="button" target="_blank" rel="noreferrer">
+            Madison Circus Space
+          </a>
+          <a href="https://madjugglers.com/" className="button" target="_blank" rel="noreferrer">
+            Madison Area Jugglers
+          </a>
+        </div>
+      </div>
     </section>
   );
 }

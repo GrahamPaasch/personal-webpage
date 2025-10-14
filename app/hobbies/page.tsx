@@ -39,7 +39,22 @@ export default function HobbiesPage() {
         </p>
         <Link className="button" href="/hobbies/shona-music">Learn more</Link>
       </div>
+
+      <div className="card">
+        <h2>Community & Wellbeing</h2>
+        <p>
+          Circus arts and collective music spaces transformed my relationship with focus and mental
+          health. I’m grateful to the{' '}
+          <a href="https://madisoncircusspace.com/" target="_blank" rel="noreferrer">
+            Madison Circus Space
+          </a>
+          ,{' '}
+          <a href="https://madjugglers.com/" target="_blank" rel="noreferrer">
+            Madison Area Jugglers
+          </a>
+          , and the Texas juggling scene for making that possible.
+        </p>
+      </div>
     </section>
   );
 }
-

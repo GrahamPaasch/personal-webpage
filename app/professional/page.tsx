@@ -29,7 +29,30 @@ export default function ProfessionalPage() {
           Python tooling that teams actually want to use.
         </p>
       </article>
+
+      <article className="card half">
+        <h2>Find me online</h2>
+        <ul>
+          <li>
+            <a href="https://www.linkedin.com/in/grahampaasch/" target="_blank" rel="noreferrer">
+              LinkedIn
+            </a>{' '}
+            — current role, collaboration interests, and references.
+          </li>
+          <li>
+            <a href="https://github.com/GrahamPaasch" target="_blank" rel="noreferrer">
+              GitHub
+            </a>{' '}
+            — automation tooling, infrastructure demos, and personal experiments.
+          </li>
+          <li>
+            <a href="https://huggingface.co/gpaasch" target="_blank" rel="noreferrer">
+              Hugging Face
+            </a>{' '}
+            — models and datasets from ongoing R&D.
+          </li>
+        </ul>
+      </article>
     </section>
   );
 }
-
