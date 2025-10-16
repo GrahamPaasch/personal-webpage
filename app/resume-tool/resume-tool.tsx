@@ -1,5 +1,6 @@
 'use client';
 
+import { ChangeEvent } from 'react';
 import { useMemo, useState } from 'react';
 
 type Experience = {
@@ -79,6 +80,7 @@ const formatRange = (start?: string, end?: string) => {
 export default function ResumeTool() {
   const [data, setData] = useState<ResumeData>(initialData);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [importFeedback, setImportFeedback] = useState<string | null>(null);
 
   const skillsList = useMemo(() => safeSplit(data.skills), [data.skills]);
   const educationList = useMemo(() => safeSplit(data.education), [data.education]);
@@ -307,6 +309,70 @@ export default function ResumeTool() {
     URL.revokeObjectURL(url);
   };
 
+  const sanitizeResumeData = (raw: unknown): ResumeData | null => {
+    if (!raw || typeof raw !== 'object') return null;
+    const source = raw as Partial<ResumeData>;
+    const contact = {
+      name: source.contact?.name ?? '',
+      location: source.contact?.location ?? '',
+      email: source.contact?.email ?? '',
+      phone: source.contact?.phone ?? '',
+      website: source.contact?.website ?? '',
+    };
+
+    const experiences: Experience[] = Array.isArray(source.experiences)
+      ? source.experiences.map((entry) => {
+          if (!entry || typeof entry !== 'object') return createExperience();
+          const exp = entry as Partial<Experience>;
+          const bulletList = Array.isArray(exp.bullets)
+            ? exp.bullets
+                .map((bullet) => (typeof bullet === 'string' ? bullet : ''))
+                .filter((bullet) => bullet !== '')
+            : [];
+          return {
+            id: typeof exp.id === 'string' && exp.id.trim() ? exp.id : createId(),
+            company: exp.company ?? '',
+            title: exp.title ?? '',
+            location: exp.location ?? '',
+            start: exp.start ?? '',
+            end: exp.end ?? '',
+            summary: exp.summary ?? '',
+            bullets: bulletList.length ? bulletList : [''],
+          };
+        })
+      : [];
+
+    return {
+      contact,
+      summary: source.summary ?? '',
+      skills: source.skills ?? '',
+      education: source.education ?? '',
+      certifications: source.certifications ?? '',
+      experiences: experiences.length ? experiences : [createExperience()],
+      extras: source.extras ?? '',
+    };
+  };
+
+  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const normalized = sanitizeResumeData(parsed);
+      if (!normalized) throw new Error('Unrecognized format');
+      setData(normalized);
+      setImportFeedback(`Loaded ${file.name}.`);
+      setTimeout(() => setImportFeedback(null), 3000);
+    } catch (error) {
+      console.error('Resume import failed', error);
+      setImportFeedback('Upload failed. Please provide a JSON export created by this tool.');
+      setTimeout(() => setImportFeedback(null), 5000);
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   return (
     <div className="resume-tool">
       <div className="card">
@@ -321,6 +387,16 @@ export default function ResumeTool() {
           <li>Modular sections and bullet lists you can toggle, expand, or remix fast.</li>
           <li>Source-of-truth friendly: export the JSON and keep it in Git alongside your content.</li>
         </ul>
+        <div className="import-row">
+          <label className="rt-upload">
+            <input type="file" accept="application/json" onChange={handleImport} />
+            <span>Upload resume JSON</span>
+          </label>
+          <span className="muted small">
+            Import an earlier export to pick up where you left off.
+          </span>
+        </div>
+        {importFeedback ? <p className="muted">{importFeedback}</p> : null}
         {copyFeedback ? <p className="muted">{copyFeedback}</p> : null}
       </div>
 

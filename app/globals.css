@@ -387,3 +387,42 @@ textarea:focus {
 .preview-block.json {
   max-height: 300px;
 }
+
+.import-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.rt-upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px dashed rgba(93, 169, 255, 0.4);
+  color: var(--link);
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: rgba(59, 130, 246, 0.08);
+  transition: background 0.2s ease, border 0.2s ease;
+}
+
+.rt-upload:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(93, 169, 255, 0.7);
+}
+
+.rt-upload input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.muted.small {
+  font-size: 0.85rem;
+}
