@@ -1,0 +1,110 @@
+{
+  "contact": {
+    "name": "Graham Paasch",
+    "location": "Austin, TX (Madison-first, remote OK)",
+    "email": "grahampaasch@gmail.com",
+    "phone": "608-620-4651",
+    "website": "https://www.grahampaasch.com"
+  },
+  "summary": "Senior network engineer and automation specialist with hands-on experience operating Extreme Networks switching in a service-provider environment (Legacy Bresnan ISP at Charter) and leading site redesign / hardware refresh projects. Blend vendor-agnostic design with Python/Git-driven guardrails. Strong in VLAN/stacking/LACP and OSPF/BGP on EXOS; deep EVPN-VXLAN experience on Juniper/Cisco translates to Extreme campus fabric patterns. Comfortable writing migration runbooks, pre-/post-checks, and rollback plans.",
+  "skills": "Extreme Networks (EXOS, ExtremeSwitching), VLANs, LACP/Link Aggregation, Stacking, OSPF/BGP, Configuration Standardization, Code Upgrades, Site Redesign & Hardware Refresh, Change Windows & Rollback, Documentation & SOPs\nFabric concepts (campus segmentation/virtualization); familiarity with Extreme Fabric Connect patterns; deep EVPN-VXLAN on Juniper/Cisco\nSecurity: RADIUS/TACACS+, 802.1X concepts; NGFW/IPS exposure\nAutomation & Tooling: Python (PyATS, Netmiko, Paramiko), Git/GitHub, CI/CD, REST/JSON/YAML\nObservability & Docs: SolarWinds, Splunk, SevOne, automated Visio generation\nCloud fundamentals: AWS/Azure/GCP networking (coursework & labs)",
+  "education": "Associate of Applied Science, Information Technology (Network Specialist) — Madison Area Technical College — 2015",
+  "certifications": "Cisco Certified Network Professional Routing and Switching (CCNP-RS) — Issued 2016, expired 2022\nJuniper Networks Certified Internet Professional Service Provider (JNCIP-SP) — Issued 2019, expired 2022 — Completed prerequisites and sat for JNCIE-SP",
+  "experiences": [
+    {
+      "id": "charter-bresnan-extreme-2015",
+      "company": "Charter Communications (Legacy Bresnan ISP)",
+      "title": "Network Specialist I",
+      "location": "Madison, WI",
+      "start": "May 2015",
+      "end": "Jul 2017",
+      "summary": "Special assignment supporting the Legacy Bresnan ISP footprint running Extreme Networks switching; executed site redesign and hardware refresh with EXOS-based stacks.",
+      "bullets": [
+        "Hands-on with Extreme Networks switching (EXOS): configured VLAN segmentation, stacking, and LACP uplinks; validated OSPF/BGP adjacencies where applicable.",
+        "Planned and executed site modernization and hardware refresh across multiple locations: code upgrades, port mapping, standardized templates, and change windows with rollback.",
+        "Wrote migration runbooks and pre-/post-change validation checklists (interface health, MAC/ARP tables, routing neighbors, syslog/alarms).",
+        "Automated Visio diagram generation with Python to accelerate documentation; mentored field techs on RFC 2544 testing and cutover readiness."
+      ]
+    },
+    {
+      "id": "google-fiber-qa-2024",
+      "company": "Google Fiber Lab",
+      "title": "QA Automation Software Engineer (Networking)",
+      "location": "Austin, TX (Remote)",
+      "start": "Jan 2024",
+      "end": "Oct 2024",
+      "summary": "Contract via Insight Global. Built PyATS-based validation and Python tooling for FTTH lab networks (Juniper/Nokia), producing reusable pre-flight checks and regression suites.",
+      "bullets": [
+        "Developed PyATS automation and Python tools (ixnetwork_restpy, Netmiko, Paramiko) for lab certification and change safety.",
+        "Established GitHub workflows with PR reviews and Jira branching; delivered demos translating test results to go/no-go decisions."
+      ]
+    },
+    {
+      "id": "amazon-network-engineer-2022",
+      "company": "Amazon Web Services",
+      "title": "Network Engineer III",
+      "location": "Cupertino, CA (Remote)",
+      "start": "Nov 2022",
+      "end": "Apr 2023",
+      "summary": "Automation-first network engineering for hyperscale datacenter turn-ups (via Apex Systems).",
+      "bullets": [
+        "Published configuration data to AWS version-control repos; scripted Linux host and Juniper TOR provisioning.",
+        "Diagnosed routing/optical issues applying BGP/OSPF and DWDM/SONET fundamentals."
+      ]
+    },
+    {
+      "id": "arm-network-admin-2022",
+      "company": "Arm",
+      "title": "Network Administrator",
+      "location": "Austin, TX (Hybrid)",
+      "start": "Jun 2022",
+      "end": "Nov 2022",
+      "summary": "Maintained global infrastructure; stood up internal Cisco ACI lab and documentation (via Hays).",
+      "bullets": [
+        "Racked/stacked ACI lab; earned 40 Cisco CE credits; maintained monitoring and config hygiene.",
+        "Collaborated in a follow-the-sun model to minimize downtime."
+      ]
+    },
+    {
+      "id": "hpe-senior-network-engineer-2020",
+      "company": "Hewlett Packard Enterprise",
+      "title": "Senior Network Engineer",
+      "location": "United States (Remote)",
+      "start": "Jun 2020",
+      "end": "May 2022",
+      "summary": "Modernized supercomputer management networks (via Mainz Brady Group) with design, automation, and temporary overlays under supply constraints.",
+      "bullets": [
+        "Redesigned topologies to remove STP loops; advocated Clos designs; standardized configs in Git.",
+        "Authored Python generators to produce device configs from spreadsheets across multiple system families."
+      ]
+    },
+    {
+      "id": "spectrum-network-developer-2019",
+      "company": "Spectrum Enterprise",
+      "title": "Network Developer II",
+      "location": "Austin, TX",
+      "start": "Aug 2019",
+      "end": "Jun 2020",
+      "summary": "Delivered Blue Planet MDSO automation and CI/CD pipelines for zero-touch service workflows.",
+      "bullets": [
+        "Added Cisco ASR 9000 automation and Python telemetry to reduce troubleshooting time.",
+        "Aligned agile ceremonies across software/network teams to accelerate delivery."
+      ]
+    },
+    {
+      "id": "spectrum-network-engineer-2017",
+      "company": "Spectrum Enterprise",
+      "title": "Network Engineer II",
+      "location": "Austin, TX",
+      "start": "Jul 2017",
+      "end": "Aug 2019",
+      "summary": "Planned and deployed MEF services; hardened access controls and mentored engineers.",
+      "bullets": [
+        "Hardened Cisco ACS command restrictions, preventing trunking outages; mentored 20 engineers on TACACS failover and packet analysis.",
+        "Co-developed JS config forms and Git workflows improving configuration accuracy."
+      ]
+    }
+  ],
+  "extras": "Projects — juggling_coach: Python video-analysis toolkit (Claude Shannon theorem) with CLI and demo.\nProjects — Austin Events Today: Web-scraping utility that reorders events chronologically.\nProjects — TechYes Public Learning Channel: ~1,000 videos on networking, Python, AI, and MBSR.\nCommunity — Mentor, Agile Learning Institute (2023-present); Juggler, Texas Juggling Society (2017-present).\nHonors — Charter Achievement Award (2018) for large-scale Python automation on ~25,000 CPE.\nMarket Fit — Focused on defensive cyber and resilient networks; comfortable translating EVPN-VXLAN patterns to Extreme campus fabric designs."
+}
+
