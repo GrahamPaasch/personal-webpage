@@ -30,7 +30,7 @@ Senior network engineer and automation specialist with 10 years building and sec
 
 ## Professional Experience
 
-### QA Automation Software Engineer (Networking) | Insight Global (Contract at Google Fiber Lab)
+### Google Fiber Lab — QA Automation Software Engineer (Networking) (via Insight Global)
 Austin, TX (Remote) | Jan 2024 - Oct 2024
 
 - Built PyATS-based automation that validates FTTH lab environments spanning Juniper MX/SRX, Nokia OLT/BNG, GPON, and XGSPON platforms.
@@ -38,21 +38,21 @@ Austin, TX (Remote) | Jan 2024 - Oct 2024
 - Established GitHub workflows with pull requests, branching policies, and Jira integration; coached peers on rebasing, merging, and code review hygiene.
 - Delivered recurring slide reviews and live demos via Google Meet, translating complex test results into actionable decisions.
 
-### Network Engineer III | Apex Systems (Contract at Amazon)
+### Amazon — Network Engineer III (via Apex Systems)
 Cupertino, CA (Remote) | Nov 2022 - Apr 2023
 
 - Gathered, validated, and published configuration data into AWS version-control repositories to support hyperscale datacenter turn-ups.
 - Configured Linux hosts and Juniper TOR switches using Python-driven automation aligned with DevOps practices.
 - Diagnosed routing and optical issues by applying expertise in BGP, OSPF, DWDM, and SONET to maintain availability targets.
 
-### Network Administrator | Hays (Contract at Arm)
+### Arm — Network Administrator (via Hays)
 Austin, TX (Hybrid) | Jun 2022 - Nov 2022
 
 - Racked, stacked, and configured an internal Cisco ACI lab while documenting the build and earning 40 Cisco continuing education credits.
 - Maintained monitoring, runbooks, and configuration hygiene across a follow-the-sun operations model.
 - Partnered with global peers to resolve incidents quickly and keep business-critical services stable.
 
-### Senior Network Engineer | Mainz Brady Group (Contract at Hewlett Packard Enterprise)
+### Hewlett Packard Enterprise — Senior Network Engineer (via Mainz Brady Group)
 United States (Remote) | Jun 2020 - May 2022
 
 - Supported management networks for legacy supercomputers, redesigning topologies to eliminate spanning-tree loops and proposing Clos architectures.
@@ -60,14 +60,14 @@ United States (Remote) | Jun 2020 - May 2022
 - Guided stakeholders through architecture choices, capacity planning, and resiliency strategies using Git, Bitbucket, and GitHub collaboration.
 - Engineered temporary resource-sharing overlays that kept R&D teams productive despite global supply constraints.
 
-### Network Developer II | Spectrum Enterprise
+### Spectrum Enterprise — Network Developer II
 Austin, TX | Aug 2019 - Jun 2020
 
 - Delivered CI/CD pipelines and automation for Blue Planet MDSO to enable zero-touch service lifecycle orchestration.
 - Added Cisco ASR 9000 automation features and Python-based telemetry collection to cut troubleshooting time.
 - Operated within a full agile cadence (sprints, standups, demos, retrospectives) to align network engineering and software delivery teams.
 
-### Network Engineer II | Spectrum Enterprise
+### Spectrum Enterprise — Network Engineer II
 Austin, TX | Jul 2017 - Aug 2019
 
 - Planned, designed, and deployed network infrastructure, leading complex configuration and troubleshooting efforts for Metro Ethernet Forum services.
@@ -75,7 +75,7 @@ Austin, TX | Jul 2017 - Aug 2019
 - Trained and mentored 20 engineers on advanced routing, TACACS failover, and packet analysis.
 - Co-developed JavaScript-based configuration forms and Git workflows that improved consistency across teams.
 
-### Network Specialist I | Charter Communications
+### Charter Communications — Network Specialist I
 Madison, WI | May 2015 - Jul 2017
 
 - Created Python automation to generate Visio diagrams and enable TACACS on CPE, reducing manual effort from hours to minutes.
