@@ -1,0 +1,117 @@
+{
+  "contact": {
+    "name": "Graham Paasch",
+    "location": "Austin, TX (Madison-first, remote OK)",
+    "email": "grahampaasch@gmail.com",
+    "phone": "608-620-4651",
+    "website": "https://www.grahampaasch.com"
+  },
+  "summary": "Senior network engineer and automation specialist with 10 years building and securing service-provider and enterprise networks. Blend Juniper and Cisco expertise with Python and Ansible pipelines that deliver pre-checks, canary releases, auto-rollback, and observability guardrails. Seeking defensive cyber roles where EVPN-VXLAN segmentation, NGFW/IPS, and infrastructure-as-code improve reliability, security, and mission resilience.",
+  "skills": "Service-provider networking: Juniper MX/SRX, Nokia OLT/BNG, GPON/XGSPON, DWDM, SONET\nCisco engineering: ACI underlay and overlay, Catalyst, Nexus, ASR 9000, IOS\nAutomation and tooling: Python (PyATS, Netmiko, Paramiko, ixnetwork_restpy), Git, CI/CD, REST/JSON/XML/YAML, basic Ansible\nRouting and switching: BGP, OSPF, MPLS, LDP, VXLAN/EVPN, HSRP/GLBP, PIMv2, IGMP\nSecurity and VPN: IPsec, RADIUS, TACACS+, NGFW/IPS lab exposure (Palo Alto, F5 BIG-IP)\nObservability and documentation: SolarWinds, SevOne, Splunk, automated Visio builds, standards authorship\nCloud fundamentals: Coursework and labs across AWS, Azure, and GCP networking",
+  "education": "Associate of Applied Science, Information Technology (Network Specialist) — Madison Area Technical College — 2015",
+  "certifications": "Cisco Certified Network Professional Routing and Switching (CCNP-RS) — Issued 2016, expired 2022\nJuniper Networks Certified Internet Professional Service Provider (JNCIP-SP) — Issued 2019, expired 2022 — Completed prerequisites and sat for JNCIE-SP",
+  "experiences": [
+    {
+      "id": "google-fiber-qa-2024",
+      "company": "Google Fiber Lab",
+      "title": "QA Automation Software Engineer (Networking)",
+      "location": "Austin, TX (Remote)",
+      "start": "Jan 2024",
+      "end": "Oct 2024",
+      "summary": "Contracted via Insight Global to harden Google Fiber lab networks with PyATS-driven validation and Python automation.",
+      "bullets": [
+        "Built PyATS-based automation that validates FTTH lab environments spanning Juniper MX/SRX, Nokia OLT/BNG, GPON, and XGSPON platforms.",
+        "Developed Python tooling using ixnetwork_restpy, Polatis SCPI, Netmiko, Paramiko, XML, JSON, and YAML to drive pre-flight checks and regression suites.",
+        "Established GitHub workflows with pull requests, branching policies, and Jira integration; coached peers on rebasing, merging, and code review hygiene.",
+        "Delivered recurring slide reviews and live demos via Google Meet, translating complex lab results into actionable decisions."
+      ]
+    },
+    {
+      "id": "amazon-network-engineer-2022",
+      "company": "Amazon Web Services",
+      "title": "Network Engineer III",
+      "location": "Cupertino, CA (Remote)",
+      "start": "Nov 2022",
+      "end": "Apr 2023",
+      "summary": "Supported AWS datacenter turn-ups through automation-first network engineering while contracted via Apex Systems.",
+      "bullets": [
+        "Gathered, validated, and published configuration data into AWS version-control repositories to support hyperscale datacenter turn-ups.",
+        "Configured Linux hosts and Juniper TOR switches using Python-driven automation aligned with DevOps practices.",
+        "Diagnosed routing and optical issues by applying expertise in BGP, OSPF, DWDM, and SONET to maintain availability targets."
+      ]
+    },
+    {
+      "id": "arm-network-admin-2022",
+      "company": "Arm",
+      "title": "Network Administrator",
+      "location": "Austin, TX (Hybrid)",
+      "start": "Jun 2022",
+      "end": "Nov 2022",
+      "summary": "Contracted via Hays to maintain Arm's global network operations and stand up internal Cisco ACI lab infrastructure.",
+      "bullets": [
+        "Racked, stacked, and configured an internal Cisco ACI lab while documenting the build and earning 40 Cisco continuing education credits.",
+        "Maintained monitoring, runbooks, and configuration hygiene across a follow-the-sun operations model.",
+        "Partnered with global peers to resolve incidents quickly and keep business-critical services stable."
+      ]
+    },
+    {
+      "id": "hpe-senior-network-engineer-2020",
+      "company": "Hewlett Packard Enterprise",
+      "title": "Senior Network Engineer",
+      "location": "United States (Remote)",
+      "start": "Jun 2020",
+      "end": "May 2022",
+      "summary": "Contracted via Mainz Brady Group to modernize supercomputer management networks and ship automation at scale.",
+      "bullets": [
+        "Redesigned management network topologies to eliminate spanning-tree loops and advocated for Clos architectures supporting Cray Shasta systems.",
+        "Authored Python tooling to generate configurations from spreadsheets, reducing deployment effort across multiple supercomputer families.",
+        "Guided stakeholders through architecture choices, capacity planning, and resiliency strategies using Git, Bitbucket, and GitHub collaboration.",
+        "Engineered temporary resource-sharing overlays that kept R&D teams productive despite global supply constraints."
+      ]
+    },
+    {
+      "id": "spectrum-network-developer-2019",
+      "company": "Spectrum Enterprise",
+      "title": "Network Developer II",
+      "location": "Austin, TX",
+      "start": "Aug 2019",
+      "end": "Jun 2020",
+      "summary": "Delivered automation for Blue Planet MDSO and bridged agile software practices with network engineering teams.",
+      "bullets": [
+        "Built CI/CD pipelines and automation for Blue Planet MDSO to enable zero-touch service lifecycle orchestration.",
+        "Added Cisco ASR 9000 automation features and Python-based telemetry collection to cut troubleshooting time.",
+        "Operated within full agile cadences, aligning sprints, standups, demos, and retrospectives between engineering groups."
+      ]
+    },
+    {
+      "id": "spectrum-network-engineer-2017",
+      "company": "Spectrum Enterprise",
+      "title": "Network Engineer II",
+      "location": "Austin, TX",
+      "start": "Jul 2017",
+      "end": "Aug 2019",
+      "summary": "Led infrastructure planning and training for Metro Ethernet Forum services across Spectrum Enterprise.",
+      "bullets": [
+        "Planned, designed, and deployed network infrastructure while leading troubleshooting for complex Metro Ethernet services.",
+        "Hardened Cisco ACS command restrictions, preventing outages tied to switchport trunk misconfigurations.",
+        "Trained and mentored 20 engineers on advanced routing, TACACS failover, and packet analysis.",
+        "Co-developed JavaScript-based configuration forms and Git workflows that improved configuration accuracy."
+      ]
+    },
+    {
+      "id": "charter-network-specialist-2015",
+      "company": "Charter Communications",
+      "title": "Network Specialist I",
+      "location": "Madison, WI",
+      "start": "May 2015",
+      "end": "Jul 2017",
+      "summary": "Automated documentation and recovery workflows for Charter's high-availability network infrastructure.",
+      "bullets": [
+        "Created Python automation to generate Visio diagrams and enable TACACS on CPE, reducing manual effort from hours to minutes.",
+        "Led field technicians through RFC 2544 testing, failover drills, and recovery of a core router supporting government networks.",
+        "Partnered with principal engineers on MP-BGP, MPLS, QoS, IS-IS, and OSPF initiatives, including provider-edge router turn-ups."
+      ]
+    }
+  ],
+  "extras": "Projects — juggling_coach: Python video-analysis toolkit that applies the Claude Shannon juggling theorem to deliver actionable feedback (CLI, demo video).\nProjects — Austin Events Today: Web-scraping utility that reorders local events chronologically; documented via educational YouTube content.\nProjects — TechYes Public Learning Channel: Produced nearly 1,000 videos on networking, Python, AI tooling, and mindfulness-based stress reduction.\nCommunity — Mentor, Agile Learning Institute (2023-present): Provide pro bono coaching for underrepresented software engineers.\nCommunity — Juggler, Texas Juggling Society (2017-present): Perform at community events to fund a free and open juggling collective in Austin, TX.\nHonors — Charter Achievement Award (2018): Recognized for Python automation that secured 25,000 CPE devices and prevented trunking outages.\nHonors — International Jugglers Association Numbers Medals: Multiple awards for 10-club passing performances.\nMarket Fit — Defensive cybersecurity and network automation engineer focused on EVPN-VXLAN, NGFW/IPS, IaC, and STIG-aligned automation for contested environments."
+}
