@@ -248,6 +248,7 @@ label {
 
 input,
 textarea {
+  width: 100%;
   background: #10131b;
   border: 1px solid var(--border);
   border-radius: 10px;
