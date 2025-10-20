@@ -18,6 +18,7 @@ export default function HomePage() {
           <Link className="button primary" href="/writings">Read my writings</Link>
           <Link className="button" href="/hobbies">Explore hobbies</Link>
           <Link className="button" href="/professional">Professional profile</Link>
+          <Link className="button" href="/prompt-pack">Prompt Studio</Link>
           <Link className="button" href="/agent">Chat with my Agent</Link>
         </div>
       </div>

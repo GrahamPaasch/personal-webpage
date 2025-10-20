@@ -81,6 +81,7 @@ export default function RootLayout({ children }: any) {
               <Link href="/professional">Professional</Link>
               <Link href="/resume-tool">Resume Tool</Link>
               <Link href="/career-vision">Career Vision</Link>
+              <Link href="/prompt-pack">Prompt Studio</Link>
               <Link href="/agent">Chat</Link>
             </nav>
           </div>
