@@ -103,14 +103,18 @@ async function generateReply(prompt: string): Promise<string> {
     .filter(Boolean);
   const system = AGENT_PROFILE;
   const ctx = await searchSiteContext(prompt, { k: 3, perExcerptChars: 700 });
-
-  const baseUser = `${ctx.text ? ctx.text + '\n\n' : ''}User: ${prompt}`;
+  const context = ctx.context ? `${ctx.context}\n\n` : '';
+  const baseUser = `${context}User: ${prompt}`;
 
   // If no keys configured, provide a deterministic helpful reply
   if (![geminiKey, groqKey, cerebrasKey, cfToken && cfAccount, openrouterKey, openaiKey].some(Boolean)) {
-    return (
-      `Hi! I’m Graham’s A2A agent. I can help with:\n- Writings: /writings\n- Hobbies: /hobbies (circus, viola, marimba)\n- Professional: /professional\nYou can also find Graham on LinkedIn, GitHub, Hugging Face, and YouTube—see the homepage for links.`
-    );
+    const baseLinks = [
+      'Read writings → /writings',
+      'Explore hobbies → /hobbies',
+      'Professional profile → /professional',
+    ];
+    const fallbackSources = ctx.display ? `\n\nSources:\n${ctx.display}` : '';
+    return `Hi! I’m Graham’s A2A agent. I can point you to Graham’s writing, hobbies, and professional work.\n\nUseful links:\n${baseLinks.map((link) => `- ${link}`).join('\n')}${fallbackSources}`;
   }
 
   const requestStart = Date.now();
@@ -123,7 +127,7 @@ async function generateReply(prompt: string): Promise<string> {
     try {
       if (p === 'GEMINI' && geminiKey) {
         const text = await callGemini(geminiKey, system, baseUser);
-        if (text && text.trim()) { console.log(`[a2a] answered_by=GEMINI dur_ms=${Date.now() - requestStart}`); return finalize(text, ctx.text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=GEMINI dur_ms=${Date.now() - requestStart}`); return finalize(text); }
       }
       if (p === 'GROQ' && groqKey) {
         const text = await callOpenAICompat(
@@ -132,7 +136,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=GROQ dur_ms=${Date.now() - requestStart}`); return finalize(text, ctx.text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=GROQ dur_ms=${Date.now() - requestStart}`); return finalize(text); }
       }
       if (p === 'CEREBRAS' && cerebrasKey) {
         const text = await callOpenAICompat(
@@ -141,7 +145,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.CEREBRAS_MODEL || 'llama-3.1-70b-instruct',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=CEREBRAS dur_ms=${Date.now() - requestStart}`); return finalize(text, ctx.text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=CEREBRAS dur_ms=${Date.now() - requestStart}`); return finalize(text); }
       }
       if (p === 'CLOUDFLARE' && cfToken && cfAccount) {
         const text = await callOpenAICompat(
@@ -150,7 +154,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.CF_MODEL || '@cf/meta/llama-3.1-8b-instruct-fp8',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=CLOUDFLARE dur_ms=${Date.now() - requestStart}`); return finalize(text, ctx.text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=CLOUDFLARE dur_ms=${Date.now() - requestStart}`); return finalize(text); }
       }
       if (p === 'OPENROUTER' && openrouterKey) {
         const text = await callOpenAICompat(
@@ -163,7 +167,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=OPENROUTER dur_ms=${Date.now() - requestStart}`); return finalize(text, ctx.text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=OPENROUTER dur_ms=${Date.now() - requestStart}`); return finalize(text); }
       }
       if (p === 'OPENAI' && openaiKey) {
         const text = await callOpenAICompat(
@@ -172,7 +176,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.OPENAI_MODEL || 'gpt-4o-mini',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=OPENAI dur_ms=${Date.now() - requestStart}`); return finalize(text, ctx.text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=OPENAI dur_ms=${Date.now() - requestStart}`); return finalize(text); }
       }
     } catch {
       // continue to next provider
@@ -182,8 +186,8 @@ async function generateReply(prompt: string): Promise<string> {
   console.warn(`[a2a] providers_exhausted dur_ms=${Date.now() - requestStart}`);
   return 'Sorry, I could not produce a response.';
 
-  function finalize(text: string, sources?: string | null): string {
-    if (sources) return `${text.trim()}\n\n${sources}`;
+  function finalize(text: string): string {
+    if (ctx.display) return `${text.trim()}\n\nSources:\n${ctx.display}`;
     return text.trim();
   }
 }

@@ -32,8 +32,39 @@ export async function searchSiteContext(query: string, opts: Options = {}) {
   }
   // take top-k
   const picked = items.slice(0, k);
-  const lines = picked.map((it, i) => `[${i + 1}] ${it.title} (/writings/${it.slug})\n${it.excerpt}`);
-  const text = picked.length ? `Sources:\n\n${lines.join('\n\n')}` : '';
-  return { items: picked, text };
+  const contextBlocks = picked.map((it, i) => {
+    const sanitized = sanitizeExcerpt(it.excerpt);
+    return [
+      `SOURCE_${i + 1}`,
+      `Title: ${it.title}`,
+      `URL: /writings/${it.slug}`,
+      sanitized ? `Excerpt: ${sanitized}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  });
+  const context = contextBlocks.join('\n\n');
+  const displayLines = picked.map((it, i) => {
+    const snippet = truncateForDisplay(it.excerpt);
+    const suffix = snippet ? ` — ${snippet}` : '';
+    return `[${i + 1}] ${it.title} (/writings/${it.slug})${suffix}`;
+  });
+  const display = displayLines.length ? displayLines.join('\n') : '';
+  return { items: picked, context, display };
 }
 
+function sanitizeExcerpt(raw: string) {
+  return raw
+    .replace(/^---[\s\S]*?---/g, '')
+    .replace(/^#+\s+/gm, '')
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function truncateForDisplay(raw: string, limit = 140) {
+  const clean = sanitizeExcerpt(raw);
+  if (!clean) return '';
+  if (clean.length <= limit) return clean;
+  return `${clean.slice(0, limit - 1).trim()}…`;
+}
