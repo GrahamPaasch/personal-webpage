@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import A2AChat from '@/app/components/A2AChat';
 
 export const metadata = {
@@ -20,7 +21,13 @@ export default function AgentPage() {
             </p>
           </div>
           <div className="agent-avatar">
-            <img src="/images/agent-avatar.svg" alt="Graham’s Agent avatar" width={120} height={120} />
+            <Image
+              src="/images/agent-avatar.svg"
+              alt="Graham’s Agent avatar"
+              width={120}
+              height={120}
+              priority
+            />
           </div>
         </div>
         <script

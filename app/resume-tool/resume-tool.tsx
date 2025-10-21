@@ -149,15 +149,7 @@ export default function ResumeTool() {
     }
 
     return lines.join('\n').trim();
-  }, [
-    certificationList,
-    data.contact,
-    data.experiences,
-    data.summary,
-    educationList,
-    extrasList,
-    skillsList,
-  ]);
+  }, [certificationList, data, educationList, extrasList, skillsList]);
 
   const markdown = useMemo(() => {
     const lines: string[] = [];
@@ -213,15 +205,7 @@ export default function ResumeTool() {
     }
 
     return lines.join('\n').trim();
-  }, [
-    certificationList,
-    data.contact,
-    data.experiences,
-    data.summary,
-    educationList,
-    extrasList,
-    skillsList,
-  ]);
+  }, [certificationList, data, educationList, extrasList, skillsList]);
 
   const json = useMemo(() => JSON.stringify(data, null, 2), [data]);
 

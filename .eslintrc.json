@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/eslintrc",
+  "root": true,
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "rules": {
+    "@next/next/no-img-element": "error",
+    "react/no-unescaped-entities": "off",
+    "react/jsx-first-prop-new-line": [
+      "error",
+      "multiline-multiprop"
+    ],
+    "react/jsx-max-props-per-line": [
+      "error",
+      { "when": "multiline" }
+    ]
+  }
+}
