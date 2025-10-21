@@ -10,11 +10,11 @@ export default function WritingsIndex() {
   const posts = listPosts();
   return (
     <section className="grid">
-      <div className="card">
+      <div className="card" data-voice="human">
         <h1>Writings</h1>
         <p className="muted">Essays, notes, and reflections by Graham Paasch.</p>
       </div>
-      <div className="card">
+      <div className="card" data-voice="human">
         {posts.length === 0 ? (
           <p className="muted">No posts yet. Add markdown files to <code>content/writings</code>.</p>
         ) : (

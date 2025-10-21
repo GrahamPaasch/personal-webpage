@@ -10,7 +10,7 @@ export default function VersionPage() {
 
   return (
     <section className="grid">
-      <div className="card">
+      <div className="card" data-voice="unified">
         <h1>Deployed Version</h1>
         <p className="muted">Screenshot this page to confirm the live build.</p>
         <div className="post-list">
@@ -22,4 +22,3 @@ export default function VersionPage() {
     </section>
   );
 }
-

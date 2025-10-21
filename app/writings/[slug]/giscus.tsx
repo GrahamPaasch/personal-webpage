@@ -28,13 +28,17 @@ const GISCUS_ENABLED = Boolean(
   !/yourusername\/yourrepo/i.test(GISCUS_ENV.repo)
 );
 
+const FEEDBACK_REPO = process.env.NEXT_PUBLIC_FEEDBACK_REPO || '';
+
 type Props = { title?: string; slug?: string };
 
 export default function Giscus({ title, slug }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!GISCUS_ENABLED || !ref.current) return;
+    if (!GISCUS_ENABLED) return;
+    const container = ref.current;
+    if (!container) return;
     const s = document.createElement('script');
     s.src = 'https://giscus.app/client.js';
     s.async = true;
@@ -49,31 +53,34 @@ export default function Giscus({ title, slug }: Props) {
     s.setAttribute('data-input-position', GISCUS_STATIC.inputPosition);
     s.setAttribute('data-theme', GISCUS_STATIC.theme);
     s.setAttribute('data-lang', GISCUS_STATIC.lang);
-    ref.current.appendChild(s);
+    container.appendChild(s);
     return () => {
-      if (ref.current) ref.current.innerHTML = '';
+      container.innerHTML = '';
     };
   }, []);
+
+  const fallbackHref = useMemo(() => {
+    if (!GISCUS_ENABLED || !FEEDBACK_REPO) return '';
+    const repoUrl = `https://github.com/${FEEDBACK_REPO}`;
+    const t = encodeURIComponent(`Comment: ${title ?? 'Post'}`);
+    const b = encodeURIComponent(
+      `Post: /writings/${slug ?? ''}\n\nLeave your comment below.`
+    );
+    return `${repoUrl}/issues/new?title=${t}&body=${b}&labels=comment,blog`;
+  }, [slug, title]);
 
   // Fallback: if not configured, show a lightweight link to open
   // a GitHub issue for discussion. This works without installing apps.
   if (!GISCUS_ENABLED) {
-    const issuesRepo = process.env.NEXT_PUBLIC_FEEDBACK_REPO || '';
-    const repoUrl = issuesRepo ? `https://github.com/${issuesRepo}` : '';
-    const href = useMemo(() => {
-      if (!issuesRepo) return '';
-      const t = encodeURIComponent(`Comment: ${title ?? 'Post'}`);
-      const b = encodeURIComponent(
-        `Post: /writings/${slug ?? ''}\n\nLeave your comment below.`
-      );
-      return `${repoUrl}/issues/new?title=${t}&body=${b}&labels=comment,blog`;
-    }, [issuesRepo, repoUrl, title, slug]);
-
-    if (!issuesRepo) return null;
+    if (!FEEDBACK_REPO) return null;
 
     return (
       <div className="muted" style={{ marginTop: 24 }}>
-        Want to comment? <a href={href} target="_blank" rel="noreferrer noopener">Open a GitHub issue</a>.
+        Want to comment?{' '}
+        <a href={fallbackHref} target="_blank" rel="noreferrer noopener">
+          Open a GitHub issue
+        </a>
+        .
       </div>
     );
   }
