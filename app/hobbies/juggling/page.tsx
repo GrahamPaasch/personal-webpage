@@ -5,7 +5,7 @@ export const metadata = {
 
 export default function JugglingPage() {
   return (
-    <article className="card prose" data-voice="human">
+    <article className="card prose">
       <h1>Juggling</h1>
       <p>
         I’m a core member of the Texas Juggling Society—our practices at{' '}

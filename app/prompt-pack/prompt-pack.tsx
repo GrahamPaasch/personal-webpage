@@ -213,7 +213,7 @@ export default function PromptPackTool() {
         : `Fill ${missingCount} placeholders to personalize the prompt.`;
 
   return (
-    <div className="card prompt-card" data-voice="ai">
+    <div className="card prompt-card">
       <header className="prompt-header">
         <div>
           <h1>Work Prompt Studio</h1>

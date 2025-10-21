@@ -5,7 +5,7 @@ export const metadata = {
 
 export default function ShonaMusicPage() {
   return (
-    <article className="card prose" data-voice="human">
+    <article className="card prose">
       <h1>Traditional Shona Zimbabwean Music</h1>
       <p>
         I’m a core member of Mafaro Marimba of the Rattletree School of Music. The interlocking

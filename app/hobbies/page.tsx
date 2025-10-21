@@ -8,12 +8,12 @@ export const metadata = {
 export default function HobbiesPage() {
   return (
     <section className="grid">
-      <div className="card" data-voice="human">
+      <div className="card">
         <h1>Hobbies</h1>
         <p className="muted">Things I show up for every week.</p>
       </div>
 
-      <div className="card half" data-voice="human">
+      <div className="card half">
         <h2>Juggling</h2>
         <p>
           I am a core member of the Texas Juggling Society, and I love the
@@ -22,7 +22,7 @@ export default function HobbiesPage() {
         <Link className="button" href="/hobbies/juggling">Learn more</Link>
       </div>
 
-      <div className="card half" data-voice="human">
+      <div className="card half">
         <h2>Viola</h2>
         <p>
           I play viola as a core member of the Central Texas Medical Orchestra.
@@ -31,7 +31,7 @@ export default function HobbiesPage() {
         <Link className="button" href="/hobbies/viola">Learn more</Link>
       </div>
 
-      <div className="card" data-voice="human">
+      <div className="card">
         <h2>Traditional Shona Zimbabwean Music</h2>
         <p>
           I’m a core member of Mafaro Marimba at the Rattletree School of Music.
@@ -40,7 +40,7 @@ export default function HobbiesPage() {
         <Link className="button" href="/hobbies/shona-music">Learn more</Link>
       </div>
 
-      <div className="card" data-voice="human">
+      <div className="card">
         <h2>Community & Wellbeing</h2>
         <p>
           Circus arts and collective spaces transformed my relationship with focus and mental

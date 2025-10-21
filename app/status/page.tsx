@@ -7,7 +7,7 @@ export default function StatusPage() {
   const deployedAt = new Date().toISOString();
 
   return (
-    <div className="card" data-voice="unified">
+    <div className="card">
       <h1>Deployment Status</h1>
       <ul className="muted" style={{ listStyle: 'none', padding: 0, lineHeight: 1.8 }}>
         <li><strong>Env:</strong> {env}</li>
@@ -19,3 +19,4 @@ export default function StatusPage() {
     </div>
   );
 }
+

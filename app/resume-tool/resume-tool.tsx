@@ -151,7 +151,9 @@ export default function ResumeTool() {
     return lines.join('\n').trim();
   }, [
     certificationList,
-    data,
+    data.contact,
+    data.experiences,
+    data.summary,
     educationList,
     extrasList,
     skillsList,
@@ -213,7 +215,9 @@ export default function ResumeTool() {
     return lines.join('\n').trim();
   }, [
     certificationList,
-    data,
+    data.contact,
+    data.experiences,
+    data.summary,
     educationList,
     extrasList,
     skillsList,
@@ -371,7 +375,7 @@ export default function ResumeTool() {
 
   return (
     <div className="resume-tool">
-      <div className="card" data-voice="unified">
+      <div className="card">
         <h1>Resume Field Kit</h1>
         <p>
           A free, ATS-friendly resume builder that keeps your content in structured text
@@ -397,7 +401,7 @@ export default function ResumeTool() {
       </div>
 
       <div className="resume-tool-grid">
-        <section className="card resume-panel" data-voice="unified">
+        <section className="card resume-panel">
           <h2>Authoring</h2>
           <p className="muted">
             Fill out each section below. Every change updates the previews instantly. Use
@@ -665,7 +669,7 @@ export default function ResumeTool() {
           </form>
         </section>
 
-        <section className="card resume-panel" data-voice="ai">
+        <section className="card resume-panel">
           <h2>Outputs</h2>
           <p className="muted">
             Copy the preview that fits your workflow. Plain text is the safest for ATS,

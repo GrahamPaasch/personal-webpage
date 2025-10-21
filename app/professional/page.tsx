@@ -6,7 +6,7 @@ export const metadata = {
 export default function ProfessionalPage() {
   return (
     <section className="grid">
-      <article className="card" data-voice="human">
+      <article className="card">
         <h1>Professional</h1>
         <p>
           I have more than a decade of experience blending network engineering with Python
@@ -31,7 +31,7 @@ export default function ProfessionalPage() {
         </p>
       </article>
 
-      <article className="card half" data-voice="unified">
+      <article className="card half">
         <h2>Active certifications</h2>
         <ul className="muted" style={{ lineHeight: 1.6 }}>
           <li>
@@ -107,7 +107,7 @@ export default function ProfessionalPage() {
         </ul>
       </article>
 
-      <article className="card half" data-voice="human">
+      <article className="card half">
         <h2>Legacy & deep expertise</h2>
         <p className="muted" style={{ marginBottom: 8 }}>
           These certifications have expired, but the study, labs, and production experience behind
@@ -177,7 +177,7 @@ export default function ProfessionalPage() {
         </ul>
       </article>
 
-      <article className="card half" data-voice="unified">
+      <article className="card half">
         <h2>Focus areas</h2>
         <p>
           Network automation, infrastructure-as-code, observability, API design, and Python tooling
@@ -186,7 +186,7 @@ export default function ProfessionalPage() {
         </p>
       </article>
 
-      <article className="card half" data-voice="unified">
+      <article className="card half">
         <h2>Find me online</h2>
         <ul>
           <li>

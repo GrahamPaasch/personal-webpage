@@ -8,7 +8,7 @@ export const metadata = {
 export default function HomePage() {
   return (
     <section className="grid">
-      <div className="card" data-voice="human">
+      <div className="card">
         <h1>Hi, I’m Graham Paasch.</h1>
         <p>
           I blend a decade of network engineering with Python development, and I
@@ -23,7 +23,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="card half" data-voice="human">
+      <div className="card half">
         <h2>Hobbies</h2>
         <p className="muted">Juggling, viola, and Shona Zimbabwean marimba music.</p>
         <div className="cta-row">
@@ -33,13 +33,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="card half" data-voice="human">
+      <div className="card half">
         <h2>Writings</h2>
         <p className="muted">Essays and thoughts written by me, Graham Paasch.</p>
         <Link className="button" href="/writings">Browse posts</Link>
       </div>
 
-      <div className="card" data-voice="unified">
+      <div className="card">
         <h2>Professional</h2>
         <p>
           10 years blending network engineering with Python development. Earned
@@ -49,7 +49,7 @@ export default function HomePage() {
         <Link className="button" href="/professional">View profile</Link>
       </div>
 
-      <div className="card half" data-voice="unified">
+      <div className="card half">
         <h2>Around the web</h2>
         <ul className="muted">
           <li>
@@ -88,7 +88,7 @@ export default function HomePage() {
         </ul>
       </div>
 
-      <div className="card half" data-voice="human">
+      <div className="card half">
         <h2>Supportive communities</h2>
         <p className="muted">
           Juggling, circus arts, and other collective practice spaces help me stay grounded. They’re

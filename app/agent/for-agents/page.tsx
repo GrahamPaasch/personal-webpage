@@ -11,7 +11,7 @@ export default function ForAgentsPage() {
   const healthUrl = `${base}/api/health`;
   return (
     <section className="grid">
-      <div className="card" data-voice="ai">
+      <div className="card">
         <h1>Integrate with Graham’s Agent</h1>
         <p className="muted">This agent speaks the open Agent2Agent (A2A) protocol over JSON‑RPC with SSE streaming.</p>
 
@@ -58,3 +58,4 @@ curl -s ${rpcUrl} \
     </section>
   );
 }
+
