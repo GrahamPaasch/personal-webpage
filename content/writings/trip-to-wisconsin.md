@@ -2,7 +2,7 @@ a retrospective of my trip to wisconsin
 
 The best time to visit Wisconsin is early fall, right when the trees start to change colors, and
 that's exactly what I did. My trip began Sunday September 28th 2025, and will hopefully gracefully end
-tomorrow, Wednesday October 21st 2025.
+tomorrow, Wednesday October 22nd 2025.
 
 Week by week, the trees changed colors. Things were mostly green when I arrived, and all kinds of
 brilliant colors when I left. There were a number of key highlights of the trip:
