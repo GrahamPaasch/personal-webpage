@@ -126,3 +126,8 @@ export async function addComment(
   );
   return { id, page, author, body, createdAt };
 }
+
+export async function deleteComment(id: string): Promise<void> {
+  await ready;
+  await pool.query('DELETE FROM comments WHERE id = $1', [id]);
+}

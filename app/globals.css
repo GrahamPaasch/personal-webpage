@@ -406,6 +406,28 @@ select:focus {
   gap: 16px;
 }
 
+.comment-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.comment-moderate-toggle {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(30, 41, 59, 0.6);
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.comment-moderate-toggle:hover {
+  color: var(--text);
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
 .comment-form {
   display: grid;
   gap: 12px;
@@ -442,6 +464,22 @@ select:focus {
 
 .comment p {
   margin: 0;
+}
+
+.comment-remove {
+  align-self: flex-end;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.3);
+  color: #fecaca;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.comment-remove:hover {
+  border-color: rgba(248, 113, 113, 0.6);
+  background: rgba(127, 29, 29, 0.45);
 }
 
 .comment-error {

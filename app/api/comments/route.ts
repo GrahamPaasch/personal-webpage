@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addComment, listComments } from '@/lib/storage';
+import { addComment, deleteComment, listComments } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 
@@ -36,4 +36,23 @@ export async function POST(request: NextRequest) {
 
   const saved = await addComment(page, body, author || null);
   return NextResponse.json(saved, { status: 201 });
+}
+
+export async function DELETE(request: NextRequest) {
+  const secret = process.env.COMMENTS_MOD_KEY;
+  if (!secret) {
+    return NextResponse.json({ error: 'Moderation key not configured' }, { status: 500 });
+  }
+
+  const data = await request.json().catch(() => null);
+  if (!data || typeof data.id !== 'string' || typeof data.key !== 'string') {
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  }
+
+  if (data.key !== secret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  await deleteComment(data.id);
+  return NextResponse.json({ ok: true });
 }

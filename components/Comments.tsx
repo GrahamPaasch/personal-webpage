@@ -20,6 +20,8 @@ export default function Comments({ pageId }: Props) {
   const [body, setBody] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [moderationMode, setModerationMode] = useState(false);
+  const [moderationKey, setModerationKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,9 +71,51 @@ export default function Comments({ pageId }: Props) {
     }
   }
 
+  async function ensureModerationKey(): Promise<string | null> {
+    if (moderationKey) return moderationKey;
+    const input = window.prompt('Enter the moderation key');
+    if (!input) return null;
+    setModerationKey(input);
+    return input;
+  }
+
+  async function handleDelete(id: string) {
+    setError(null);
+    const key = await ensureModerationKey();
+    if (!key) return;
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, key }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to remove comment');
+      }
+      setComments((prev) => prev.filter((item) => item.id !== id));
+      setSuccess('Comment removed.');
+    } catch (err: any) {
+      setError(err?.message || 'Could not remove comment.');
+      // Reset key if unauthorized so we prompt again next time
+      if (err?.message?.toLowerCase().includes('unauthorized')) {
+        setModerationKey(null);
+      }
+    }
+  }
+
   return (
     <section className="comment-section">
-      <h2>Leave a Comment</h2>
+      <div className="comment-heading">
+        <h2>Leave a Comment</h2>
+        <button
+          type="button"
+          className="comment-moderate-toggle"
+          onClick={() => setModerationMode((prev) => !prev)}
+        >
+          {moderationMode ? 'Hide moderation' : 'Moderate' }
+        </button>
+      </div>
       <p className="muted" style={{ marginBottom: 12 }}>
         Share your thoughts. Name is optional; all comments are public.
       </p>
@@ -106,6 +150,15 @@ export default function Comments({ pageId }: Props) {
               <span>{new Date(comment.createdAt).toLocaleString()}</span>
             </header>
             <p>{comment.body}</p>
+            {moderationMode ? (
+              <button
+                type="button"
+                className="comment-remove"
+                onClick={() => handleDelete(comment.id)}
+              >
+                Remove
+              </button>
+            ) : null}
           </article>
         ))}
       </div>
