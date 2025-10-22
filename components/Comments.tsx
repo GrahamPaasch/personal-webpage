@@ -112,8 +112,10 @@ export default function Comments({ pageId }: Props) {
           type="button"
           className="comment-moderate-toggle"
           onClick={() => setModerationMode((prev) => !prev)}
+          aria-pressed={moderationMode}
+          title="Toggle moderation controls"
         >
-          {moderationMode ? 'Hide moderation' : 'Moderate' }
+          {moderationMode ? 'Hide moderation tools' : 'Moderate comments'}
         </button>
       </div>
       <p className="muted" style={{ marginBottom: 12 }}>
