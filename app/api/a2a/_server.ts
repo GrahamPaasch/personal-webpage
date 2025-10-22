@@ -115,6 +115,7 @@ async function generateReply(prompt: string): Promise<string> {
     .split(',')
     .map(s => s.trim().toUpperCase())
     .filter(Boolean);
+  const includeSources = (process.env.A2A_INCLUDE_SOURCES || '').toLowerCase() === 'true';
   const system = AGENT_PROFILE;
   const ctx = await searchSiteContext(prompt, { k: 3, perExcerptChars: 700 });
   const context = ctx.context ? `${ctx.context}\n\n` : '';
@@ -127,7 +128,7 @@ async function generateReply(prompt: string): Promise<string> {
       'Explore hobbies → /hobbies',
       'Professional profile → /professional',
     ];
-    const fallbackSources = ctx.display ? `\n\nSources:\n${ctx.display}` : '';
+    const fallbackSources = includeSources && ctx.display ? `\n\nSources:\n${ctx.display}` : '';
     return `Hi! I’m Graham’s A2A agent. I can point you to Graham’s writing, hobbies, and professional work.\n\nUseful links:\n${baseLinks.map((link) => `- ${link}`).join('\n')}${fallbackSources}`;
   }
 
@@ -201,8 +202,9 @@ async function generateReply(prompt: string): Promise<string> {
   return 'Sorry, I could not produce a response.';
 
   function finalize(text: string): string {
-    if (ctx.display) return `${text.trim()}\n\nSources:\n${ctx.display}`;
-    return text.trim();
+    const trimmed = text.trim();
+    if (includeSources && ctx.display) return `${trimmed}\n\nSources:\n${ctx.display}`;
+    return trimmed;
   }
 }
 
