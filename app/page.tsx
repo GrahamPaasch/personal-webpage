@@ -103,6 +103,14 @@ export default function HomePage() {
           </a>
         </div>
       </div>
+
+      <div className="card half">
+        <h2>Graffiti wall</h2>
+        <p className="muted">
+          Grab a virtual paint can and leave a tag on the site. It sticks until I wash the wall clean.
+        </p>
+        <Link className="button" href="/graffiti">Tag the wall</Link>
+      </div>
     </section>
   );
 }

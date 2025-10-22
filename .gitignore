@@ -9,3 +9,6 @@ out
 tmp/
 playwright-report/
 test-results/
+
+.env.log
+.env.local

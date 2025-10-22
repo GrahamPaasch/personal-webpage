@@ -49,6 +49,20 @@ function buildAgentCard(baseUrl: string): AgentCard {
           'How can I get in touch with you?'
         ],
       },
+      {
+        id: 'graffiti_tag',
+        name: 'Graffiti Tag',
+        description:
+          'Spray paint the public graffiti wall. POST JSON {color, size, points:[{x,y},...]} to /api/graffiti to add your tag. View the wall at /graffiti.',
+        tags: ['art', 'fun', 'graffiti'],
+        inputModes: ['text/plain'],
+        outputModes: ['text/plain'],
+        examples: [
+          'POST /api/graffiti {"color":"#ff3b81","size":14,"points":[{"x":120,"y":240},{"x":180,"y":210},{"x":220,"y":260}]}',
+          'GET /api/graffiti to fetch existing tags before adding your own',
+          'Visit https://www.grahampaasch.com/graffiti to see your spray in the wall UI.'
+        ],
+      },
     ],
     supportsAuthenticatedExtendedCard: false,
   };

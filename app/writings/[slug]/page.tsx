@@ -3,6 +3,7 @@ import { getPost, listPostSlugs } from '@/lib/posts';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 import Giscus from './giscus';
+import Comments from '@/components/Comments';
 
 type Props = { params: { slug: string } };
 
@@ -36,6 +37,7 @@ export default function PostPage({ params }: Props) {
       <h1>{post.meta.title}</h1>
       <div className="post-meta">{new Date(post.meta.date).toLocaleDateString()}</div>
       <div dangerouslySetInnerHTML={{ __html: html }} />
+      <Comments pageId={`/writings/${post.meta.slug}`} />
       <Giscus title={post.meta.title} slug={post.meta.slug} />
     </article>
   );

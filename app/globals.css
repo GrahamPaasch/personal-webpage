@@ -399,6 +399,131 @@ select:focus {
   margin-top: 12px;
 }
 
+.comment-section {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.comment-form {
+  display: grid;
+  gap: 12px;
+}
+
+.comment-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment {
+  border: 1px solid var(--border);
+  background: rgba(21, 24, 35, 0.8);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.comment p {
+  margin: 0;
+}
+
+.comment-error {
+  color: #fca5a5;
+  font-size: 0.9rem;
+}
+
+.comment-success {
+  color: #a7f3d0;
+  font-size: 0.9rem;
+}
+
+.graffiti-wrapper {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.graffiti-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.color-row {
+  display: flex;
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border 0.15s ease;
+}
+
+.color-swatch.active {
+  border-color: #fff;
+  transform: scale(1.05);
+}
+
+.size-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.graffiti-canvas {
+  position: relative;
+  width: 100%;
+  height: min(540px, 60vh);
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.graffiti-canvas canvas {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.graffiti-message {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.graffiti-status {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
 .rt-upload {
   position: relative;
   display: inline-flex;
