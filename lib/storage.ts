@@ -11,7 +11,17 @@ const sslOption = process.env.DATABASE_SSL === 'false'
   ? undefined
   : { rejectUnauthorized: false };
 
-const pool = new Pool({ connectionString, ssl: sslOption });
+const parsed = new URL(connectionString);
+const connectionConfig = {
+  host: parsed.hostname,
+  port: Number(parsed.port || '5432'),
+  user: decodeURIComponent(parsed.username),
+  password: decodeURIComponent(parsed.password),
+  database: parsed.pathname.replace(/^\//, ''),
+  ssl: sslOption,
+} as const;
+
+const pool = new Pool(connectionConfig);
 
 async function ensureSchema() {
   const client = await pool.connect();
