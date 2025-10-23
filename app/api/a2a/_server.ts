@@ -10,6 +10,7 @@ import {
 import { JsonRpcTransportHandler } from '@a2a-js/sdk/server';
 import { AGENT_NAME, AGENT_PROFILE } from '@/lib/agentProfile';
 import { searchSiteContext } from '@/lib/siteContext';
+import { logA2AAttempt } from '@/lib/a2aLogger';
 import type { TaskStatusUpdateEvent } from '@a2a-js/sdk';
 
 // Build Agent Card once
@@ -103,7 +104,9 @@ async function callOpenAICompat(baseUrl: string, headers: Record<string,string>,
 }
 
 // Minimal executor with RAG context; tries providers in order
-async function generateReply(prompt: string): Promise<string> {
+type GeneratedReply = { text: string; provider: string | null };
+
+async function generateReply(prompt: string): Promise<GeneratedReply> {
   const geminiKey = process.env.GOOGLE_API_KEY || '';
   const groqKey = process.env.GROQ_API_KEY || '';
   const cerebrasKey = process.env.CEREBRAS_API_KEY || '';
@@ -129,7 +132,8 @@ async function generateReply(prompt: string): Promise<string> {
       'Professional profile → /professional',
     ];
     const fallbackSources = includeSources && ctx.display ? `\n\nSources:\n${ctx.display}` : '';
-    return `Hi! I’m Graham’s A2A agent. I can point you to Graham’s writing, hobbies, and professional work.\n\nUseful links:\n${baseLinks.map((link) => `- ${link}`).join('\n')}${fallbackSources}`;
+    const text = `Hi! I’m Graham’s A2A agent. I can point you to Graham’s writing, hobbies, and professional work.\n\nUseful links:\n${baseLinks.map((link) => `- ${link}`).join('\n')}${fallbackSources}`;
+    return { text, provider: 'FALLBACK' };
   }
 
   const requestStart = Date.now();
@@ -142,7 +146,7 @@ async function generateReply(prompt: string): Promise<string> {
     try {
       if (p === 'GEMINI' && geminiKey) {
         const text = await callGemini(geminiKey, system, baseUser);
-        if (text && text.trim()) { console.log(`[a2a] answered_by=GEMINI dur_ms=${Date.now() - requestStart}`); return finalize(text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=GEMINI dur_ms=${Date.now() - requestStart}`); return finalize(text, 'GEMINI'); }
       }
       if (p === 'GROQ' && groqKey) {
         const text = await callOpenAICompat(
@@ -151,7 +155,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=GROQ dur_ms=${Date.now() - requestStart}`); return finalize(text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=GROQ dur_ms=${Date.now() - requestStart}`); return finalize(text, 'GROQ'); }
       }
       if (p === 'CEREBRAS' && cerebrasKey) {
         const text = await callOpenAICompat(
@@ -160,7 +164,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.CEREBRAS_MODEL || 'llama-3.1-70b-instruct',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=CEREBRAS dur_ms=${Date.now() - requestStart}`); return finalize(text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=CEREBRAS dur_ms=${Date.now() - requestStart}`); return finalize(text, 'CEREBRAS'); }
       }
       if (p === 'CLOUDFLARE' && cfToken && cfAccount) {
         const text = await callOpenAICompat(
@@ -169,7 +173,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.CF_MODEL || '@cf/meta/llama-3.1-8b-instruct-fp8',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=CLOUDFLARE dur_ms=${Date.now() - requestStart}`); return finalize(text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=CLOUDFLARE dur_ms=${Date.now() - requestStart}`); return finalize(text, 'CLOUDFLARE'); }
       }
       if (p === 'OPENROUTER' && openrouterKey) {
         const text = await callOpenAICompat(
@@ -182,7 +186,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=OPENROUTER dur_ms=${Date.now() - requestStart}`); return finalize(text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=OPENROUTER dur_ms=${Date.now() - requestStart}`); return finalize(text, 'OPENROUTER'); }
       }
       if (p === 'OPENAI' && openaiKey) {
         const text = await callOpenAICompat(
@@ -191,7 +195,7 @@ async function generateReply(prompt: string): Promise<string> {
           process.env.OPENAI_MODEL || 'gpt-4o-mini',
           messages
         );
-        if (text && text.trim()) { console.log(`[a2a] answered_by=OPENAI dur_ms=${Date.now() - requestStart}`); return finalize(text); }
+        if (text && text.trim()) { console.log(`[a2a] answered_by=OPENAI dur_ms=${Date.now() - requestStart}`); return finalize(text, 'OPENAI'); }
       }
     } catch {
       // continue to next provider
@@ -199,12 +203,17 @@ async function generateReply(prompt: string): Promise<string> {
   }
 
   console.warn(`[a2a] providers_exhausted dur_ms=${Date.now() - requestStart}`);
-  return 'Sorry, I could not produce a response.';
+  return { text: 'Sorry, I could not produce a response.', provider: null };
 
-  function finalize(text: string): string {
+  function finalize(text: string, provider: string): GeneratedReply {
     const trimmed = text.trim();
-    if (includeSources && ctx.display) return `${trimmed}\n\nSources:\n${ctx.display}`;
-    return trimmed;
+    if (includeSources && ctx.display) {
+      return {
+        text: `${trimmed}\n\nSources:\n${ctx.display}`,
+        provider,
+      };
+    }
+    return { text: trimmed, provider };
   }
 }
 
@@ -224,7 +233,7 @@ class SiteAgentExecutor implements AgentExecutor {
     };
     eventBus.publish(working);
 
-    const reply = await generateReply(userText || '');
+    const { text: reply, provider } = await generateReply(userText || '');
 
     const response: Message = {
       kind: 'message',
@@ -245,6 +254,19 @@ class SiteAgentExecutor implements AgentExecutor {
     };
     eventBus.publish(completed);
     eventBus.finished();
+
+    if (userText.trim()) {
+      void logA2AAttempt({
+        prompt: userText,
+        response: reply,
+        provider,
+        contextId: requestContext.contextId,
+        taskId: requestContext.taskId,
+        metadata: {
+          userMessageId: requestContext.userMessage?.messageId,
+        },
+      }).catch(() => {});
+    }
   }
 
   async cancelTask(_taskId: string, _eventBus: ExecutionEventBus): Promise<void> {
