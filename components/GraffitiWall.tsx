@@ -106,6 +106,7 @@ export default function GraffitiWall() {
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
+    event.preventDefault();
     (event.target as HTMLCanvasElement).setPointerCapture(event.pointerId);
     setDrawing(true);
     const pt = pointerToCanvas(event.nativeEvent);
@@ -114,11 +115,13 @@ export default function GraffitiWall() {
 
   function handlePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
     if (!drawing) return;
+    event.preventDefault();
     const pt = pointerToCanvas(event.nativeEvent);
     setCurrent((prev) => [...prev, pt]);
   }
 
   function handlePointerUp(event: ReactPointerEvent<HTMLCanvasElement>) {
+    event.preventDefault();
     (event.target as HTMLCanvasElement).releasePointerCapture(event.pointerId);
     if (!drawing) return;
     setDrawing(false);
