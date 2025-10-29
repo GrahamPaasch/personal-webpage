@@ -1,0 +1,134 @@
+{
+  "generatedAt": "2025-10-28T23:57:13.821Z",
+  "userAgent": "graham-a2a-directory-crawler/0.1 (+https://www.grahampaasch.com/agent/for-agents)",
+  "seeds": [
+    "https://www.grahampaasch.com"
+  ],
+  "originCount": 1,
+  "entryCount": 1,
+  "entries": [
+    {
+      "origin": "https://www.grahampaasch.com",
+      "seeds": [
+        "https://www.grahampaasch.com"
+      ],
+      "manifestUrl": "https://www.grahampaasch.com/.well-known/agent.json",
+      "manifestStatus": 200,
+      "manifest": {
+        "name": "Graham Paasch’s A2A Site Agent",
+        "description": "Conversational Q&A about Graham Paasch’s writings, hobbies, and professional background using the open Agent2Agent (A2A) protocol.",
+        "homepage": "https://www.grahampaasch.com/agent",
+        "agentCardUrl": "https://www.grahampaasch.com/api/a2a/.well-known/agent-card.json",
+        "protocols": [
+          "A2A@0.3.0",
+          "JSON-RPC 2.0 over HTTP/SSE"
+        ],
+        "transport": {
+          "jsonrpc": {
+            "endpoint": "https://www.grahampaasch.com/api/a2a",
+            "streaming": "SSE",
+            "contentTypes": {
+              "input": [
+                "text/plain"
+              ],
+              "output": [
+                "text/plain"
+              ]
+            }
+          }
+        },
+        "capabilities": [
+          "site_chat",
+          "streaming"
+        ],
+        "contact": {
+          "url": "https://www.grahampaasch.com/professional"
+        },
+        "tags": [
+          "chat",
+          "info",
+          "site",
+          "a2a"
+        ],
+        "version": "0.1.0"
+      },
+      "manifestError": null,
+      "cardUrl": "https://www.grahampaasch.com/api/a2a/.well-known/agent-card.json",
+      "cardStatus": 200,
+      "card": {
+        "name": "Graham Paasch's Site Agent",
+        "description": "A simple chat agent for grahampaasch.com using the A2A protocol.",
+        "protocolVersion": "0.3.0",
+        "version": "0.1.0",
+        "url": "https://www.grahampaasch.com/api/a2a/",
+        "preferredTransport": "JSONRPC",
+        "provider": {
+          "organization": "www.grahampaasch.com",
+          "url": "https://www.grahampaasch.com"
+        },
+        "capabilities": {
+          "streaming": true,
+          "pushNotifications": false,
+          "stateTransitionHistory": false
+        },
+        "defaultInputModes": [
+          "text/plain"
+        ],
+        "defaultOutputModes": [
+          "text/plain"
+        ],
+        "skills": [
+          {
+            "id": "site_chat",
+            "name": "Site Chat",
+            "description": "Conversational Q&A about Graham, writings, hobbies, and professional background.",
+            "tags": [
+              "chat",
+              "info",
+              "site"
+            ],
+            "inputModes": [
+              "text/plain"
+            ],
+            "outputModes": [
+              "text/plain"
+            ],
+            "examples": [
+              "Tell me about Graham Paasch’s background.",
+              "Where can I read your latest writing?",
+              "What instruments do you play?",
+              "How can I get in touch with you?"
+            ]
+          },
+          {
+            "id": "graffiti_tag",
+            "name": "Graffiti Tag",
+            "description": "Spray paint the public graffiti wall. POST JSON {color, size, points:[{x,y},...]} to /api/graffiti to add your tag. View the wall at /graffiti.",
+            "tags": [
+              "art",
+              "fun",
+              "graffiti"
+            ],
+            "inputModes": [
+              "text/plain"
+            ],
+            "outputModes": [
+              "text/plain"
+            ],
+            "examples": [
+              "POST /api/graffiti {\"color\":\"#ff3b81\",\"size\":14,\"points\":[{\"x\":120,\"y\":240},{\"x\":180,\"y\":210},{\"x\":220,\"y\":260}]}",
+              "GET /api/graffiti to fetch existing tags before adding your own",
+              "Visit https://www.grahampaasch.com/graffiti to see your spray in the wall UI."
+            ]
+          }
+        ],
+        "supportsAuthenticatedExtendedCard": false
+      },
+      "cardError": null,
+      "crawlId": "3a4086b0-42cc-417c-9b96-aeeed8145d4f",
+      "crawledAt": "2025-10-28T23:57:13.276Z",
+      "manifestRaw": "{\n  \"name\": \"Graham Paasch’s A2A Site Agent\",\n  \"description\": \"Conversational Q&A about Graham Paasch’s writings, hobbies, and professional background using the open Agent2Agent (A2A) protocol.\",\n  \"homepage\": \"https://www.grahampaasch.com/agent\",\n  \"agentCardUrl\": \"https://www.grahampaasch.com/api/a2a/.well-known/agent-card.json\",\n  \"protocols\": [\"A2A@0.3.0\", \"JSON-RPC 2.0 over HTTP/SSE\"],\n  \"transport\": {\n    \"jsonrpc\": {\n      \"endpoint\": \"https://www.grahampaasch.com/api/a2a\",\n      \"streaming\": \"SSE\",\n      \"contentTypes\": { \"input\": [\"text/plain\"], \"output\": [\"text/plain\"] }\n    }\n  },\n  \"capabilities\": [\"site_chat\", \"streaming\"],\n  \"contact\": { \"url\": \"https://www.grahampaasch.com/professional\" },\n  \"tags\": [\"chat\", \"info\", \"site\", \"a2a\"],\n  \"version\": \"0.1.0\"\n}\n",
+      "cardRaw": "{\"name\":\"Graham Paasch's Site Agent\",\"description\":\"A simple chat agent for grahampaasch.com using the A2A protocol.\",\"protocolVersion\":\"0.3.0\",\"version\":\"0.1.0\",\"url\":\"https://www.grahampaasch.com/api/a2a/\",\"preferredTransport\":\"JSONRPC\",\"provider\":{\"organization\":\"www.grahampaasch.com\",\"url\":\"https://www.grahampaasch.com\"},\"capabilities\":{\"streaming\":true,\"pushNotifications\":false,\"stateTransitionHistory\":false},\"defaultInputModes\":[\"text/plain\"],\"defaultOutputModes\":[\"text/plain\"],\"skills\":[{\"id\":\"site_chat\",\"name\":\"Site Chat\",\"description\":\"Conversational Q&A about Graham, writings, hobbies, and professional background.\",\"tags\":[\"chat\",\"info\",\"site\"],\"inputModes\":[\"text/plain\"],\"outputModes\":[\"text/plain\"],\"examples\":[\"Tell me about Graham Paasch’s background.\",\"Where can I read your latest writing?\",\"What instruments do you play?\",\"How can I get in touch with you?\"]},{\"id\":\"graffiti_tag\",\"name\":\"Graffiti Tag\",\"description\":\"Spray paint the public graffiti wall. POST JSON {color, size, points:[{x,y},...]} to /api/graffiti to add your tag. View the wall at /graffiti.\",\"tags\":[\"art\",\"fun\",\"graffiti\"],\"inputModes\":[\"text/plain\"],\"outputModes\":[\"text/plain\"],\"examples\":[\"POST /api/graffiti {\\\"color\\\":\\\"#ff3b81\\\",\\\"size\\\":14,\\\"points\\\":[{\\\"x\\\":120,\\\"y\\\":240},{\\\"x\\\":180,\\\"y\\\":210},{\\\"x\\\":220,\\\"y\\\":260}]}\",\"GET /api/graffiti to fetch existing tags before adding your own\",\"Visit https://www.grahampaasch.com/graffiti to see your spray in the wall UI.\"]}],\"supportsAuthenticatedExtendedCard\":false}"
+    }
+  ]
+}

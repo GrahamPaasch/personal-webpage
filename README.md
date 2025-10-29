@@ -82,6 +82,18 @@ Implementation details:
 - Non-streaming replies; streaming can be enabled later.
 - If `GOOGLE_API_KEY` is present, the agent uses Gemini 1.5 Flash for answers; otherwise it provides a basic canned response.
 
+### Synthetic traffic & smoke checks
+
+- Run `npm run a2a:smoke` to fetch the live agent card and send a `message/send` JSON-RPC request. Append `-- --message "Ping"` or `-- --count 5 --interval 2` to customize text, batch count, or cadence. The script sets a recognizable `X-A2A-Synthetic` header so these pings are easy to spot in Supabase logs.
+- Useful for on-demand verification after deploys, during incident response, or as a seed signal for other agents. Drop the command into cron or an external scheduler if you want a steady trickle of friendly traffic (keep it polite—≤1 req/sec).
+- Expected success output looks like `✓ message (680 chars) in 821ms` followed by a preview of the agent reply. Non-200 HTTP or JSON-RPC errors return detailed diagnostics to STDOUT/STDERR.
+
+### Opt-in manifest crawler
+
+- Collect opted-in A2A agents with `npm run a2a:crawl`. Seeds live in `scripts/a2a-seeds.txt`; each line should be a full URL (e.g., `https://example.com`) for domains that have invited the crawler.
+- The crawler respects `robots.txt`, announces itself via `graham-a2a-directory-crawler/0.1`, and writes normalized output to `data/a2a-directory.json` (manifest, agent card, status codes, and raw payloads).
+- Share the resulting JSON with the community or publish a filtered version; never add domains without consent and give owners a clear opt-out path (remove from seeds, or honor `Disallow`).
+
 ### Deployment Versioning
 
 Each deployment bakes in a visible version string so you can confirm which build is live:

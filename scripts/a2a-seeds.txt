@@ -1,0 +1,5 @@
+# Seed URLs for the A2A manifest crawler.
+# Lines starting with '#' are ignored.
+# Add domains that have explicitly opted in to the directory.
+https://www.grahampaasch.com
+

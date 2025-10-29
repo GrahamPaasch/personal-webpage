@@ -10,6 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "a2a:smoke": "node scripts/a2a-smoke.mjs",
+    "a2a:crawl": "node scripts/a2a-crawl.mjs",
     "recover-writings": "node scripts/recover_writings.js",
     "test:a11y": "playwright test"
   },
