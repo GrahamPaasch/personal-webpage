@@ -93,6 +93,7 @@ Implementation details:
 - Collect opted-in A2A agents with `npm run a2a:crawl`. Seeds live in `scripts/a2a-seeds.txt`; each line should be a full URL (e.g., `https://example.com`) for domains that have invited the crawler.
 - The crawler respects `robots.txt`, announces itself via `graham-a2a-directory-crawler/0.1`, and writes normalized output to `data/a2a-directory.json` (manifest, agent card, status codes, and raw payloads).
 - Share the resulting JSON with the community or publish a filtered version; never add domains without consent and give owners a clear opt-out path (remove from seeds, or honor `Disallow`).
+- Visitors can request inclusion at `/agent/for-agents`—submissions hit `/api/a2a/crawler-opt-in` and land in the `a2a_crawler_submissions` table (see `scripts/setup_a2a_crawler_submissions.sql`). Review and merge approved domains into the seed list.
 
 ### Deployment Versioning
 

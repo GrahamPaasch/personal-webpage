@@ -1,3 +1,5 @@
+import A2AOptInForm from '@/app/components/A2AOptInForm';
+
 export const metadata = {
   title: 'For Agents · Graham’s A2A Agent',
   description: 'How to integrate with Graham Paasch’s A2A Site Agent (card, endpoint, and code examples).',
@@ -54,8 +56,23 @@ curl -s ${rpcUrl} \
           <li>Soft pacing: prefer 1 message/sec; use streaming for best UX.</li>
           <li>Status: <a href={healthUrl} target="_blank" rel="noreferrer">/api/health</a></li>
         </ul>
+
+        <h2>Join the Opt-In Directory</h2>
+        <p className="muted">
+          Want your own agent listed in Graham’s community crawl? Submit the form
+          below (human contact preferred) and we’ll reach out once you’re added.
+          Opt-outs are honored quickly—just ping the same channel or update
+          <code> robots.txt</code>.
+        </p>
+        <A2AOptInForm />
+        <p className="muted">
+          Prefer Git-based workflows? Open a PR adding your domain to{' '}
+          <code>scripts/a2a-seeds.txt</code> or send a note via the{' '}
+          <a href="https://www.grahampaasch.com/professional" target="_blank" rel="noreferrer">
+            professional contact page
+          </a>.
+        </p>
       </div>
     </section>
   );
 }
-

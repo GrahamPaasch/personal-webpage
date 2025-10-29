@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseAdminClient } from './supabaseAdminClient';
 
 type LogEntry = {
   prompt: string;
@@ -8,26 +9,6 @@ type LogEntry = {
   metadata?: Record<string, unknown>;
   provider?: string;
 };
-
-let client: SupabaseClient | null | undefined;
-
-function getClient() {
-  if (client !== undefined) return client;
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.warn('[a2a] Supabase env vars missing; skipping logging');
-    client = null;
-    return client;
-  }
-  client = createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false },
-    global: { headers: { 'X-Client-Info': 'graham-site-a2a-logger' } },
-  });
-  return client;
-}
 
 function truncate(value: string | undefined, limit = 4000): string | undefined {
   if (value === undefined) return undefined;
@@ -70,7 +51,7 @@ async function pruneRingBuffer(
 }
 
 export async function logA2AAttempt(entry: LogEntry) {
-  const supabase = getClient();
+  const supabase = getSupabaseAdminClient();
   if (!supabase) return;
   const table = process.env.A2A_LOG_TABLE || 'a2a_attempts';
   const maxRows =
