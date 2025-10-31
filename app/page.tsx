@@ -51,6 +51,10 @@ export default function HomePage() {
 
       <div className="card half">
         <h2>Around the web</h2>
+        <p className="muted">Quick jump to the profiles I keep current.</p>
+        <div className="cta-row" style={{ marginBottom: 12 }}>
+          <Link className="button" href="/links">Open /links page</Link>
+        </div>
         <ul className="muted">
           <li>
             <a href="https://www.linkedin.com/in/grahampaasch/" target="_blank" rel="noreferrer">

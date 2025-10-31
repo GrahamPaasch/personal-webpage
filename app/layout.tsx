@@ -79,6 +79,7 @@ export default function RootLayout({ children }: any) {
               <Link href="/hobbies">Hobbies</Link>
               <Link href="/writings">Writings</Link>
               <Link href="/professional">Professional</Link>
+              <Link href="/links">Links</Link>
               <Link href="/resume-tool">Resume Tool</Link>
               <Link href="/career-vision">Career Vision</Link>
               <Link href="/graffiti">Graffiti</Link>
