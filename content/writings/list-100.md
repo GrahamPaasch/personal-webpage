@@ -17,6 +17,7 @@
 15. NOT DONE: Grow enough of my own food to nearly completely sustain myself. 
 16. NOT DONE: Live in a walkable and bikeable area where I don't spend a lot of time driving.
 17. NOT DONE: Outlive David Pascoe and Bryan Johnson.
+18. NOT DONE: Use tools like EEG or Kernel by BJ to fully understand how I am neurodiverse.
 
 Wow. This is very very hard. I didn't think I wouldn't even be able to get to 20 things.
 I'll have to thing about this further. My inspriation to make this list came directly from
