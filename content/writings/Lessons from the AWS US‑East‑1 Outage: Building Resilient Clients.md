@@ -1,5 +1,5 @@
 ---
-title: Lessons from the AWS US‑East‑1 Outage: Building Resilient Clients
+title: "Lessons from the AWS US‑East‑1 Outage: Building Resilient Clients"
 date: 2025-11-08
 excerpt: A deep dive into the October 2025 AWS us‑east‑1 outage, its root cause, cascading impacts, and best practices for building resilient cloud clients.
 ---
