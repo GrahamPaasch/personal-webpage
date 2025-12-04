@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;700&family=JetBrains+Mono:wght@400;600&family=Cormorant+Garamond:wght@400;600&family=Crimson+Pro:wght@400;600&family=Inter:wght@400;600;700&family=DM+Mono:wght@400&display=swap');
-
 :root {
   --ink: #0b0d12;
   --paper: #faf6ee;
@@ -87,14 +85,14 @@
   border-radius: 0.35rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.08);
-  font-family: 'DM Mono', 'JetBrains Mono', monospace;
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
 
 .ai,
 [data-voice='ai'] {
-  font-family: 'JetBrains Mono', 'DM Mono', monospace;
+  font-family: var(--voice-ai-mono), 'Courier New', 'Consolas', monospace;
   background: radial-gradient(110% 110% at 20% -10%, rgba(43, 70, 255, 0.28) 0%, var(--ink) 65%),
     linear-gradient(160deg, rgba(0, 229, 255, 0.12), rgba(11, 13, 18, 0.95)),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0px, transparent 3px, transparent 34px);
@@ -134,7 +132,7 @@
 .ai h3,
 [data-voice='ai'] h2,
 [data-voice='ai'] h3 {
-  font-family: 'Oxanium', 'JetBrains Mono', monospace;
+  font-family: var(--voice-ai-mono), 'Courier New', monospace;
   text-transform: uppercase;
   letter-spacing: 0.22em;
   color: var(--neon);
@@ -210,7 +208,7 @@
 
 .ai pre,
 [data-voice='ai'] pre {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--voice-ai-mono), monospace;
   font-size: 0.85rem;
   background: rgba(4, 9, 20, 0.9);
   border: 1px solid rgba(0, 229, 255, 0.3);
@@ -223,12 +221,12 @@
 
 .ai code,
 [data-voice='ai'] code {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--voice-ai-mono), monospace;
 }
 
 .human,
 [data-voice='human'] {
-  font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  font-family: var(--voice-human-text), var(--voice-human), Georgia, serif;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(250, 246, 238, 0.92));
   color: #2b1b0b;
   border: 1px solid rgba(91, 58, 28, 0.1);
@@ -249,7 +247,7 @@
 .human h3,
 [data-voice='human'] h2,
 [data-voice='human'] h3 {
-  font-family: 'Cormorant Garamond', 'Crimson Pro', serif;
+  font-family: var(--voice-human), var(--voice-human-text), serif;
   font-weight: 600;
   letter-spacing: -0.015em;
   color: var(--human-accent);
@@ -265,7 +263,7 @@
 .human p:first-of-type::first-letter,
 [data-voice='human'] p:first-of-type::first-letter {
   float: left;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: var(--voice-human), serif;
   font-size: 3.4rem;
   line-height: 0.85;
   padding: 0.08rem 0.4rem 0.1rem 0;
@@ -274,7 +272,7 @@
 
 .human blockquote,
 [data-voice='human'] blockquote {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: var(--voice-human), var(--voice-human-text), serif;
   font-size: clamp(1.6rem, 3vw, 2.2rem);
   line-height: 1.35;
   margin: 1.6rem 0;
@@ -285,12 +283,12 @@
 
 .human blockquote::before,
 [data-voice='human'] blockquote::before {
-  content: '“';
+  content: '"';
   position: absolute;
   left: -0.4em;
   top: -0.3em;
   font-size: 5rem;
-  font-family: 'Cormorant Garamond', serif;
+  font-family: var(--voice-human), serif;
   color: rgba(91, 58, 28, 0.28);
 }
 
@@ -312,7 +310,7 @@
 
 .unified,
 [data-voice='unified'] {
-  font-family: 'Inter', 'DM Mono', 'Segoe UI', sans-serif;
+  font-family: var(--voice-unified), var(--voice-dm), 'Segoe UI', sans-serif;
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
   color: #e6ebf3;
   border: 1px solid rgba(148, 163, 184, 0.25);
@@ -333,7 +331,7 @@
 .unified h3,
 [data-voice='unified'] h2,
 [data-voice='unified'] h3 {
-  font-family: 'Inter', 'DM Mono', sans-serif;
+  font-family: var(--voice-unified), var(--voice-dm), sans-serif;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -359,7 +357,7 @@
 .unified thead th,
 [data-voice='unified'] thead th {
   background: rgba(15, 23, 42, 0.92);
-  font-family: 'DM Mono', monospace;
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
   font-size: 0.72rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -398,7 +396,7 @@
 }
 
 .voice-token-map code {
-  font-family: 'DM Mono', 'JetBrains Mono', monospace;
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
   font-size: 0.78rem;
   padding: 0.2rem 0.45rem;
   border-radius: 0.5rem;

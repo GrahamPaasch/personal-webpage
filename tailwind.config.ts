@@ -20,10 +20,10 @@ const config: Config = {
         mint: 'var(--mint)',
       },
       fontFamily: {
-        unified: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        ai: ['Oxanium', 'JetBrains Mono', 'monospace'],
-        human: ['Crimson Pro', 'serif'],
-        mono: ['DM Mono', 'JetBrains Mono', 'monospace'],
+        unified: ['var(--voice-unified)', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        ai: ['var(--voice-ai-mono)', 'JetBrains Mono', 'Courier New', 'Consolas', 'monospace'],
+        human: ['var(--voice-human)', 'var(--voice-human-text)', 'Georgia', 'serif'],
+        mono: ['var(--voice-dm)', 'var(--voice-ai-mono)', 'monospace'],
       },
     },
   },
@@ -33,7 +33,7 @@ const config: Config = {
       addUtilities(
         {
           '.mono': {
-            fontFamily: '"DM Mono", var(--font-voice-ai-mono, "DM Mono"), monospace',
+            fontFamily: 'var(--voice-dm), var(--voice-ai-mono), monospace',
             fontVariantNumeric: 'tabular-nums',
             fontFeatureSettings: '"tnum" 1, "zero" 1',
           },

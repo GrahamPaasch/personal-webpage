@@ -1,11 +1,11 @@
 import './globals.css';
 import Link from 'next/link';
 import {
-  Fraunces,
-  IBM_Plex_Mono,
+  DM_Mono,
+  EB_Garamond,
   Inter,
-  Space_Grotesk,
-  Source_Serif_4,
+  JetBrains_Mono,
+  Playfair_Display,
 } from 'next/font/google';
 import FullScreenChat from '@/app/components/FullScreenChat';
 
@@ -16,32 +16,32 @@ const inter = Inter({
   weight: ['400', '500', '600', '700'],
 });
 
-const fraunces = Fraunces({
+const playfairDisplay = Playfair_Display({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-voice-human',
-  weight: ['400', '500', '700'],
+  weight: ['400', '700'],
 });
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-voice-ai',
-  weight: ['400', '500', '600'],
-});
-
-const sourceSerif = Source_Serif_4({
+const ebGaramond = EB_Garamond({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-voice-human-text',
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '600'],
 });
 
-const plexMono = IBM_Plex_Mono({
+const jetBrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-voice-ai-mono',
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500', '600'],
+});
+
+const dmMono = DM_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-voice-dm',
+  weight: ['400'],
 });
 
 export const metadata = {
@@ -69,7 +69,7 @@ export default function RootLayout({ children }: any) {
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${fraunces.variable} ${spaceGrotesk.variable} ${sourceSerif.variable} ${plexMono.variable}`}
+        className={`${inter.variable} ${playfairDisplay.variable} ${ebGaramond.variable} ${jetBrainsMono.variable} ${dmMono.variable}`}
       >
         <header className="site-header">
           <div className="container header-inner">

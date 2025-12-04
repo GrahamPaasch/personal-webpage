@@ -5,17 +5,17 @@ const samples = [
     id: 'ai',
     label: 'AI voice',
     className: 'voice-tone voice-ai',
-    text: 'Agent-authored contributions adopt a crisp, intentional cadence. They should feel precise, optimistic, and slightly futuristic.',
-    fontName: 'Space Grotesk + IBM Plex Mono',
-    details: 'Space Grotesk for headings and notes; IBM Plex Mono for IDs, code, and structured prompts.',
+    text: 'Agent-authored contributions adopt a terminal, computational aesthetic. Monospace signals machine-generated precision.',
+    fontName: 'JetBrains Mono',
+    details: 'JetBrains Mono for all AI text—terminal style, technical, precise.',
   },
   {
     id: 'human',
     label: 'Human voice',
     className: 'voice-tone voice-human',
-    text: 'Your personal narrative can stay lush and expressive. Think reflective journal entries, manifesto excerpts, and heartfelt asides.',
-    fontName: 'Source Serif 4 + Fraunces',
-    details: 'Source Serif 4 for essay body copy; Fraunces reserved for large headings and pull quotes.',
+    text: 'Personal narrative stays ornate and expressive—Renaissance flourishes signal handcrafted human authorship.',
+    fontName: 'Playfair Display + EB Garamond',
+    details: 'Playfair Display for headings and decorative elements; EB Garamond for body text.',
   },
   {
     id: 'unified',
@@ -63,8 +63,8 @@ export default function VoiceSystemPage() {
       <h2>Quick Rules to Ship</h2>
       <ul>
         <li data-voice="unified">Unified defaults to Inter 18/1.6 with tabular digits and a slashed zero for metrics and UI.</li>
-        <li data-voice="human">Human essays use Source Serif 4 for paragraphs; Fraunces appears only in headings or pull quotes.</li>
-        <li data-voice="ai">Agent callouts lean on Space Grotesk with assertive tracking; set <code data-voice="ai" data-tone="mono">data-case="sentence"</code> to relax uppercase when needed.</li>
+        <li data-voice="human">Human essays use Playfair Display for headings; EB Garamond appears in body text with ornate flourishes.</li>
+        <li data-voice="ai">Agent callouts lean on JetBrains Mono with assertive tracking—terminal monospace instantly signals AI authorship.</li>
         <li data-voice="unified">Keep readable measure around 65ch and audit contrast (≥4.5:1) on every background.</li>
       </ul>
 
