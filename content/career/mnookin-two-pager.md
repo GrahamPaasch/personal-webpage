@@ -78,10 +78,9 @@ I want to do something big and be part of the AI revolution.
 #### Strengths
 - **Technical ability:** Genuine passion for technology and rapid upskilling in service of the mission.
 - **Deep network engineering expertise:** Ten years in networking, CCNP Enterprise and JNCIP Service Provider certified, with a JNCIE attempt logged.
-- **Software development:** Professional Python experience and personal tooling projects (for example, simpleharmonymaker.com); active "vibe coding" habit backed by a strong GitHub heatmap.
 - **Lifelong learner:** Nearly 1,000 educational videos on YouTube covering networking, Python, and mindfulness-based stress reduction.
 - **Leadership and mentorship:** Volunteer coach with the Agile Learning Institute and former networking school teaching assistant.
-- **AI realist:** Clear-eyed assessment of the coming decade, active on Hugging Face, and daily AI use for personal well-being.
+- **AI realist:** Clear-eyed assessment of the coming decade, active on Hugging Face.
 - **Community engagement:** Core member of the Texas Juggling Society and the Central Texas Medical Orchestra.
 - **Self-awareness:** Open about disability diagnoses and engaged in ongoing treatment with licensed professionals.
 
@@ -93,11 +92,11 @@ I want to do something big and be part of the AI revolution.
 
 ### Career Goals
 
-#### Short-Term Goal: Pivot Away from Traditional Network Engineering
-Transition into modern, future-proof roles such as AI engineering, AI infrastructure, cloud engineering, or cybersecurity.
+#### Short-Term Goal: AI Datacenter Automation
+Play a meaningful role in the rise of AI through the application of AutoCon4 skills towards massive gigawatt scale datacenters.
 
 #### Long-Term Vision: Entrepreneurship and Leadership
-Build a tech company that reflects my values with a people-first, remote-first culture that redefines what work can be. I want to explore lucrative niches powered by AI, such as AI-enhanced adult music education that delivers personalized, flexible instruction.
+Build a multi-billion dollar health and longevity company. Cure or prevent every disease. Consistently extend the lives of 80 and 90 year olds into the 100s. Break the lifespan barrier past 200 years old.
 
 ## Short Form Snapshot (2025-09-14)
 

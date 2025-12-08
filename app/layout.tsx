@@ -8,6 +8,7 @@ import {
   Playfair_Display,
 } from 'next/font/google';
 import FullScreenChat from '@/app/components/FullScreenChat';
+import MobileNav from '@/app/components/MobileNav';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -75,16 +76,7 @@ export default function RootLayout({ children }: any) {
           <div className="container header-inner">
             <Link href="/" className="brand">Graham Paasch</Link>
             <Link href="/version" className="version-chip">v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}</Link>
-            <nav className="nav">
-              <Link href="/hobbies">Hobbies</Link>
-              <Link href="/writings">Writings</Link>
-              <Link href="/professional">Professional</Link>
-              <Link href="/resume-tool">Resume Tool</Link>
-              <Link href="/career-vision">Career Vision</Link>
-              <Link href="/graffiti">Graffiti</Link>
-              <Link href="/prompt-pack">Prompt Studio</Link>
-              <Link href="/agent">Chat</Link>
-            </nav>
+            <MobileNav />
           </div>
         </header>
         <main className="container content">{children}</main>

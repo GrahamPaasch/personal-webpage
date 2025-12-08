@@ -7,9 +7,37 @@ export const metadata = {
 
 export default function HomePage() {
   return (
-    <section className="grid">
+    <>
+      {/* Voice System Explainer */}
+      <div className="voice-system-banner">
+        <div className="voice-banner-content">
+          <h3 className="voice-banner-title">
+            <span className="voice-icon">✦</span>
+            Reading Guide: Authorship by Typography
+          </h3>
+          <div className="voice-samples">
+            <div className="voice-sample-item">
+              <span className="voice-badge" data-voice="ai">AI</span>
+              <span className="voice-description" data-voice="ai">Terminal mono = 100% AI generated</span>
+            </div>
+            <div className="voice-sample-item">
+              <span className="voice-badge" data-voice="human">Human</span>
+              <span className="voice-description" data-voice="human">Ornate serif = Graham wrote it</span>
+            </div>
+            <div className="voice-sample-item">
+              <span className="voice-badge" data-voice="unified">Hybrid</span>
+              <span className="voice-description" data-voice="unified">Clean sans = We collaborated</span>
+            </div>
+          </div>
+          <p className="voice-banner-note">
+            Every word on this site signals its author through font choice. <Link href="/voice-specimen">Learn more →</Link>
+          </p>
+        </div>
+      </div>
+
+      <section className="grid">
       <div className="card">
-        <h1>Hi, I’m Graham Paasch.</h1>
+        <h1>Hi, I'm Graham Paasch.</h1>
         <p>
           I blend a decade of network engineering with Python development, and I
           spend a lot of my time playing music, juggling, and writing. This site is a home for all of that.
@@ -112,5 +140,6 @@ export default function HomePage() {
         <Link className="button" href="/graffiti">Tag the wall</Link>
       </div>
     </section>
+    </>
   );
 }
