@@ -72,6 +72,9 @@ export default function RootLayout({ children }: any) {
       <body
         className={`${inter.variable} ${playfairDisplay.variable} ${ebGaramond.variable} ${jetBrainsMono.variable} ${dmMono.variable}`}
       >
+        <a href="#main-content" className="skip-to-content">
+          Skip to content
+        </a>
         <header className="site-header">
           <div className="container header-inner">
             <Link href="/" className="brand">Graham Paasch</Link>
@@ -79,7 +82,7 @@ export default function RootLayout({ children }: any) {
             <MobileNav />
           </div>
         </header>
-        <main className="container content">{children}</main>
+        <main id="main-content" className="container content">{children}</main>
         <footer className="site-footer">
           <div className="container footer-inner">
             <span>© {new Date().getFullYear()} Graham Paasch</span>
