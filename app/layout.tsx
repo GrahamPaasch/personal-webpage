@@ -9,6 +9,7 @@ import {
 } from 'next/font/google';
 import FullScreenChat from '@/app/components/FullScreenChat';
 import MobileNav from '@/app/components/MobileNav';
+import EasterEgg from '@/app/components/EasterEgg';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -95,6 +96,7 @@ export default function RootLayout({ children }: any) {
           </div>
         </footer>
         <FullScreenChat />
+        <EasterEgg />
       </body>
     </html>
   );
