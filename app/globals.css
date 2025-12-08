@@ -404,6 +404,22 @@ strong, em { color: var(--text); }
 .button.primary { border-color: var(--accent); background: var(--accent); color: #ffffff; }
 .button.primary:hover { background: #2563eb; border-color: #2563eb; }
 
+/* Mobile: larger tap targets and full-width buttons */
+@media (max-width: 768px) {
+  .cta-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .button {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 16px;
+    font-size: 1rem;
+    min-height: 48px; /* Minimum recommended touch target size */
+  }
+}
+
 .post-list { display: grid; gap: 12px; }
 .post-item { border: 1px solid var(--border); background: var(--panel); border-radius: 12px; padding: 14px; }
 .post-item a { color: var(--link); text-decoration: none; }
