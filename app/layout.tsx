@@ -10,6 +10,7 @@ import {
 import FullScreenChat from '@/app/components/FullScreenChat';
 import MobileNav from '@/app/components/MobileNav';
 import EasterEgg from '@/app/components/EasterEgg';
+import BackToTop from '@/app/components/BackToTop';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -97,6 +98,7 @@ export default function RootLayout({ children }: any) {
         </footer>
         <FullScreenChat />
         <EasterEgg />
+        <BackToTop />
       </body>
     </html>
   );
