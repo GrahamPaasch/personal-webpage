@@ -416,6 +416,9 @@ strong, em { color: var(--text); }
 .voice-description {
   font-size: 0.9rem;
   line-height: 1.4;
+  /* Override voice.css backgrounds - descriptions should be transparent on dark cards */
+  background: transparent !important;
+  border: none !important;
 }
 
 .voice-description[data-voice="ai"] {
@@ -425,7 +428,8 @@ strong, em { color: var(--text); }
 
 .voice-description[data-voice="human"] {
   font-family: var(--voice-human-text);
-  color: #f9a8d4;
+  /* Dark brown text would be unreadable on dark bg, use warm cream instead */
+  color: #fef3c7;
 }
 
 .voice-description[data-voice="unified"] {
