@@ -489,6 +489,7 @@ strong, em { color: var(--text); }
 .post-item a { color: var(--link); text-decoration: none; }
 .post-item a:hover { text-decoration: underline; }
 .post-meta { font-size: 0.9rem; color: var(--muted); }
+.reading-time { opacity: 0.8; }
 
 .prose { max-width: var(--measure-readable); color: var(--text); }
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { margin-top: 1.5rem; color: var(--text); }

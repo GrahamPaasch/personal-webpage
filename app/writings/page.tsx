@@ -24,7 +24,12 @@ export default function WritingsIndex() {
                 <h2 style={{ margin: '0 0 6px' }}>
                   <Link href={`/writings/${p.slug}`}>{p.title}</Link>
                 </h2>
-                <div className="post-meta">{new Date(p.date).toLocaleDateString()}</div>
+                <div className="post-meta">
+                  {new Date(p.date).toLocaleDateString()}
+                  {p.readingTime && (
+                    <span className="reading-time"> · {p.readingTime} min read</span>
+                  )}
+                </div>
                 {p.excerpt && <p style={{ marginTop: 8 }} className="muted">{p.excerpt}</p>}
               </article>
             ))}

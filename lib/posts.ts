@@ -7,6 +7,7 @@ export type PostMeta = {
   date: string; // ISO string
   excerpt?: string;
   slug: string;
+  readingTime?: number; // minutes
 };
 
 const POSTS_DIR = path.join(process.cwd(), 'content', 'writings');
@@ -65,6 +66,15 @@ export function listPostSlugs(): string[] {
     .map((f) => f.replace(/\.md$/, ''));
 }
 
+function calculateReadingTime(content: string): number {
+  // Average reading speed is ~200-250 words per minute
+  // We'll use 200 to be conservative
+  const wordsPerMinute = 200;
+  const words = content.trim().split(/\s+/).length;
+  const minutes = Math.ceil(words / wordsPerMinute);
+  return Math.max(1, minutes); // At least 1 minute
+}
+
 export function getPost(slug: string): { meta: PostMeta; content: string } | null {
   const file = path.join(POSTS_DIR, `${slug}.md`);
   if (!fs.existsSync(file)) return null;
@@ -77,6 +87,7 @@ export function getPost(slug: string): { meta: PostMeta; content: string } | nul
     date: normalizedDate,
     excerpt: data.excerpt ?? '',
     slug,
+    readingTime: calculateReadingTime(content),
   };
   return { meta, content };
 }

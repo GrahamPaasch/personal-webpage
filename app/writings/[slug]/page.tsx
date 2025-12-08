@@ -35,7 +35,12 @@ export default function PostPage({ params }: Props) {
   return (
     <article className="card prose" data-voice="unified">
       <h1>{post.meta.title}</h1>
-      <div className="post-meta">{new Date(post.meta.date).toLocaleDateString()}</div>
+      <div className="post-meta">
+        {new Date(post.meta.date).toLocaleDateString()}
+        {post.meta.readingTime && (
+          <span className="reading-time"> · {post.meta.readingTime} min read</span>
+        )}
+      </div>
       <div dangerouslySetInnerHTML={{ __html: html }} />
       <Comments pageId={`/writings/${post.meta.slug}`} />
       <Giscus title={post.meta.title} slug={post.meta.slug} />
