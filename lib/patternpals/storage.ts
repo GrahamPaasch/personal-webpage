@@ -4,6 +4,7 @@ import type {
   ExperienceLevel,
   JugglerProfile,
   PatternStatus,
+  PropType,
   ProgressEntry,
   SessionEntry,
   SessionStatus,
@@ -12,7 +13,7 @@ import type {
 type CreateJugglerInput = {
   name: string;
   experience: ExperienceLevel;
-  props: string[];
+  props: PropType[];
 };
 
 type CreateSessionInput = {
