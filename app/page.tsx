@@ -59,6 +59,10 @@ export default function HomePage() {
           <Link className="button" href="/hobbies/viola">Central Texas Medical Orchestra</Link>
           <Link className="button" href="/hobbies/shona-music">Mafaro Marimba</Link>
         </div>
+        <p className="muted small" style={{ marginTop: 12 }}>
+          New: PatternPals helps me track passing sessions and recommend patterns in the moment.
+        </p>
+        <Link className="button" href="/patternpals">Open PatternPals</Link>
       </div>
 
       <div className="card half">
