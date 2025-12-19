@@ -6,6 +6,7 @@ import { recommendPatterns } from '@/lib/patternpals/recommendations';
 import type {
   ExperienceLevel,
   JugglerProfile,
+  Pattern,
   PatternStatus,
   PracticeMode,
   ProgressEntry,
@@ -15,6 +16,57 @@ import type {
 
 const EXPERIENCE_OPTIONS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
 const PROP_OPTIONS: PropType[] = ['clubs', 'balls', 'rings'];
+
+type PatternBook = {
+  tag: string;
+  title: string;
+  file: string;
+};
+
+const PATTERN_BOOKS: PatternBook[] = [
+  {
+    tag: 'source:majbook_v3',
+    title: 'Madison Juggling Club Passing Book (v3)',
+    file: '/patternpals/books/majbook_v3.pdf',
+  },
+  {
+    tag: 'source:highgate2014-05-16',
+    title: 'Highgate Passing Patterns (2014)',
+    file: '/patternpals/books/highgate2014-05-16.pdf',
+  },
+  {
+    tag: 'source:passingpatternsaug06',
+    title: 'Passing Patterns Compendium (Aug 2006)',
+    file: '/patternpals/books/PassingPatternsAug06.pdf',
+  },
+  {
+    tag: 'source:willpatterns',
+    title: 'Will Murray Passing Patterns',
+    file: '/patternpals/books/WillPatterns.pdf',
+  },
+  {
+    tag: 'source:madison_patterns_v1_2',
+    title: 'Madison Patterns V1-2',
+    file: '/patternpals/books/Madison_Patterns_V1-2.pdf',
+  },
+  {
+    tag: 'source:takeouts',
+    title: 'Takeouts',
+    file: '/patternpals/books/takeouts.pdf',
+  },
+  {
+    tag: 'source:anthology',
+    title: 'Passing Pattern Anthology',
+    file: '/patternpals/books/anthology.pdf',
+  },
+  {
+    tag: 'source:curriculum_flowchart',
+    title: 'Passing Progression Flowchart',
+    file: '/patternpals/books/Curriculum-Flowchart.pdf',
+  },
+];
+
+const BOOKS_BY_TAG = new Map(PATTERN_BOOKS.map((book) => [book.tag, book]));
 
 const LOCAL_KEYS = {
   activeId: 'patternpals.activeJugglerId',
@@ -28,6 +80,15 @@ const formatDateTime = (value: string) => {
 };
 
 const formatPattern = (patternId: string) => getPatternById(patternId)?.name ?? patternId;
+
+const getPatternSources = (pattern: Pattern) => {
+  const tags = pattern.tags.filter((tag) => tag.startsWith('source:'));
+  const sources = tags
+    .map((tag) => BOOKS_BY_TAG.get(tag))
+    .filter((book): book is PatternBook => Boolean(book));
+  const missing = tags.filter((tag) => !BOOKS_BY_TAG.has(tag));
+  return { sources, missing };
+};
 
 const buildStatusCounts = (entries: ProgressEntry[]) => {
   return entries.reduce(
@@ -51,6 +112,7 @@ export default function PatternPalsApp() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [patternSearch, setPatternSearch] = useState('');
+  const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
 
   const [profileForm, setProfileForm] = useState<{
     name: string;
@@ -149,6 +211,12 @@ export default function PatternPalsApp() {
       pattern.tags.some((tag) => tag.toLowerCase().includes(query)),
     );
   }, [patternSearch]);
+
+  const selectedSources = useMemo(() => {
+    if (!selectedPattern) return { sources: [], missing: [] as string[] };
+    return getPatternSources(selectedPattern);
+  }, [selectedPattern]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -200,6 +268,17 @@ export default function PatternPalsApp() {
       window.localStorage.setItem(LOCAL_KEYS.partnerId, partnerId);
     }
   }, [partnerId]);
+
+  useEffect(() => {
+    if (!selectedPattern) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedPattern(null);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [selectedPattern]);
 
   useEffect(() => {
     if (!activeId) {
@@ -951,11 +1030,17 @@ export default function PatternPalsApp() {
             const status = progressMap.get(pattern.id);
             return (
               <div key={pattern.id} className="patternpals-pattern-row">
-                <div>
-                  <strong>{pattern.name}</strong>
-                  <div className="muted small">
-                    {pattern.difficulty} - {pattern.requiredJugglers} jugglers - {pattern.props.join(', ')}
-                  </div>
+                <div className="patternpals-pattern-main">
+                  <button
+                    type="button"
+                    className="patternpals-pattern-trigger"
+                    onClick={() => setSelectedPattern(pattern)}
+                  >
+                    <span className="patternpals-pattern-title">{pattern.name}</span>
+                    <span className="muted small">
+                      {pattern.difficulty} - {pattern.requiredJugglers} jugglers - {pattern.props.join(', ')}
+                    </span>
+                  </button>
                 </div>
                 <div className="patternpals-status-buttons">
                   {(['known', 'working', 'curious'] as PatternStatus[]).map((state) => (
@@ -974,6 +1059,97 @@ export default function PatternPalsApp() {
           })}
         </div>
       </article>
+      {selectedPattern ? (
+        <div
+          className="patternpals-detail-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="patternpals-detail-title"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedPattern(null);
+            }
+          }}
+        >
+          <div className="patternpals-detail-card">
+            <div className="patternpals-detail-header">
+              <div>
+                <p className="patternpals-detail-label">Pattern details</p>
+                <h3 id="patternpals-detail-title">{selectedPattern.name}</h3>
+              </div>
+              <button
+                type="button"
+                className="patternpals-mini-button ghost"
+                onClick={() => setSelectedPattern(null)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="patternpals-detail-meta">
+              <span>{selectedPattern.difficulty}</span>
+              <span>{selectedPattern.requiredJugglers} jugglers</span>
+              <span>{selectedPattern.props.join(', ')}</span>
+            </div>
+            <p className="muted">{selectedPattern.description}</p>
+            {selectedPattern.prerequisites.length > 0 ? (
+              <div className="patternpals-detail-section">
+                <h4>Prerequisites</h4>
+                <p className="muted small">
+                  {selectedPattern.prerequisites.map(formatPattern).join(', ')}
+                </p>
+              </div>
+            ) : null}
+            <div className="patternpals-detail-section">
+              <h4>Source books</h4>
+              <p className="muted small">
+                Download the source PDFs to match this pattern and review notation or diagrams.
+              </p>
+              {selectedSources.sources.length > 0 ? (
+                <div className="patternpals-book-list">
+                  {selectedSources.sources.map((book) => (
+                    <a
+                      key={book.tag}
+                      className="patternpals-book-link"
+                      href={book.file}
+                      target="_blank"
+                      rel="noreferrer"
+                      download
+                    >
+                      <span>{book.title}</span>
+                      <span className="patternpals-book-action">Download PDF</span>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted small">No mapped source books for this pattern yet.</p>
+              )}
+              {selectedSources.missing.length > 0 ? (
+                <p className="muted small">
+                  Unmapped sources: {selectedSources.missing.join(', ')}
+                </p>
+              ) : null}
+            </div>
+            <div className="patternpals-detail-section">
+              <h4>All pattern books</h4>
+              <div className="patternpals-book-grid">
+                {PATTERN_BOOKS.map((book) => (
+                  <a
+                    key={book.tag}
+                    className="patternpals-book-link"
+                    href={book.file}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                  >
+                    <span>{book.title}</span>
+                    <span className="patternpals-book-action">Download PDF</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
