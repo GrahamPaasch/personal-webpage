@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 import { recommendPatterns } from '@/lib/patternpals/recommendations';
 import type {
@@ -16,6 +16,9 @@ import type {
 
 const EXPERIENCE_OPTIONS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
 const PROP_OPTIONS: PropType[] = ['clubs', 'balls', 'rings'];
+const DEFAULT_PATTERN_LIMIT = 60;
+const PATTERN_PAGE_SIZE = 60;
+const SEARCH_PATTERN_LIMIT = 200;
 
 type PatternBook = {
   tag: string;
@@ -112,6 +115,8 @@ export default function PatternPalsApp() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [patternSearch, setPatternSearch] = useState('');
+  const deferredPatternSearch = useDeferredValue(patternSearch);
+  const [patternLimit, setPatternLimit] = useState(DEFAULT_PATTERN_LIMIT);
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
 
   const [profileForm, setProfileForm] = useState<{
@@ -203,14 +208,37 @@ export default function PatternPalsApp() {
   }, [activeProfile, mode, partnerProfile, partnerProgress, progress, recentPatternIds]);
 
   const filteredPatterns = useMemo(() => {
-    const query = patternSearch.trim().toLowerCase();
+    const query = deferredPatternSearch.trim().toLowerCase();
     if (!query) return PATTERN_LIBRARY;
     return PATTERN_LIBRARY.filter((pattern) =>
       pattern.name.toLowerCase().includes(query) ||
       pattern.description.toLowerCase().includes(query) ||
       pattern.tags.some((tag) => tag.toLowerCase().includes(query)),
     );
-  }, [patternSearch]);
+  }, [deferredPatternSearch]);
+
+  const visiblePatterns = useMemo(() => {
+    if (deferredPatternSearch.trim()) {
+      return filteredPatterns.slice(0, SEARCH_PATTERN_LIMIT);
+    }
+    return filteredPatterns.slice(0, patternLimit);
+  }, [filteredPatterns, deferredPatternSearch, patternLimit]);
+
+  const hasMorePatterns = useMemo(() => {
+    if (deferredPatternSearch.trim()) {
+      return filteredPatterns.length > SEARCH_PATTERN_LIMIT;
+    }
+    return filteredPatterns.length > patternLimit;
+  }, [filteredPatterns.length, deferredPatternSearch, patternLimit]);
+
+  const focusOptions = useMemo(() => {
+    const query = focusInput.trim().toLowerCase();
+    if (!query) return PATTERN_LIBRARY.slice(0, 40);
+    return PATTERN_LIBRARY.filter((pattern) =>
+      pattern.name.toLowerCase().includes(query) ||
+      pattern.tags.some((tag) => tag.toLowerCase().includes(query)),
+    ).slice(0, 40);
+  }, [focusInput]);
 
   const selectedSources = useMemo(() => {
     if (!selectedPattern) return { sources: [], missing: [] as string[] };
@@ -268,6 +296,10 @@ export default function PatternPalsApp() {
       window.localStorage.setItem(LOCAL_KEYS.partnerId, partnerId);
     }
   }, [partnerId]);
+
+  useEffect(() => {
+    setPatternLimit(DEFAULT_PATTERN_LIMIT);
+  }, [deferredPatternSearch]);
 
   useEffect(() => {
     if (!selectedPattern) return;
@@ -935,7 +967,7 @@ export default function PatternPalsApp() {
               </button>
             </div>
             <datalist id="patternpals-patterns">
-              {PATTERN_LIBRARY.map((pattern) => (
+              {focusOptions.map((pattern) => (
                 <option key={pattern.id} value={pattern.name} />
               ))}
             </datalist>
@@ -1025,8 +1057,14 @@ export default function PatternPalsApp() {
             />
           </div>
         </div>
+        <div className="patternpals-pattern-summary muted small">
+          Showing {visiblePatterns.length} of {filteredPatterns.length} patterns.
+          {deferredPatternSearch.trim()
+            ? ' Refine your search to see more results.'
+            : ' Use search to jump to a pattern quickly.'}
+        </div>
         <div className="patternpals-pattern-list">
-          {filteredPatterns.map((pattern) => {
+          {visiblePatterns.map((pattern) => {
             const status = progressMap.get(pattern.id);
             return (
               <div key={pattern.id} className="patternpals-pattern-row">
@@ -1058,6 +1096,17 @@ export default function PatternPalsApp() {
             );
           })}
         </div>
+        {hasMorePatterns ? (
+          <div className="patternpals-pattern-actions">
+            <button
+              type="button"
+              className="patternpals-mini-button"
+              onClick={() => setPatternLimit((prev) => prev + PATTERN_PAGE_SIZE)}
+            >
+              Load more patterns
+            </button>
+          </div>
+        ) : null}
       </article>
       {selectedPattern ? (
         <div
