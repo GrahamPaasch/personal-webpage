@@ -114,6 +114,46 @@ type PatternListProps = {
   onLoadMore: () => void;
 };
 
+type PatternRowProps = {
+  pattern: Pattern;
+  status?: PatternStatus;
+  onSelect: (pattern: Pattern) => void;
+  onUpdateStatus: (patternId: string, status: PatternStatus) => void;
+};
+
+const PatternRow = memo(({ pattern, status, onSelect, onUpdateStatus }: PatternRowProps) => {
+  return (
+    <div className="patternpals-pattern-row">
+      <div className="patternpals-pattern-main">
+        <button
+          type="button"
+          className="patternpals-pattern-trigger"
+          onClick={() => onSelect(pattern)}
+        >
+          <span className="patternpals-pattern-title">{pattern.name}</span>
+          <span className="muted small">
+            {pattern.difficulty} - {pattern.requiredJugglers} jugglers - {pattern.props.join(', ')}
+          </span>
+        </button>
+      </div>
+      <div className="patternpals-status-buttons">
+        {(['known', 'working', 'curious'] as PatternStatus[]).map((state) => (
+          <button
+            key={state}
+            type="button"
+            className={`patternpals-mini-button${status === state ? ' active' : ''}`}
+            onClick={() => onUpdateStatus(pattern.id, state)}
+          >
+            {state}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+PatternRow.displayName = 'PatternRow';
+
 const PatternList = memo(
   ({ patterns, total, searchActive, progressMap, hasMore, onSelect, onUpdateStatus, onLoadMore }: PatternListProps) => {
     return (
@@ -126,32 +166,13 @@ const PatternList = memo(
           {patterns.map((pattern) => {
             const status = progressMap.get(pattern.id);
             return (
-              <div key={pattern.id} className="patternpals-pattern-row">
-                <div className="patternpals-pattern-main">
-                  <button
-                    type="button"
-                    className="patternpals-pattern-trigger"
-                    onClick={() => onSelect(pattern)}
-                  >
-                    <span className="patternpals-pattern-title">{pattern.name}</span>
-                    <span className="muted small">
-                      {pattern.difficulty} - {pattern.requiredJugglers} jugglers - {pattern.props.join(', ')}
-                    </span>
-                  </button>
-                </div>
-                <div className="patternpals-status-buttons">
-                  {(['known', 'working', 'curious'] as PatternStatus[]).map((state) => (
-                    <button
-                      key={state}
-                      type="button"
-                      className={`patternpals-mini-button${status === state ? ' active' : ''}`}
-                      onClick={() => onUpdateStatus(pattern.id, state)}
-                    >
-                      {state}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <PatternRow
+                key={pattern.id}
+                pattern={pattern}
+                status={status}
+                onSelect={onSelect}
+                onUpdateStatus={onUpdateStatus}
+              />
             );
           })}
         </div>
@@ -184,6 +205,8 @@ export default function PatternPalsApp() {
   const deferredPatternSearch = useDeferredValue(patternSearch);
   const [patternLimit, setPatternLimit] = useState(DEFAULT_PATTERN_LIMIT);
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
+  const deferredProgress = useDeferredValue(progress);
+  const deferredPartnerProgress = useDeferredValue(partnerProgress);
 
   const [profileForm, setProfileForm] = useState<{
     name: string;
@@ -266,12 +289,12 @@ export default function PatternPalsApp() {
     return recommendPatterns(PATTERN_LIBRARY, {
       mode,
       myProfile: activeProfile,
-      myProgress: progress,
+      myProgress: deferredProgress,
       partnerProfile,
-      partnerProgress,
+      partnerProgress: deferredPartnerProgress,
       recentPatternIds,
     }).slice(0, 6);
-  }, [activeProfile, mode, partnerProfile, partnerProgress, progress, recentPatternIds]);
+  }, [activeProfile, deferredPartnerProgress, deferredProgress, mode, partnerProfile, recentPatternIds]);
 
   const filteredPatterns = useMemo(() => {
     const query = deferredPatternSearch.trim().toLowerCase();
