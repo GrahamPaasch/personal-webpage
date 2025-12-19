@@ -1,6 +1,6 @@
 'use client';
 
-import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 import { recommendPatterns } from '@/lib/patternpals/recommendations';
 import type {
@@ -102,6 +102,72 @@ const buildStatusCounts = (entries: ProgressEntry[]) => {
     { known: 0, working: 0, curious: 0 } as Record<PatternStatus, number>,
   );
 };
+
+type PatternListProps = {
+  patterns: Pattern[];
+  total: number;
+  searchActive: boolean;
+  progressMap: Map<string, PatternStatus>;
+  hasMore: boolean;
+  onSelect: (pattern: Pattern) => void;
+  onUpdateStatus: (patternId: string, status: PatternStatus) => void;
+  onLoadMore: () => void;
+};
+
+const PatternList = memo(
+  ({ patterns, total, searchActive, progressMap, hasMore, onSelect, onUpdateStatus, onLoadMore }: PatternListProps) => {
+    return (
+      <>
+        <div className="patternpals-pattern-summary muted small">
+          Showing {patterns.length} of {total} patterns.
+          {searchActive ? ' Refine your search to see more results.' : ' Use search to jump to a pattern quickly.'}
+        </div>
+        <div className="patternpals-pattern-list">
+          {patterns.map((pattern) => {
+            const status = progressMap.get(pattern.id);
+            return (
+              <div key={pattern.id} className="patternpals-pattern-row">
+                <div className="patternpals-pattern-main">
+                  <button
+                    type="button"
+                    className="patternpals-pattern-trigger"
+                    onClick={() => onSelect(pattern)}
+                  >
+                    <span className="patternpals-pattern-title">{pattern.name}</span>
+                    <span className="muted small">
+                      {pattern.difficulty} - {pattern.requiredJugglers} jugglers - {pattern.props.join(', ')}
+                    </span>
+                  </button>
+                </div>
+                <div className="patternpals-status-buttons">
+                  {(['known', 'working', 'curious'] as PatternStatus[]).map((state) => (
+                    <button
+                      key={state}
+                      type="button"
+                      className={`patternpals-mini-button${status === state ? ' active' : ''}`}
+                      onClick={() => onUpdateStatus(pattern.id, state)}
+                    >
+                      {state}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {hasMore ? (
+          <div className="patternpals-pattern-actions">
+            <button type="button" className="patternpals-mini-button" onClick={onLoadMore}>
+              Load more patterns
+            </button>
+          </div>
+        ) : null}
+      </>
+    );
+  },
+);
+
+PatternList.displayName = 'PatternList';
 
 export default function PatternPalsApp() {
   const [jugglers, setJugglers] = useState<JugglerProfile[]>([]);
@@ -479,7 +545,7 @@ export default function PatternPalsApp() {
     }
   };
 
-  const updatePatternStatus = async (patternId: string, status: PatternStatus) => {
+  const updatePatternStatus = useCallback(async (patternId: string, status: PatternStatus) => {
     if (!activeProfile) return;
     setError(null);
     setStatusMessage(null);
@@ -505,7 +571,7 @@ export default function PatternPalsApp() {
     } catch (err: any) {
       setError(err?.message || 'Pattern status update failed.');
     }
-  };
+  }, [activeProfile]);
 
   const handleSessionCreate = async (event: FormEvent) => {
     event.preventDefault();
@@ -578,7 +644,15 @@ export default function PatternPalsApp() {
       setError(err?.message || 'Session update failed.');
     }
   };
-  const addFocusPattern = () => {
+
+  const handleSelectPattern = useCallback((pattern: Pattern) => {
+    setSelectedPattern(pattern);
+  }, []);
+
+  const handleLoadMorePatterns = useCallback(() => {
+    setPatternLimit((prev) => prev + PATTERN_PAGE_SIZE);
+  }, []);
+  const addFocusPattern = useCallback(() => {
     const raw = focusInput.trim();
     if (!raw) return;
     const match =
@@ -593,14 +667,14 @@ export default function PatternPalsApp() {
       return { ...prev, focusPatterns: [...prev.focusPatterns, match.id] };
     });
     setFocusInput('');
-  };
+  }, [focusInput]);
 
-  const removeFocusPattern = (patternId: string) => {
+  const removeFocusPattern = useCallback((patternId: string) => {
     setSessionForm((prev) => ({
       ...prev,
       focusPatterns: prev.focusPatterns.filter((id) => id !== patternId),
     }));
-  };
+  }, []);
 
   const renderPropPicker = (
     value: PropType[],
@@ -1057,56 +1131,16 @@ export default function PatternPalsApp() {
             />
           </div>
         </div>
-        <div className="patternpals-pattern-summary muted small">
-          Showing {visiblePatterns.length} of {filteredPatterns.length} patterns.
-          {deferredPatternSearch.trim()
-            ? ' Refine your search to see more results.'
-            : ' Use search to jump to a pattern quickly.'}
-        </div>
-        <div className="patternpals-pattern-list">
-          {visiblePatterns.map((pattern) => {
-            const status = progressMap.get(pattern.id);
-            return (
-              <div key={pattern.id} className="patternpals-pattern-row">
-                <div className="patternpals-pattern-main">
-                  <button
-                    type="button"
-                    className="patternpals-pattern-trigger"
-                    onClick={() => setSelectedPattern(pattern)}
-                  >
-                    <span className="patternpals-pattern-title">{pattern.name}</span>
-                    <span className="muted small">
-                      {pattern.difficulty} - {pattern.requiredJugglers} jugglers - {pattern.props.join(', ')}
-                    </span>
-                  </button>
-                </div>
-                <div className="patternpals-status-buttons">
-                  {(['known', 'working', 'curious'] as PatternStatus[]).map((state) => (
-                    <button
-                      key={state}
-                      type="button"
-                      className={`patternpals-mini-button${status === state ? ' active' : ''}`}
-                      onClick={() => updatePatternStatus(pattern.id, state)}
-                    >
-                      {state}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {hasMorePatterns ? (
-          <div className="patternpals-pattern-actions">
-            <button
-              type="button"
-              className="patternpals-mini-button"
-              onClick={() => setPatternLimit((prev) => prev + PATTERN_PAGE_SIZE)}
-            >
-              Load more patterns
-            </button>
-          </div>
-        ) : null}
+        <PatternList
+          patterns={visiblePatterns}
+          total={filteredPatterns.length}
+          searchActive={Boolean(deferredPatternSearch.trim())}
+          progressMap={progressMap}
+          hasMore={hasMorePatterns}
+          onSelect={handleSelectPattern}
+          onUpdateStatus={updatePatternStatus}
+          onLoadMore={handleLoadMorePatterns}
+        />
       </article>
       {selectedPattern ? (
         <div
