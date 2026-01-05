@@ -8,6 +8,20 @@ export const metadata = {
 export default function HomePage() {
   return (
     <>
+      <details className="announcement-banner" open>
+        <summary className="announcement-dismiss-button" aria-label="Dismiss announcement">
+          ×
+        </summary>
+        <div className="announcement-content">
+          <span className="announcement-emoji" aria-hidden="true">🎮</span>
+          <span className="announcement-text">
+            <span className="announcement-highlight">NEW:</span> I&apos;m building a beat-em-up game!
+          </span>
+          <Link className="announcement-link" href="/sidewalks-of-rage/">
+            Play the demo →
+          </Link>
+        </div>
+      </details>
       {/* Voice System Explainer */}
       <div className="voice-system-banner">
         <div className="voice-banner-content">
