@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HRV / Coherent Breathing</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;600&display=swap');
+
+    :root {
+      --bg: #060b12;
+      --bg-deep: #04070c;
+      --accent: #00e5ff;
+      --accent-strong: #2cf6d6;
+      --accent-soft: rgba(0, 229, 255, 0.22);
+      --text: #e6fbff;
+      --muted: #a8c4d1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(600px 600px at 70% 18%, rgba(0, 229, 255, 0.12), transparent 60%),
+        radial-gradient(520px 520px at 18% 82%, rgba(0, 130, 255, 0.12), transparent 65%),
+        linear-gradient(180deg, var(--bg-deep), var(--bg));
+      color: var(--text);
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+      display: grid;
+      place-items: center;
+      padding: clamp(24px, 4vw, 48px);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .wrap {
+      width: min(960px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(20px, 4vw, 36px);
+      align-items: center;
+      text-align: center;
+    }
+
+    .back {
+      align-self: flex-start;
+      font-family: "IBM Plex Mono", "Menlo", monospace;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent-strong);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 48px);
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 640px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: clamp(16px, 2.2vw, 20px);
+    }
+
+    .stage {
+      position: relative;
+      width: min(72vw, 360px);
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+    }
+
+    .orb {
+      width: 70%;
+      height: 70%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(44, 246, 214, 0.95), rgba(0, 229, 255, 0.2));
+      box-shadow: 0 0 35px rgba(0, 229, 255, 0.35), 0 0 65px rgba(44, 246, 214, 0.2);
+      transform: scale(0.65);
+      will-change: transform;
+    }
+
+    .center-text {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+
+    .phase {
+      font-size: clamp(18px, 3.2vw, 28px);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .countdown {
+      font-family: "IBM Plex Mono", "Menlo", monospace;
+      font-size: clamp(34px, 6vw, 52px);
+      color: var(--accent);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      font-family: "IBM Plex Mono", "Menlo", monospace;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 229, 255, 0.35);
+      background: rgba(0, 229, 255, 0.12);
+    }
+
+    @media (max-width: 540px) {
+      .back {
+        align-self: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <a class="back" href="index.html">Back to Wellness Tools</a>
+    <header>
+      <h1>HRV / Coherent Breathing</h1>
+      <p class="subtitle">
+        A slow, even rhythm to calm the nervous system and support heart rate variability.
+      </p>
+    </header>
+
+    <section class="stage" aria-label="Coherent breathing timer">
+      <div class="orb" id="orb"></div>
+      <div class="center-text" aria-live="polite">
+        <div class="phase" id="phase">Inhale</div>
+        <div class="countdown" id="countdown">5</div>
+      </div>
+    </section>
+
+    <div class="meta">
+      <span class="pill">5s inhale</span>
+      <span class="pill">5s exhale</span>
+      <span class="pill">6 breaths/min</span>
+    </div>
+  </main>
+
+  <script>
+    const phaseDuration = 5;
+    const phases = [
+      { name: "Inhale", start: 0.65, end: 1.0 },
+      { name: "Exhale", start: 1.0, end: 0.65 }
+    ];
+
+    const totalCycles = 8;
+    const cycleDuration = phaseDuration * phases.length;
+    const totalDuration = cycleDuration * totalCycles;
+
+    const orb = document.getElementById("orb");
+    const phaseEl = document.getElementById("phase");
+    const countdownEl = document.getElementById("countdown");
+
+    let startTime = null;
+
+    const animate = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = (timestamp - startTime) / 1000;
+
+      if (elapsed >= totalDuration) {
+        phaseEl.textContent = "Complete";
+        countdownEl.textContent = "";
+        orb.style.transform = "scale(0.65)";
+        return;
+      }
+
+      const cycleTime = elapsed % cycleDuration;
+      const phaseIndex = Math.floor(cycleTime / phaseDuration);
+      const phaseTime = cycleTime % phaseDuration;
+      const phase = phases[phaseIndex];
+
+      phaseEl.textContent = phase.name;
+      countdownEl.textContent = Math.ceil(phaseDuration - phaseTime).toString();
+
+      const progress = phaseTime / phaseDuration;
+      const scale = phase.start + (phase.end - phase.start) * progress;
+      orb.style.transform = `scale(${scale})`;
+
+      requestAnimationFrame(animate);
+    };
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
