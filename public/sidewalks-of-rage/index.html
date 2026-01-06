@@ -2,23 +2,364 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Sidewalks of Rage</title>
     <style>
       body {
         margin: 0;
         background: #0b0b0b;
+        overflow: hidden;
+        touch-action: none;
       }
       #app {
+        width: 100vw;
         height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+      #app canvas {
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        display: block;
+        touch-action: none;
+      }
+      .touch-controls {
+        --control-size: 56px;
+        --control-gap: 8px;
+        --action-width: 108px;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 12px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        padding-left: calc(12px + env(safe-area-inset-left));
+        padding-right: calc(12px + env(safe-area-inset-right));
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 24px;
+        pointer-events: none;
+        z-index: 10;
+      }
+      .controls-left,
+      .controls-right,
+      .dpad,
+      .actions {
+        pointer-events: none;
+      }
+      .dpad {
+        display: grid;
+        grid-template-columns: var(--control-size) var(--control-size) var(--control-size);
+        grid-template-rows: var(--control-size) var(--control-size) var(--control-size);
+        grid-template-areas:
+          ". up ."
+          "left center right"
+          ". down .";
+        gap: var(--control-gap);
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: var(--control-gap);
+      }
+      .control-spacer {
+        width: var(--control-size);
+        height: var(--control-size);
+      }
+      .control-button {
+        width: var(--control-size);
+        height: var(--control-size);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-family: "Verdana", sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        pointer-events: auto;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+      }
+      .control-button.is-active {
+        background: rgba(255, 255, 255, 0.35);
+        border-color: rgba(255, 255, 255, 0.6);
+      }
+      .control-up {
+        grid-area: up;
+      }
+      .control-left {
+        grid-area: left;
+      }
+      .control-right {
+        grid-area: right;
+      }
+      .control-down {
+        grid-area: down;
+      }
+      .action-button {
+        width: var(--action-width);
+        height: var(--control-size);
+        border-radius: 999px;
+        font-size: 14px;
+        background: rgba(255, 140, 0, 0.25);
+      }
+      .action-button.secondary {
+        background: rgba(0, 150, 255, 0.22);
+      }
+      @media (max-width: 480px) {
+        .touch-controls {
+          --control-size: 48px;
+          --action-width: 96px;
+        }
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .touch-controls {
+          display: none;
+        }
       }
     </style>
     <script type="module" crossorigin src="/sidewalks-of-rage/assets/index-DCmz-ueO.js"></script>
   </head>
   <body>
     <div id="app"></div>
+    <div id="touch-controls" class="touch-controls" aria-label="Touch controls">
+      <div class="controls-left">
+        <div class="dpad" role="group" aria-label="Movement controls">
+          <button
+            class="control-button control-up"
+            type="button"
+            data-key="ArrowUp"
+            data-code="ArrowUp"
+            data-keycode="38"
+            aria-label="Move up"
+          >
+            ^
+          </button>
+          <button
+            class="control-button control-left"
+            type="button"
+            data-key="ArrowLeft"
+            data-code="ArrowLeft"
+            data-keycode="37"
+            aria-label="Move left"
+          >
+            &lt;
+          </button>
+          <div class="control-spacer" aria-hidden="true"></div>
+          <button
+            class="control-button control-right"
+            type="button"
+            data-key="ArrowRight"
+            data-code="ArrowRight"
+            data-keycode="39"
+            aria-label="Move right"
+          >
+            &gt;
+          </button>
+          <button
+            class="control-button control-down"
+            type="button"
+            data-key="ArrowDown"
+            data-code="ArrowDown"
+            data-keycode="40"
+            aria-label="Move down"
+          >
+            v
+          </button>
+        </div>
+      </div>
+      <div class="controls-right">
+        <div class="actions" role="group" aria-label="Action controls">
+          <button
+            class="control-button action-button"
+            type="button"
+            data-key="Space"
+            data-code="Space"
+            data-keycode="32"
+            aria-label="Attack"
+          >
+            Attack
+          </button>
+          <button
+            class="control-button action-button secondary"
+            type="button"
+            data-key="w"
+            data-code="KeyW"
+            data-keycode="87"
+            aria-label="Jump"
+          >
+            Jump
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const controls = document.getElementById("touch-controls");
+        if (!controls) return;
+
+        const buttons = Array.from(controls.querySelectorAll("[data-keycode]"));
+        const keyCounts = new Map();
+        const pointerKeyMap = new Map();
+        const keyInfoByCode = new Map();
+
+        const normalizeKey = (rawKey) => (rawKey === "Space" ? " " : rawKey);
+
+        const getKeyInfo = (button) => {
+          const rawKey = button.getAttribute("data-key") || "";
+          const code = button.getAttribute("data-code") || rawKey;
+          const keyCode = Number(button.getAttribute("data-keycode") || 0);
+          return { key: normalizeKey(rawKey), code, keyCode };
+        };
+
+        const dispatchKeyEvent = (type, keyInfo) => {
+          const event = new KeyboardEvent(type, {
+            key: keyInfo.key,
+            code: keyInfo.code,
+            keyCode: keyInfo.keyCode,
+            which: keyInfo.keyCode,
+            bubbles: true,
+            cancelable: true,
+          });
+
+          try {
+            Object.defineProperty(event, "keyCode", { get: () => keyInfo.keyCode });
+            Object.defineProperty(event, "which", { get: () => keyInfo.keyCode });
+          } catch (error) {
+            // Some browsers disallow redefining these properties.
+          }
+
+          window.dispatchEvent(event);
+        };
+
+        const pressKey = (keyInfo) => {
+          const count = keyCounts.get(keyInfo.code) || 0;
+          if (count === 0) {
+            dispatchKeyEvent("keydown", keyInfo);
+          }
+          keyCounts.set(keyInfo.code, count + 1);
+        };
+
+        const releaseKey = (keyInfo) => {
+          const count = keyCounts.get(keyInfo.code) || 0;
+          if (count <= 1) {
+            keyCounts.delete(keyInfo.code);
+            dispatchKeyEvent("keyup", keyInfo);
+          } else {
+            keyCounts.set(keyInfo.code, count - 1);
+          }
+        };
+
+        const releaseAllKeys = () => {
+          keyCounts.forEach((count, code) => {
+            if (!count) return;
+            const keyInfo = keyInfoByCode.get(code);
+            if (keyInfo) {
+              dispatchKeyEvent("keyup", keyInfo);
+            }
+          });
+          keyCounts.clear();
+          pointerKeyMap.clear();
+          buttons.forEach((button) => button.classList.remove("is-active"));
+        };
+
+        const supportsPointer = "PointerEvent" in window;
+
+        const handlePointerDown = (event) => {
+          if (event.button !== undefined && event.button !== 0) return;
+          const button = event.currentTarget;
+          const keyInfo = getKeyInfo(button);
+          if (!keyInfo.keyCode) return;
+
+          if (button.setPointerCapture) {
+            button.setPointerCapture(event.pointerId);
+          }
+
+          event.preventDefault();
+          pointerKeyMap.set(event.pointerId, keyInfo);
+          pressKey(keyInfo);
+          button.classList.add("is-active");
+        };
+
+        const handlePointerUp = (event) => {
+          const button = event.currentTarget;
+          const keyInfo = pointerKeyMap.get(event.pointerId);
+          if (!keyInfo) return;
+
+          event.preventDefault();
+          pointerKeyMap.delete(event.pointerId);
+          releaseKey(keyInfo);
+          if (!(keyCounts.get(keyInfo.code) > 0)) {
+            button.classList.remove("is-active");
+          }
+        };
+
+        buttons.forEach((button) => {
+          const keyInfo = getKeyInfo(button);
+          if (!keyInfo.keyCode) return;
+          keyInfoByCode.set(keyInfo.code, keyInfo);
+
+          if (supportsPointer) {
+            button.addEventListener("pointerdown", handlePointerDown);
+            button.addEventListener("pointerup", handlePointerUp);
+            button.addEventListener("pointercancel", handlePointerUp);
+            button.addEventListener("lostpointercapture", handlePointerUp);
+          } else {
+            button.addEventListener(
+              "touchstart",
+              (event) => {
+                event.preventDefault();
+                pressKey(keyInfo);
+                button.classList.add("is-active");
+              },
+              { passive: false }
+            );
+            button.addEventListener(
+              "touchend",
+              (event) => {
+                event.preventDefault();
+                releaseKey(keyInfo);
+                button.classList.remove("is-active");
+              },
+              { passive: false }
+            );
+            button.addEventListener(
+              "touchcancel",
+              (event) => {
+                event.preventDefault();
+                releaseKey(keyInfo);
+                button.classList.remove("is-active");
+              },
+              { passive: false }
+            );
+            button.addEventListener("mousedown", (event) => {
+              event.preventDefault();
+              pressKey(keyInfo);
+              button.classList.add("is-active");
+            });
+            button.addEventListener("mouseup", (event) => {
+              event.preventDefault();
+              releaseKey(keyInfo);
+              button.classList.remove("is-active");
+            });
+            button.addEventListener("mouseleave", () => {
+              releaseKey(keyInfo);
+              button.classList.remove("is-active");
+            });
+          }
+        });
+
+        window.addEventListener("blur", releaseAllKeys);
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) releaseAllKeys();
+        });
+      })();
+    </script>
   </body>
 </html>
