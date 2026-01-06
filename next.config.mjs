@@ -28,6 +28,26 @@ const nextConfig = {
         source: '/wellness',
         destination: '/wellness/index.html',
       },
+      {
+        source: '/wellness/',
+        destination: '/wellness/index.html',
+      },
+      {
+        source: '/wellness/box-breathing',
+        destination: '/wellness/box-breathing.html',
+      },
+      {
+        source: '/wellness/box-breathing/',
+        destination: '/wellness/box-breathing.html',
+      },
+      {
+        source: '/wellness/coherent-breathing',
+        destination: '/wellness/coherent-breathing.html',
+      },
+      {
+        source: '/wellness/coherent-breathing/',
+        destination: '/wellness/coherent-breathing.html',
+      },
     ];
   },
   env: {
