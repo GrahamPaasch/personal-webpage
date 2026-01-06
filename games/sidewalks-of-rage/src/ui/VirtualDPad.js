@@ -1,5 +1,3 @@
-import Phaser from 'phaser';
-
 const EMPTY_STATE = {
   moveX: 0,
   moveY: 0,
@@ -12,141 +10,173 @@ const EMPTY_STATE = {
 export default class VirtualDPad {
   constructor(scene, options = {}) {
     this.scene = scene;
-    const detectedTouch = typeof window !== 'undefined' && 'ontouchstart' in window;
+    const detectedTouch =
+      typeof window !== 'undefined' &&
+      ('ontouchstart' in window || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
     this.enabled = typeof options.enabled === 'boolean' ? options.enabled : detectedTouch;
     this.state = { ...EMPTY_STATE };
 
     this.activePointerId = null;
     this.attackPointerId = null;
     this.jumpPointerId = null;
-    this.dpadSize = 0;
-    this.attackSize = 0;
-    this.jumpSize = 0;
     this.deadZone = 0;
+    this.dpadBounds = null;
 
     this.octantDirections = [
-      new Phaser.Math.Vector2(1, 0),
-      new Phaser.Math.Vector2(1, 1),
-      new Phaser.Math.Vector2(0, 1),
-      new Phaser.Math.Vector2(-1, 1),
-      new Phaser.Math.Vector2(-1, 0),
-      new Phaser.Math.Vector2(-1, -1),
-      new Phaser.Math.Vector2(0, -1),
-      new Phaser.Math.Vector2(1, -1)
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+      { x: -1, y: 1 },
+      { x: -1, y: 0 },
+      { x: -1, y: -1 },
+      { x: 0, y: -1 },
+      { x: 1, y: -1 }
     ];
 
     if (!this.enabled) {
       return;
     }
 
-    this.scene.input.addPointer(2);
-    this.createVisuals();
-    this.registerInput();
+    this.leftContainer = document.getElementById('left-controls');
+    this.rightContainer = document.getElementById('right-controls');
 
-    this.scene.scale.on('resize', this.handleResize, this);
-    this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    if (!this.leftContainer || !this.rightContainer) {
+      this.enabled = false;
+      return;
+    }
+
+    this.handleDpadPointerDown = this.handleDpadPointerDown.bind(this);
+    this.handleDpadPointerMove = this.handleDpadPointerMove.bind(this);
+    this.handlePointerUp = this.handlePointerUp.bind(this);
+    this.handleAttackPointerDown = this.handleAttackPointerDown.bind(this);
+    this.handleJumpPointerDown = this.handleJumpPointerDown.bind(this);
+    this.handleResize = this.handleResize.bind(this);
+
+    this.createDom();
+    this.registerInput();
+    this.layout();
+
+    window.addEventListener('resize', this.handleResize);
+    this.scene.events.once('shutdown', () => {
       this.destroy();
     });
   }
 
-  createVisuals() {
-    this.dpadContainer = this.scene.add.container(0, 0);
-    this.dpadGraphics = this.scene.add.graphics();
-    this.dpadContainer.add(this.dpadGraphics);
-    this.dpadContainer.setScrollFactor(0).setDepth(1500);
+  createDom() {
+    this.dpadWrapper = document.createElement('div');
+    this.dpadWrapper.className = 'virtual-dpad-wrapper';
 
-    this.attackContainer = this.scene.add.container(0, 0);
-    this.attackBase = this.scene.add.circle(0, 0, 10, 0x1a1a1a, 0.55);
-    this.attackBase.setStrokeStyle(3, 0xf25f5c, 0.85);
-    this.attackInner = this.scene.add.circle(0, 0, 5, 0x2a2a2a, 0.8);
-    this.attackInner.setStrokeStyle(2, 0xffe066, 0.75);
-    this.attackContainer.add([this.attackBase, this.attackInner]);
-    this.attackContainer.setScrollFactor(0).setDepth(1500);
+    this.dpad = document.createElement('div');
+    this.dpad.className = 'virtual-dpad';
 
-    this.jumpContainer = this.scene.add.container(0, 0);
-    this.jumpBase = this.scene.add.circle(0, 0, 10, 0x1a1a1a, 0.5);
-    this.jumpBase.setStrokeStyle(3, 0x4dd6a6, 0.85);
-    this.jumpInner = this.scene.add.circle(0, 0, 5, 0x2a2a2a, 0.78);
-    this.jumpInner.setStrokeStyle(2, 0x3b82f6, 0.75);
-    this.jumpContainer.add([this.jumpBase, this.jumpInner]);
-    this.jumpContainer.setScrollFactor(0).setDepth(1500);
+    this.dpadCenter = document.createElement('div');
+    this.dpadCenter.className = 'virtual-dpad-center';
+    this.dpad.appendChild(this.dpadCenter);
 
-    this.dpadZone = this.scene.add.zone(0, 0, 10, 10).setInteractive();
-    this.attackZone = this.scene.add.zone(0, 0, 10, 10).setInteractive();
-    this.jumpZone = this.scene.add.zone(0, 0, 10, 10).setInteractive();
-    this.dpadZone.setScrollFactor(0).setDepth(1501);
-    this.attackZone.setScrollFactor(0).setDepth(1501);
-    this.jumpZone.setScrollFactor(0).setDepth(1501);
+    this.dpadWrapper.appendChild(this.dpad);
+    this.leftContainer.appendChild(this.dpadWrapper);
 
-    this.layout();
+    this.buttonStack = document.createElement('div');
+    this.buttonStack.className = 'virtual-buttons';
+
+    this.jumpButton = this.createButton('jump', 'Jump');
+    this.attackButton = this.createButton('attack', 'Attack');
+    this.buttonStack.append(this.jumpButton, this.attackButton);
+    this.rightContainer.appendChild(this.buttonStack);
+  }
+
+  createButton(type, label) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `virtual-button ${type}`;
+    button.textContent = label;
+    button.setAttribute('aria-label', label);
+    return button;
   }
 
   registerInput() {
-    this.dpadZone.on('pointerdown', (pointer) => {
-      if (this.activePointerId !== null) {
-        return;
-      }
-      this.activePointerId = pointer.id;
-      this.updateDirection(pointer);
-      this.dpadContainer.setScale(0.97);
-    });
+    this.dpad.addEventListener('pointerdown', this.handleDpadPointerDown);
+    this.dpad.addEventListener('pointermove', this.handleDpadPointerMove);
+    this.attackButton.addEventListener('pointerdown', this.handleAttackPointerDown);
+    this.jumpButton.addEventListener('pointerdown', this.handleJumpPointerDown);
 
-    this.attackZone.on('pointerdown', (pointer) => {
-      if (this.attackPointerId !== null) {
-        return;
-      }
-      this.attackPointerId = pointer.id;
-      this.state.attackPressed = true;
-      this.state.attackJustPressed = true;
-      this.attackContainer.setScale(0.94);
-    });
-
-    this.jumpZone.on('pointerdown', (pointer) => {
-      if (this.jumpPointerId !== null) {
-        return;
-      }
-      this.jumpPointerId = pointer.id;
-      this.state.jumpPressed = true;
-      this.state.jumpJustPressed = true;
-      this.jumpContainer.setScale(0.94);
-    });
-
-    this.scene.input.on('pointermove', this.handlePointerMove, this);
-    this.scene.input.on('pointerup', this.handlePointerUp, this);
-    this.scene.input.on('pointerupoutside', this.handlePointerUp, this);
-    this.scene.input.on('gameout', this.handlePointerUp, this);
+    window.addEventListener('pointerup', this.handlePointerUp);
+    window.addEventListener('pointercancel', this.handlePointerUp);
   }
 
-  handlePointerMove(pointer) {
-    if (pointer.id !== this.activePointerId) {
+  handleDpadPointerDown(event) {
+    if (this.activePointerId !== null) {
       return;
     }
-    this.updateDirection(pointer);
+    this.activePointerId = event.pointerId;
+    this.dpad.setPointerCapture?.(event.pointerId);
+    this.layout();
+    this.updateDirectionFromEvent(event);
+    this.dpad.classList.add('is-pressed');
+    event.preventDefault();
   }
 
-  handlePointerUp(pointer) {
-    if (pointer.id === this.activePointerId) {
+  handleDpadPointerMove(event) {
+    if (event.pointerId !== this.activePointerId) {
+      return;
+    }
+    this.updateDirectionFromEvent(event);
+    event.preventDefault();
+  }
+
+  handleAttackPointerDown(event) {
+    if (this.attackPointerId !== null) {
+      return;
+    }
+    this.attackPointerId = event.pointerId;
+    this.state.attackPressed = true;
+    this.state.attackJustPressed = true;
+    this.attackButton.classList.add('is-pressed');
+    this.attackButton.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  handleJumpPointerDown(event) {
+    if (this.jumpPointerId !== null) {
+      return;
+    }
+    this.jumpPointerId = event.pointerId;
+    this.state.jumpPressed = true;
+    this.state.jumpJustPressed = true;
+    this.jumpButton.classList.add('is-pressed');
+    this.jumpButton.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  handlePointerUp(event) {
+    if (event.pointerId === this.activePointerId) {
       this.activePointerId = null;
       this.resetDirection();
-      this.dpadContainer.setScale(1);
+      this.dpad.classList.remove('is-pressed');
     }
 
-    if (pointer.id === this.attackPointerId) {
+    if (event.pointerId === this.attackPointerId) {
       this.attackPointerId = null;
       this.state.attackPressed = false;
-      this.attackContainer.setScale(1);
+      this.attackButton.classList.remove('is-pressed');
     }
 
-    if (pointer.id === this.jumpPointerId) {
+    if (event.pointerId === this.jumpPointerId) {
       this.jumpPointerId = null;
       this.state.jumpPressed = false;
-      this.jumpContainer.setScale(1);
+      this.jumpButton.classList.remove('is-pressed');
     }
   }
 
-  updateDirection(pointer) {
-    const dx = pointer.x - this.dpadContainer.x;
-    const dy = pointer.y - this.dpadContainer.y;
+  updateDirectionFromEvent(event) {
+    if (!this.dpadBounds) {
+      this.layout();
+    }
+
+    const centerX = this.dpadBounds.left + this.dpadBounds.width / 2;
+    const centerY = this.dpadBounds.top + this.dpadBounds.height / 2;
+    const dx = event.clientX - centerX;
+    const dy = event.clientY - centerY;
     const distance = Math.hypot(dx, dy);
     if (distance < this.deadZone) {
       this.state.moveX = 0;
@@ -154,7 +184,7 @@ export default class VirtualDPad {
       return;
     }
 
-    const angle = Phaser.Math.Angle.Between(0, 0, dx, dy);
+    const angle = Math.atan2(dy, dx);
     const wrapped = angle < 0 ? angle + Math.PI * 2 : angle;
     const octant = Math.round(wrapped / (Math.PI / 4)) % 8;
     const dir = this.octantDirections[octant];
@@ -167,82 +197,12 @@ export default class VirtualDPad {
     this.state.moveY = 0;
   }
 
-  layout(width = this.scene.scale.width, height = this.scene.scale.height) {
-    const base = Math.min(width, height);
-    this.dpadSize = Phaser.Math.Clamp(base * 0.28, 84, 170);
-    this.attackSize = Phaser.Math.Clamp(base * 0.22, 70, 150);
-    this.jumpSize = Phaser.Math.Clamp(base * 0.2, 64, 140);
-    const margin = base * 0.06;
-    const buttonGap = Phaser.Math.Clamp(base * 0.035, 10, 22);
-
-    const dpadX = margin + this.dpadSize / 2;
-    const dpadY = height - margin - this.dpadSize / 2;
-    const attackX = width - margin - this.attackSize / 2;
-    const attackY = height - margin - this.attackSize / 2;
-    const jumpX = width - margin - this.jumpSize / 2;
-    const jumpY = attackY - (this.attackSize / 2 + this.jumpSize / 2 + buttonGap);
-
-    this.dpadContainer.setPosition(dpadX, dpadY);
-    this.attackContainer.setPosition(attackX, attackY);
-    this.jumpContainer.setPosition(jumpX, jumpY);
-    this.dpadZone.setPosition(dpadX, dpadY);
-    this.attackZone.setPosition(attackX, attackY);
-    this.jumpZone.setPosition(jumpX, jumpY);
-
-    this.dpadZone.setSize(this.dpadSize * 1.15, this.dpadSize * 1.15);
-    this.attackZone.setSize(this.attackSize * 1.1, this.attackSize * 1.1);
-    this.jumpZone.setSize(this.jumpSize * 1.1, this.jumpSize * 1.1);
-
-    this.deadZone = this.dpadSize * 0.18;
-
-    this.redrawDPad();
-    this.redrawAttack();
-    this.redrawJump();
-  }
-
-  redrawDPad() {
-    const g = this.dpadGraphics;
-    const size = this.dpadSize;
-    const half = size / 2;
-    const thickness = size * 0.36;
-    const halfThickness = thickness / 2;
-
-    g.clear();
-    g.fillStyle(0x141414, 0.55);
-    g.fillRect(-halfThickness, -half, thickness, size);
-    g.fillRect(-half, -halfThickness, size, thickness);
-
-    const innerScale = 0.78;
-    const innerSize = size * innerScale;
-    const innerThickness = thickness * innerScale;
-    const innerHalf = innerSize / 2;
-    const innerHalfThickness = innerThickness / 2;
-    g.fillStyle(0x2a2a2a, 0.75);
-    g.fillRect(-innerHalfThickness, -innerHalf, innerThickness, innerSize);
-    g.fillRect(-innerHalf, -innerHalfThickness, innerSize, innerThickness);
-
-    g.lineStyle(3, 0xf2c94c, 0.85);
-    g.strokeRect(-halfThickness, -half, thickness, size);
-    g.strokeRect(-half, -halfThickness, size, thickness);
-    g.lineStyle(2, 0x4dd6a6, 0.7);
-    g.strokeRect(-innerHalfThickness, -innerHalf, innerThickness, innerSize);
-    g.strokeRect(-innerHalf, -innerHalfThickness, innerSize, innerThickness);
-
-    const centerSize = thickness * 0.6;
-    g.fillStyle(0x101010, 0.85);
-    g.fillRect(-centerSize / 2, -centerSize / 2, centerSize, centerSize);
-    g.lineStyle(2, 0xf2c94c, 0.8);
-    g.strokeRect(-centerSize / 2, -centerSize / 2, centerSize, centerSize);
-  }
-
-  redrawAttack() {
-    this.attackBase.setRadius(this.attackSize / 2);
-    this.attackInner.setRadius(this.attackSize * 0.33);
-  }
-
-  redrawJump() {
-    this.jumpBase.setRadius(this.jumpSize / 2);
-    this.jumpInner.setRadius(this.jumpSize * 0.33);
+  layout() {
+    if (!this.dpad) {
+      return;
+    }
+    this.dpadBounds = this.dpad.getBoundingClientRect();
+    this.deadZone = this.dpadBounds.width * 0.18;
   }
 
   getInputState() {
@@ -255,13 +215,11 @@ export default class VirtualDPad {
     return snapshot;
   }
 
-  handleResize(gameSize) {
+  handleResize() {
     if (!this.enabled) {
       return;
     }
-    const width = gameSize?.width ?? this.scene.scale.width;
-    const height = gameSize?.height ?? this.scene.scale.height;
-    this.layout(width, height);
+    this.layout();
   }
 
   destroy() {
@@ -269,17 +227,16 @@ export default class VirtualDPad {
       return;
     }
 
-    this.scene.scale.off('resize', this.handleResize, this);
-    this.scene.input.off('pointermove', this.handlePointerMove, this);
-    this.scene.input.off('pointerup', this.handlePointerUp, this);
-    this.scene.input.off('pointerupoutside', this.handlePointerUp, this);
-    this.scene.input.off('gameout', this.handlePointerUp, this);
+    window.removeEventListener('resize', this.handleResize);
+    window.removeEventListener('pointerup', this.handlePointerUp);
+    window.removeEventListener('pointercancel', this.handlePointerUp);
 
-    this.dpadZone?.destroy();
-    this.attackZone?.destroy();
-    this.jumpZone?.destroy();
-    this.dpadContainer?.destroy();
-    this.attackContainer?.destroy();
-    this.jumpContainer?.destroy();
+    this.dpad?.removeEventListener('pointerdown', this.handleDpadPointerDown);
+    this.dpad?.removeEventListener('pointermove', this.handleDpadPointerMove);
+    this.attackButton?.removeEventListener('pointerdown', this.handleAttackPointerDown);
+    this.jumpButton?.removeEventListener('pointerdown', this.handleJumpPointerDown);
+
+    this.dpadWrapper?.remove();
+    this.buttonStack?.remove();
   }
 }
