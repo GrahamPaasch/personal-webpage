@@ -22,6 +22,14 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: [],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/wellness',
+        destination: '/wellness/index.html',
+      },
+    ];
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: composedVersion,
     NEXT_PUBLIC_BUILD_TIME: buildTime,
