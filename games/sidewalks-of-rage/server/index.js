@@ -25,6 +25,28 @@ const MESSAGE_TYPES = {
 const globalScore = { fauci: 0, rogan: 0 };
 const roundState = { active: true, battleLinePosition: 50 };
 const FACTIONS = ['fauci', 'rogan'];
+const ROSTER_ARCHETYPES = {
+  fauci: [
+    'Lab Lecturer',
+    'Peer Reviewer',
+    'Policy Tutor',
+    'Evidence Wrangler',
+    'Guideline Editor',
+    'Data Coach',
+    'Protocol Trainer',
+    'Consensus Builder'
+  ],
+  rogan: [
+    'Field Questioner',
+    'Skeptic Scout',
+    'Research Wanderer',
+    'Signal Seeker',
+    'Source Doubter',
+    'Curiosity Captain',
+    'Debate Drifter',
+    'Contrarian Runner'
+  ]
+};
 const BATTLE_LINE_STEP = 5;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -71,6 +93,11 @@ const getFactionCounts = () => {
 const chooseFaction = () => {
   const { fauciPlayers, roganPlayers } = getFactionCounts();
   return fauciPlayers <= roganPlayers ? 'fauci' : 'rogan';
+};
+
+const chooseArchetype = (faction) => {
+  const roster = ROSTER_ARCHETYPES[faction] || ROSTER_ARCHETYPES.fauci;
+  return roster[Math.floor(Math.random() * roster.length)];
 };
 
 const roundStatePayload = () => {
@@ -150,13 +177,15 @@ wss.on('connection', (socket) => {
 
       const playerId = randomUUID();
       const faction = chooseFaction();
+      const archetype = chooseArchetype(faction);
       const player = {
         id: playerId,
         x: toNumber(payload.x, 0),
         y: toNumber(payload.y, 0),
         facing: normalizeFacing(payload.facing),
         isAttacking: Boolean(payload.isAttacking),
-        faction
+        faction,
+        archetype
       };
 
       players.set(playerId, player);

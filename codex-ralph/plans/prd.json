@@ -1,0 +1,46 @@
+[
+  {
+    "id": "roster-archetypes-assignment",
+    "title": "Assign roster archetypes on join",
+    "description": "When a player joins, the server assigns a faction-appropriate archetype name (Questioners/Educators) and includes it in GAME_STATE and PLAYER_JOINED payloads so clients can display it.",
+    "steps": [
+      "Define a roster list for each faction (generic parody names) and pick one at join",
+      "Store the chosen archetype on the player record and include it in join/state payloads",
+      "Ensure reconnecting clients receive archetypes for existing players"
+    ],
+    "passes": true
+  },
+  {
+    "id": "remote-player-labels",
+    "title": "Render labels for remote players",
+    "description": "Remote players show a label above their sprite with the roster archetype name (fallback to faction if missing) and labels are cleaned up on leave.",
+    "steps": [
+      "Create a text label when a remote player is created and keep it anchored above the sprite",
+      "Update label text/tint when roster or faction changes",
+      "Destroy labels when the remote player is removed"
+    ],
+    "passes": true
+  },
+  {
+    "id": "battle-line-ui-text",
+    "title": "Add battle line text and player counts",
+    "description": "Show a small UI readout near the battle line bar with the current percentage and faction counts from ROUND_STATE.",
+    "steps": [
+      "Add text elements for battle line percent and faction counts",
+      "Update the text when ROUND_STATE arrives",
+      "Keep the text aligned when the canvas resizes"
+    ],
+    "passes": true
+  },
+  {
+    "id": "round-end-banner",
+    "title": "Show a round end banner",
+    "description": "When the server sends ROUND_END, display a brief banner announcing the winning faction before fading away.",
+    "steps": [
+      "Listen for ROUND_END and map the winner to a display label",
+      "Show a centered banner with faction color and text for a short duration",
+      "Hide and reset the banner so it can be reused"
+    ],
+    "passes": false
+  }
+]

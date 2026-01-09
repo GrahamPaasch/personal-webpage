@@ -197,9 +197,24 @@ export default class GameScene extends Phaser.Scene {
     this.globalScoreText.setDepth(1000);
     this.updateGlobalScoreText();
 
+    this.factionCounts = { fauci: 0, rogan: 0 };
     this.battleLinePosition = 50;
     this.battleLineGraphics = this.add.graphics();
     this.battleLineGraphics.setDepth(1000);
+    const battleLineTextStyle = {
+      fontFamily: 'Verdana',
+      fontSize: '11px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3
+    };
+    this.battleLinePercentText = this.add.text(0, 0, '', battleLineTextStyle);
+    this.battleLinePercentText.setOrigin(0, 0);
+    this.battleLinePercentText.setDepth(1001);
+    this.battleLineCountText = this.add.text(0, 0, '', battleLineTextStyle);
+    this.battleLineCountText.setOrigin(1, 0);
+    this.battleLineCountText.setDepth(1001);
+    this.scale.on('resize', this.updateBattleLineUI, this);
     this.updateBattleLineUI();
 
     this.killMessageText = this.add.text(width / 2, 90, '', {
@@ -263,6 +278,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.client?.disconnect();
+      this.scale?.off('resize', this.updateBattleLineUI, this);
     });
   }
 
@@ -598,6 +614,17 @@ export default class GameScene extends Phaser.Scene {
     this.battleLineGraphics.fillRect(markerX, barY, Math.max(0, barX + barWidth - markerX), barHeight);
     this.battleLineGraphics.lineStyle(2, 0xffffff, 1);
     this.battleLineGraphics.lineBetween(markerX, barY - 2, markerX, barY + barHeight + 2);
+
+    if (this.battleLinePercentText && this.battleLineCountText) {
+      const textY = barY + barHeight + 4;
+      this.battleLinePercentText.setPosition(barX, textY);
+      this.battleLineCountText.setPosition(barX + barWidth, textY);
+      const percentValue = Math.round(position);
+      const fauciCount = Number.isFinite(this.factionCounts?.fauci) ? this.factionCounts.fauci : 0;
+      const roganCount = Number.isFinite(this.factionCounts?.rogan) ? this.factionCounts.rogan : 0;
+      this.battleLinePercentText.setText(`LINE ${percentValue}%`);
+      this.battleLineCountText.setText(`FAUCI ${fauciCount} | ROGAN ${roganCount}`);
+    }
   }
 
   updateGlobalScoreText() {
@@ -751,6 +778,51 @@ export default class GameScene extends Phaser.Scene {
     this.applyPlayerFactionTint();
   }
 
+  getRemoteLabelText(archetype, faction) {
+    if (archetype) {
+      return archetype;
+    }
+    if (faction) {
+      return faction.toUpperCase();
+    }
+    return 'PLAYER';
+  }
+
+  setRemoteLabelTint(label, faction) {
+    if (!label) {
+      return;
+    }
+    const tint = this.getFactionTint(faction);
+    if (tint) {
+      label.setTint(tint);
+    } else {
+      label.clearTint();
+    }
+  }
+
+  positionRemoteLabel(label, sprite) {
+    if (!label || !sprite) {
+      return;
+    }
+    const offset = 6;
+    label.setPosition(sprite.x, sprite.y - sprite.displayHeight - offset);
+    label.setDepth(sprite.depth + 1);
+  }
+
+  syncRemoteLabel(entry, playerState) {
+    if (!entry || !entry.label || !entry.sprite) {
+      return;
+    }
+    const faction = playerState?.faction || entry.faction;
+    const archetype = playerState?.archetype || entry.archetype;
+    const text = this.getRemoteLabelText(archetype, faction);
+    if (text !== entry.label.text) {
+      entry.label.setText(text);
+    }
+    this.setRemoteLabelTint(entry.label, faction);
+    this.positionRemoteLabel(entry.label, entry.sprite);
+  }
+
   upsertRemotePlayer(playerState) {
     const id = playerState?.id;
     if (!id || id === this.playerId) {
@@ -781,13 +853,26 @@ export default class GameScene extends Phaser.Scene {
     const y = typeof playerState.y === 'number' ? playerState.y : this.player.y;
     const facing = this.normalizeFacing(playerState.facing);
     const faction = playerState.faction;
+    const archetype = playerState.archetype;
     const sprite = this.add.sprite(x, y, 'fauci-right', 0);
     sprite.setOrigin(0.5, 1);
     this.applyFactionTint(sprite, faction);
     sprite.play(`fauci-idle-${facing}`, true);
     this.setSpriteDepth(sprite);
 
-    this.remotePlayers.set(id, { sprite, facing, faction });
+    const labelText = this.getRemoteLabelText(archetype, faction);
+    const label = this.add.text(x, y - sprite.displayHeight - 6, labelText, {
+      fontFamily: 'Verdana',
+      fontSize: '12px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3
+    });
+    label.setOrigin(0.5, 1);
+    this.setRemoteLabelTint(label, faction);
+    this.positionRemoteLabel(label, sprite);
+
+    this.remotePlayers.set(id, { sprite, facing, faction, archetype, label });
   }
 
   updateRemotePlayer(playerState) {
@@ -814,6 +899,11 @@ export default class GameScene extends Phaser.Scene {
 
     const facing = this.normalizeFacing(playerState.facing || entry.facing);
     entry.facing = facing;
+    const archetype = playerState.archetype || entry.archetype;
+    if (archetype !== entry.archetype) {
+      entry.archetype = archetype;
+    }
+    this.syncRemoteLabel(entry, playerState);
 
     const moved = Math.hypot(x - previousX, y - previousY) > 0.5;
     const attackAnim = sprite.anims.currentAnim?.key?.startsWith('fauci-attack-') && sprite.anims.isPlaying;
@@ -851,6 +941,11 @@ export default class GameScene extends Phaser.Scene {
 
     const facing = this.normalizeFacing(playerState.facing || entry.facing);
     entry.facing = facing;
+    const archetype = playerState.archetype || entry.archetype;
+    if (archetype !== entry.archetype) {
+      entry.archetype = archetype;
+    }
+    this.syncRemoteLabel(entry, playerState);
 
     const attackAnim = `fauci-attack-${facing}`;
     sprite.play(attackAnim, true);
@@ -869,6 +964,9 @@ export default class GameScene extends Phaser.Scene {
     }
 
     entry.sprite.destroy();
+    if (entry.label) {
+      entry.label.destroy();
+    }
     this.remotePlayers.delete(id);
   }
 

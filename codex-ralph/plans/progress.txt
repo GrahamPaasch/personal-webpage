@@ -1,0 +1,14 @@
+Progress log (append only). Each entry should include what changed and how it was verified.
+
+- Added faction-specific roster archetypes on player join and stored archetype in join/state payloads.
+- Verified: npm not available, so 
+pm run lint could not run.
+- Next: install Node/npm, rerun lint, then implement remote player labels.
+
+- Added remote player labels with archetype/faction text, tint sync, and cleanup on leave.
+- Verified: npm run lint (failed: npm not available).
+- Next: install Node/npm, rerun npm run lint, then implement battle line UI text.
+
+- Added battle line percent and faction count text anchored to the battle line bar, updated on resize.
+- Verified: npm run lint (failed: npm not available).
+- Next: install Node/npm, rerun npm run lint, then implement the round end banner.
