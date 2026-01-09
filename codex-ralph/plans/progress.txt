@@ -12,3 +12,7 @@ pm run lint could not run.
 - Added battle line percent and faction count text anchored to the battle line bar, updated on resize.
 - Verified: npm run lint (failed: npm not available).
 - Next: install Node/npm, rerun npm run lint, then implement the round end banner.
+
+- Added round end banner UI that fades in/out on ROUND_END with faction color text.
+- Verified: npm run lint (failed: npm not available).
+- Next: install Node/npm, rerun npm run lint.

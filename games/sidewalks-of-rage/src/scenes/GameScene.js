@@ -217,6 +217,28 @@ export default class GameScene extends Phaser.Scene {
     this.scale.on('resize', this.updateBattleLineUI, this);
     this.updateBattleLineUI();
 
+    const roundEndTextStyle = {
+      fontFamily: 'Verdana',
+      fontSize: '20px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      wordWrap: { width: Math.min(width * 0.7, 420) }
+    };
+    this.roundEndBanner = this.add.container(width / 2, height / 2);
+    this.roundEndBannerBg = this.add.rectangle(0, 0, 0, 0, 0x111827, 0.85);
+    this.roundEndBannerText = this.add.text(0, 0, '', roundEndTextStyle);
+    this.roundEndBannerBg.setOrigin(0.5);
+    this.roundEndBannerText.setOrigin(0.5);
+    this.roundEndBanner.add([this.roundEndBannerBg, this.roundEndBannerText]);
+    this.roundEndBanner.setDepth(1600);
+    this.roundEndBanner.setVisible(false);
+    this.roundEndBanner.setAlpha(0);
+    this.roundEndBannerTween = null;
+    this.scale.on('resize', this.updateRoundEndBannerLayout, this);
+    this.updateRoundEndBannerLayout();
+
     this.killMessageText = this.add.text(width / 2, 90, '', {
       fontFamily: 'Verdana',
       fontSize: '20px',
@@ -279,6 +301,8 @@ export default class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.client?.disconnect();
       this.scale?.off('resize', this.updateBattleLineUI, this);
+      this.scale?.off('resize', this.updateRoundEndBannerLayout, this);
+      this.roundEndBannerTween?.stop();
     });
   }
 
@@ -567,6 +591,44 @@ export default class GameScene extends Phaser.Scene {
     this.deathOverlay.setVisible(false);
   }
 
+  showRoundEndBanner(winner) {
+    if (!this.roundEndBanner || !this.roundEndBannerBg || !this.roundEndBannerText) {
+      return;
+    }
+
+    const faction = winner === 'fauci' || winner === 'rogan' ? winner : null;
+    const label = faction ? `${faction.toUpperCase()} WINS THE ROUND` : 'ROUND COMPLETE';
+    const tint = this.getFactionTint(faction) ?? 0x111827;
+    this.roundEndBannerText.setText(label);
+    this.roundEndBannerBg.setFillStyle(tint, 0.85);
+
+    if (this.roundEndBannerTween) {
+      this.roundEndBannerTween.stop();
+      this.roundEndBannerTween = null;
+    }
+
+    this.roundEndBanner.setVisible(true);
+    this.roundEndBanner.setAlpha(0);
+    this.roundEndBanner.setScale(0.98);
+
+    this.roundEndBannerTween = this.tweens.timeline({
+      targets: this.roundEndBanner,
+      tweens: [
+        { alpha: 1, scale: 1, duration: 200, ease: 'Quad.out' },
+        { alpha: 1, scale: 1, duration: 1600 },
+        { alpha: 0, scale: 1.02, duration: 300, ease: 'Quad.in' }
+      ],
+      onComplete: () => {
+        if (!this.roundEndBanner) {
+          return;
+        }
+        this.roundEndBanner.setVisible(false);
+        this.roundEndBanner.setAlpha(0);
+        this.roundEndBanner.setScale(1);
+      }
+    });
+  }
+
   updateHealthBar() {
     if (!this.healthBar) {
       return;
@@ -627,6 +689,19 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  updateRoundEndBannerLayout() {
+    if (!this.roundEndBanner || !this.roundEndBannerBg || !this.roundEndBannerText) {
+      return;
+    }
+
+    const { width, height } = this.scale;
+    const bannerWidth = Math.min(width * 0.8, 480);
+    const bannerHeight = Math.max(48, Math.min(72, height * 0.18));
+    this.roundEndBanner.setPosition(width / 2, height / 2);
+    this.roundEndBannerBg.setSize(bannerWidth, bannerHeight);
+    this.roundEndBannerText.setWordWrapWidth(bannerWidth - 32);
+  }
+
   updateGlobalScoreText() {
     if (!this.globalScoreText) {
       return;
@@ -677,6 +752,11 @@ export default class GameScene extends Phaser.Scene {
         rogan: Number.isFinite(payload.roganPlayers) ? payload.roganPlayers : 0
       };
       this.updateBattleLineUI();
+    });
+
+    this.client.on(MESSAGE_TYPES.ROUND_END, ({ payload }) => {
+      const winner = payload?.winner;
+      this.showRoundEndBanner(winner);
     });
 
     this.client.on(MESSAGE_TYPES.GLOBAL_SCORE, ({ payload }) => {

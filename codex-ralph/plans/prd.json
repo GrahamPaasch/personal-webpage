@@ -41,6 +41,6 @@
       "Show a centered banner with faction color and text for a short duration",
       "Hide and reset the banner so it can be reused"
     ],
-    "passes": false
+    "passes": true
   }
 ]
