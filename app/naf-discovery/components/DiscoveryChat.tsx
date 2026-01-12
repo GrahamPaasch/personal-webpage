@@ -130,7 +130,7 @@ export default function DiscoveryChat() {
     const trimmed = input.trim();
     if (!trimmed || isTyping) return;
 
-    const nextMessages = [...messages, { role: 'user', content: trimmed }];
+    const nextMessages = [...messages, { role: 'user' as const, content: trimmed }];
     setMessages(nextMessages);
     setInput('');
     setIsTyping(true);
