@@ -42,11 +42,15 @@ export default function DiscoveryChat() {
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+  const [autoSendCountdown, setAutoSendCountdown] = useState<number | null>(null);
   const nextPromptIndexRef = useRef(1);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
+  const autoSendTimeoutRef = useRef<number | null>(null);
+  const autoSendIntervalRef = useRef<number | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const transcriptBaseRef = useRef('');
+  const inputRef = useRef('');
 
   useEffect(() => {
     if (!messagesRef.current) return;
@@ -60,6 +64,12 @@ export default function DiscoveryChat() {
     return () => {
       if (typingTimeoutRef.current !== null) {
         window.clearTimeout(typingTimeoutRef.current);
+      }
+      if (autoSendTimeoutRef.current !== null) {
+        window.clearTimeout(autoSendTimeoutRef.current);
+      }
+      if (autoSendIntervalRef.current !== null) {
+        window.clearInterval(autoSendIntervalRef.current);
       }
     };
   }, []);
@@ -104,6 +114,47 @@ export default function DiscoveryChat() {
     setIsListening(false);
   };
 
+  const updateInputValue = (value: string) => {
+    inputRef.current = value;
+    setInput(value);
+  };
+
+  const clearAutoSend = () => {
+    if (autoSendTimeoutRef.current !== null) {
+      window.clearTimeout(autoSendTimeoutRef.current);
+      autoSendTimeoutRef.current = null;
+    }
+    if (autoSendIntervalRef.current !== null) {
+      window.clearInterval(autoSendIntervalRef.current);
+      autoSendIntervalRef.current = null;
+    }
+    setAutoSendCountdown(null);
+  };
+
+  const scheduleAutoSend = () => {
+    const trimmed = inputRef.current.trim();
+    if (!trimmed) return;
+
+    clearAutoSend();
+    setAutoSendCountdown(4);
+
+    autoSendIntervalRef.current = window.setInterval(() => {
+      setAutoSendCountdown((prev) => {
+        if (prev === null) return null;
+        return prev > 1 ? prev - 1 : 1;
+      });
+    }, 1000);
+
+    autoSendTimeoutRef.current = window.setTimeout(() => {
+      const latest = inputRef.current.trim();
+      if (!latest) {
+        clearAutoSend();
+        return;
+      }
+      handleSend();
+    }, 4000);
+  };
+
   const startListening = async () => {
     const SpeechRecognitionConstructor = getSpeechRecognitionConstructor();
     if (!SpeechRecognitionConstructor) return;
@@ -121,7 +172,7 @@ export default function DiscoveryChat() {
     recognition.interimResults = true;
     recognition.continuous = false;
 
-    const base = input;
+    const base = inputRef.current;
     const spacer = base.length > 0 && !base.endsWith(' ') ? ' ' : '';
     transcriptBaseRef.current = `${base}${spacer}`;
 
@@ -129,7 +180,7 @@ export default function DiscoveryChat() {
       const transcript = Array.from(event.results)
         .map((result) => result[0]?.transcript ?? '')
         .join('');
-      setInput(`${transcriptBaseRef.current}${transcript}`);
+      updateInputValue(`${transcriptBaseRef.current}${transcript}`);
     };
 
     recognition.onerror = () => {
@@ -139,6 +190,7 @@ export default function DiscoveryChat() {
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
+      scheduleAutoSend();
     };
 
     try {
@@ -152,6 +204,7 @@ export default function DiscoveryChat() {
 
   const handleMicClick = async () => {
     if (!isSpeechSupported) return;
+    clearAutoSend();
     if (isListening) {
       stopListening();
       return;
@@ -161,14 +214,15 @@ export default function DiscoveryChat() {
 
   const handleSend = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
+    clearAutoSend();
     if (isListening) {
       stopListening({ abort: true });
     }
-    const trimmed = input.trim();
+    const trimmed = inputRef.current.trim();
     if (!trimmed || isTyping) return;
 
     setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
-    setInput('');
+    updateInputValue('');
     setIsTyping(true);
 
     if (typingTimeoutRef.current !== null) {
@@ -246,13 +300,23 @@ export default function DiscoveryChat() {
       </div>
 
       <form onSubmit={handleSend} className="flex flex-col gap-3 sm:flex-row">
-        <input
-          type="text"
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Type your response..."
-          className="flex-1 rounded-xl border border-slate-800/70 bg-slate-900/70 px-4 py-3 text-[0.95rem] text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 font-ai"
-        />
+        <div className="flex flex-1 flex-col gap-1">
+          <input
+            type="text"
+            value={input}
+            onChange={(event) => {
+              clearAutoSend();
+              updateInputValue(event.target.value);
+            }}
+            placeholder="Type your response..."
+            className="w-full rounded-xl border border-slate-800/70 bg-slate-900/70 px-4 py-3 text-[0.95rem] text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 font-ai"
+          />
+          {autoSendCountdown !== null && (
+            <span className="text-xs font-ai text-emerald-200/70">
+              Sending in {autoSendCountdown}s...
+            </span>
+          )}
+        </div>
         <button
           type="button"
           onClick={handleMicClick}
