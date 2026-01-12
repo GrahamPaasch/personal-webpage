@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import type { Message } from '../types';
 
@@ -42,7 +42,10 @@ export default function DiscoveryChat() {
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+  const [isTTSSupported, setIsTTSSupported] = useState(false);
   const [autoSendCountdown, setAutoSendCountdown] = useState<number | null>(null);
+  const [voiceSessionActive, setVoiceSessionActive] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const nextPromptIndexRef = useRef(1);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
@@ -51,6 +54,13 @@ export default function DiscoveryChat() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const transcriptBaseRef = useRef('');
   const inputRef = useRef('');
+  const voiceSessionActiveRef = useRef(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    voiceSessionActiveRef.current = voiceSessionActive;
+  }, [voiceSessionActive]);
 
   useEffect(() => {
     if (!messagesRef.current) return;
@@ -77,6 +87,7 @@ export default function DiscoveryChat() {
   useEffect(() => {
     const SpeechRecognitionConstructor = getSpeechRecognitionConstructor();
     setIsSpeechSupported(Boolean(SpeechRecognitionConstructor));
+    setIsTTSSupported(typeof window !== 'undefined' && 'speechSynthesis' in window);
   }, []);
 
   useEffect(() => {
@@ -84,6 +95,9 @@ export default function DiscoveryChat() {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
         recognitionRef.current = null;
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
       }
     };
   }, []);
@@ -99,7 +113,7 @@ export default function DiscoveryChat() {
     }
   };
 
-  const stopListening = (options?: { abort?: boolean }) => {
+  const stopListening = useCallback((options?: { abort?: boolean }) => {
     const recognition = recognitionRef.current;
     if (!recognition) {
       setIsListening(false);
@@ -112,7 +126,7 @@ export default function DiscoveryChat() {
       recognition.stop();
     }
     setIsListening(false);
-  };
+  }, []);
 
   const updateInputValue = (value: string) => {
     inputRef.current = value;
@@ -131,31 +145,46 @@ export default function DiscoveryChat() {
     setAutoSendCountdown(null);
   };
 
-  const scheduleAutoSend = () => {
-    const trimmed = inputRef.current.trim();
-    if (!trimmed) return;
+  const speakText = useCallback((text: string, onEnd?: () => void) => {
+    if (!isTTSSupported || typeof window === 'undefined') {
+      onEnd?.();
+      return;
+    }
 
-    clearAutoSend();
-    setAutoSendCountdown(4);
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utteranceRef.current = utterance;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+    };
+    
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      utteranceRef.current = null;
+      onEnd?.();
+    };
+    
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      utteranceRef.current = null;
+      onEnd?.();
+    };
 
-    autoSendIntervalRef.current = window.setInterval(() => {
-      setAutoSendCountdown((prev) => {
-        if (prev === null) return null;
-        return prev > 1 ? prev - 1 : 1;
-      });
-    }, 1000);
+    window.speechSynthesis.speak(utterance);
+  }, [isTTSSupported]);
 
-    autoSendTimeoutRef.current = window.setTimeout(() => {
-      const latest = inputRef.current.trim();
-      if (!latest) {
-        clearAutoSend();
-        return;
-      }
-      handleSend();
-    }, 4000);
-  };
+  const stopSpeaking = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    utteranceRef.current = null;
+  }, []);
 
-  const startListening = async () => {
+  const startListening = useCallback(async () => {
     const SpeechRecognitionConstructor = getSpeechRecognitionConstructor();
     if (!SpeechRecognitionConstructor) return;
 
@@ -190,7 +219,29 @@ export default function DiscoveryChat() {
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
-      scheduleAutoSend();
+      // Schedule auto-send after speech ends
+      const trimmed = inputRef.current.trim();
+      if (trimmed) {
+        clearAutoSend();
+        setAutoSendCountdown(4);
+
+        autoSendIntervalRef.current = window.setInterval(() => {
+          setAutoSendCountdown((prev) => {
+            if (prev === null) return null;
+            return prev > 1 ? prev - 1 : 1;
+          });
+        }, 1000);
+
+        autoSendTimeoutRef.current = window.setTimeout(() => {
+          const latest = inputRef.current.trim();
+          if (!latest) {
+            clearAutoSend();
+            return;
+          }
+          // Trigger send
+          handleSendInternal();
+        }, 4000);
+      }
     };
 
     try {
@@ -200,26 +251,17 @@ export default function DiscoveryChat() {
       recognitionRef.current = null;
       setIsListening(false);
     }
-  };
+  }, []);
 
-  const handleMicClick = async () => {
-    if (!isSpeechSupported) return;
+  const handleSendInternal = useCallback(() => {
     clearAutoSend();
-    if (isListening) {
-      stopListening();
-      return;
-    }
-    await startListening();
-  };
-
-  const handleSend = (event?: FormEvent<HTMLFormElement>) => {
-    event?.preventDefault();
-    clearAutoSend();
-    if (isListening) {
-      stopListening({ abort: true });
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+      setIsListening(false);
     }
     const trimmed = inputRef.current.trim();
-    if (!trimmed || isTyping) return;
+    if (!trimmed) return;
 
     setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
     updateInputValue('');
@@ -245,20 +287,76 @@ export default function DiscoveryChat() {
 
       setMessages((prev) => [...prev, { role: 'assistant', content: assistantReply }]);
       setIsTyping(false);
+
+      // If voice session is active, speak the response and then resume listening
+      if (voiceSessionActiveRef.current) {
+        speakText(assistantReply, () => {
+          // After TTS finishes, resume listening if still in voice session
+          if (voiceSessionActiveRef.current) {
+            startListening();
+          }
+        });
+      }
     }, typingDelayMs);
+  }, [speakText, startListening]);
+
+  const handleSend = (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    handleSendInternal();
+  };
+
+  const startVoiceSession = async () => {
+    if (!isSpeechSupported) return;
+    setVoiceSessionActive(true);
+    voiceSessionActiveRef.current = true;
+    
+    // Speak the current assistant message first, then start listening
+    const lastAssistantMessage = messages.filter(m => m.role === 'assistant').pop();
+    if (lastAssistantMessage && isTTSSupported) {
+      speakText(lastAssistantMessage.content, () => {
+        if (voiceSessionActiveRef.current) {
+          startListening();
+        }
+      });
+    } else {
+      await startListening();
+    }
+  };
+
+  const endVoiceSession = () => {
+    setVoiceSessionActive(false);
+    voiceSessionActiveRef.current = false;
+    stopSpeaking();
+    stopListening({ abort: true });
+    clearAutoSend();
+  };
+
+  const handleMicClick = async () => {
+    if (!isSpeechSupported) return;
+    
+    if (voiceSessionActive) {
+      // If in voice session, clicking mic ends it
+      endVoiceSession();
+    } else {
+      // Start voice session
+      await startVoiceSession();
+    }
   };
 
   const canSend = input.trim().length > 0 && !isTyping;
+  
   const micTooltip = isSpeechSupported
-    ? isListening
-      ? 'Stop voice input'
-      : 'Start voice input'
+    ? voiceSessionActive
+      ? 'End voice conversation'
+      : 'Start voice conversation'
     : "Speech recognition isn't supported in this browser.";
+
   const micButtonClasses = [
     'inline-flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-400/20',
-    isListening
-      ? 'border-rose-400/60 bg-rose-500/20 text-rose-100 shadow-[0_0_18px_rgba(244,63,94,0.45)] animate-pulse'
+    voiceSessionActive
+      ? 'border-rose-400/60 bg-rose-500/20 text-rose-100 shadow-[0_0_18px_rgba(244,63,94,0.45)]'
       : 'border-slate-800/70 bg-slate-900/70 text-emerald-100 hover:border-emerald-400/40 hover:text-emerald-200',
+    isListening ? 'animate-pulse' : '',
     !isSpeechSupported ? 'cursor-not-allowed opacity-40' : '',
   ]
     .filter(Boolean)
@@ -268,7 +366,15 @@ export default function DiscoveryChat() {
     <div className="flex flex-col gap-4 rounded-2xl border border-slate-800/70 bg-slate-950/70 p-4 shadow-[0_0_40px_rgba(15,23,42,0.55)]">
       <div className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-900/60 px-4 py-2 text-xs font-ai uppercase tracking-[0.32em] text-emerald-300/70">
         <span>Session</span>
-        <span className="text-emerald-200/50">naf-discovery</span>
+        <div className="flex items-center gap-2">
+          {voiceSessionActive && (
+            <span className="flex items-center gap-1 text-rose-300">
+              <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
+              {isSpeaking ? 'Speaking...' : isListening ? 'Listening...' : 'Voice Active'}
+            </span>
+          )}
+          <span className="text-emerald-200/50">naf-discovery</span>
+        </div>
       </div>
 
       <div
@@ -308,7 +414,7 @@ export default function DiscoveryChat() {
               clearAutoSend();
               updateInputValue(event.target.value);
             }}
-            placeholder="Type your response..."
+            placeholder={voiceSessionActive ? "Voice session active - speak or type..." : "Type your response..."}
             className="w-full rounded-xl border border-slate-800/70 bg-slate-900/70 px-4 py-3 text-[0.95rem] text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 font-ai"
           />
           {autoSendCountdown !== null && (
@@ -321,26 +427,44 @@ export default function DiscoveryChat() {
           type="button"
           onClick={handleMicClick}
           disabled={!isSpeechSupported}
-          aria-pressed={isListening}
+          aria-pressed={voiceSessionActive}
           aria-label={micTooltip}
           title={micTooltip}
           className={micButtonClasses}
         >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z" />
-            <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
-            <path d="M12 19v3" />
-            <path d="M8 22h8" />
-          </svg>
+          {voiceSessionActive ? (
+            // Hang-up phone icon
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" />
+              <line x1="23" y1="1" x2="1" y2="23" />
+            </svg>
+          ) : (
+            // Microphone icon
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z" />
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+              <path d="M12 19v3" />
+              <path d="M8 22h8" />
+            </svg>
+          )}
         </button>
         <button
           type="submit"
