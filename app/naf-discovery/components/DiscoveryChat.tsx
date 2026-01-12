@@ -35,6 +35,8 @@ const initialMessages: Message[] = [
 ];
 
 const typingDelayMs = 700;
+const TTS_FALLBACK_TIMEOUT_MS = 10000; // If TTS onend doesn't fire in 10s, continue anyway
+const POST_TTS_DELAY_MS = 500; // Small delay after TTS before starting mic
 
 export default function DiscoveryChat() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -46,6 +48,8 @@ export default function DiscoveryChat() {
   const [autoSendCountdown, setAutoSendCountdown] = useState<number | null>(null);
   const [voiceSessionActive, setVoiceSessionActive] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<string>('');
+  
   const nextPromptIndexRef = useRef(1);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
@@ -55,9 +59,15 @@ export default function DiscoveryChat() {
   const transcriptBaseRef = useRef('');
   const inputRef = useRef('');
   const voiceSessionActiveRef = useRef(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const ttsFallbackTimeoutRef = useRef<number | null>(null);
+  const ttsCompletedRef = useRef(false);
 
-  // Keep ref in sync with state
+  const log = (msg: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[DiscoveryChat ${timestamp}] ${msg}`);
+    setVoiceStatus(msg);
+  };
+
   useEffect(() => {
     voiceSessionActiveRef.current = voiceSessionActive;
   }, [voiceSessionActive]);
@@ -72,15 +82,10 @@ export default function DiscoveryChat() {
 
   useEffect(() => {
     return () => {
-      if (typingTimeoutRef.current !== null) {
-        window.clearTimeout(typingTimeoutRef.current);
-      }
-      if (autoSendTimeoutRef.current !== null) {
-        window.clearTimeout(autoSendTimeoutRef.current);
-      }
-      if (autoSendIntervalRef.current !== null) {
-        window.clearInterval(autoSendIntervalRef.current);
-      }
+      if (typingTimeoutRef.current !== null) window.clearTimeout(typingTimeoutRef.current);
+      if (autoSendTimeoutRef.current !== null) window.clearTimeout(autoSendTimeoutRef.current);
+      if (autoSendIntervalRef.current !== null) window.clearInterval(autoSendIntervalRef.current);
+      if (ttsFallbackTimeoutRef.current !== null) window.clearTimeout(ttsFallbackTimeoutRef.current);
     };
   }, []);
 
@@ -102,31 +107,12 @@ export default function DiscoveryChat() {
     };
   }, []);
 
-  const requestMicrophonePermission = async (): Promise<boolean> => {
-    if (!navigator.mediaDevices?.getUserMedia) return true;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
-      return true;
-    } catch (error) {
-      return false;
+  const clearTTSFallback = () => {
+    if (ttsFallbackTimeoutRef.current !== null) {
+      window.clearTimeout(ttsFallbackTimeoutRef.current);
+      ttsFallbackTimeoutRef.current = null;
     }
   };
-
-  const stopListening = useCallback((options?: { abort?: boolean }) => {
-    const recognition = recognitionRef.current;
-    if (!recognition) {
-      setIsListening(false);
-      return;
-    }
-
-    if (options?.abort) {
-      recognition.abort();
-    } else {
-      recognition.stop();
-    }
-    setIsListening(false);
-  }, []);
 
   const updateInputValue = (value: string) => {
     inputRef.current = value;
@@ -145,57 +131,59 @@ export default function DiscoveryChat() {
     setAutoSendCountdown(null);
   };
 
-  const speakText = useCallback((text: string, onEnd?: () => void) => {
-    if (!isTTSSupported || typeof window === 'undefined') {
-      onEnd?.();
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utteranceRef.current = utterance;
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-    };
-    
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      utteranceRef.current = null;
-      onEnd?.();
-    };
-    
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      utteranceRef.current = null;
-      onEnd?.();
-    };
-
-    window.speechSynthesis.speak(utterance);
-  }, [isTTSSupported]);
-
   const stopSpeaking = useCallback(() => {
+    log('Stopping TTS');
+    clearTTSFallback();
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setIsSpeaking(false);
-    utteranceRef.current = null;
+  }, []);
+
+  const stopListening = useCallback((options?: { abort?: boolean }) => {
+    const recognition = recognitionRef.current;
+    if (!recognition) {
+      setIsListening(false);
+      return;
+    }
+    log(`Stopping recognition (abort: ${options?.abort ?? false})`);
+    if (options?.abort) {
+      recognition.abort();
+    } else {
+      recognition.stop();
+    }
+    setIsListening(false);
   }, []);
 
   const startListening = useCallback(async () => {
     const SpeechRecognitionConstructor = getSpeechRecognitionConstructor();
-    if (!SpeechRecognitionConstructor) return;
+    if (!SpeechRecognitionConstructor) {
+      log('Speech recognition not supported');
+      return;
+    }
 
-    const hasPermission = await requestMicrophonePermission();
-    if (!hasPermission) return;
+    // Don't start if we're still speaking
+    if (window.speechSynthesis?.speaking) {
+      log('Still speaking, delaying mic start');
+      setTimeout(() => startListening(), 500);
+      return;
+    }
+
+    log('Requesting microphone permission');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+    } catch (error) {
+      log('Microphone permission denied');
+      return;
+    }
 
     if (recognitionRef.current) {
       recognitionRef.current.abort();
       recognitionRef.current = null;
     }
 
+    log('Starting speech recognition');
     const recognition = new SpeechRecognitionConstructor();
     recognitionRef.current = recognition;
     recognition.interimResults = true;
@@ -205,6 +193,11 @@ export default function DiscoveryChat() {
     const spacer = base.length > 0 && !base.endsWith(' ') ? ' ' : '';
     transcriptBaseRef.current = `${base}${spacer}`;
 
+    recognition.onstart = () => {
+      log('Recognition started');
+      setIsListening(true);
+    };
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       const transcript = Array.from(event.results)
         .map((result) => result[0]?.transcript ?? '')
@@ -212,18 +205,23 @@ export default function DiscoveryChat() {
       updateInputValue(`${transcriptBaseRef.current}${transcript}`);
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
+      log(`Recognition error: ${event.error}`);
       setIsListening(false);
+      recognitionRef.current = null;
     };
 
     recognition.onend = () => {
+      log('Recognition ended');
       setIsListening(false);
       recognitionRef.current = null;
-      // Schedule auto-send after speech ends
+      
+      // Only auto-send if voice session is still active and we have input
       const trimmed = inputRef.current.trim();
-      if (trimmed) {
+      if (trimmed && voiceSessionActiveRef.current) {
+        log('Starting auto-send countdown');
         clearAutoSend();
-        setAutoSendCountdown(4);
+        setAutoSendCountdown(3);
 
         autoSendIntervalRef.current = window.setInterval(() => {
           setAutoSendCountdown((prev) => {
@@ -233,36 +231,102 @@ export default function DiscoveryChat() {
         }, 1000);
 
         autoSendTimeoutRef.current = window.setTimeout(() => {
-          const latest = inputRef.current.trim();
-          if (!latest) {
+          if (voiceSessionActiveRef.current) {
+            handleSendInternal();
+          } else {
             clearAutoSend();
-            return;
           }
-          // Trigger send
-          handleSendInternal();
-        }, 4000);
+        }, 3000);
       }
     };
 
     try {
       recognition.start();
-      setIsListening(true);
     } catch (error) {
+      log(`Failed to start recognition: ${error}`);
       recognitionRef.current = null;
       setIsListening(false);
     }
   }, []);
 
+  const speakText = useCallback((text: string, onEnd?: () => void) => {
+    if (!isTTSSupported || typeof window === 'undefined') {
+      log('TTS not supported, skipping');
+      onEnd?.();
+      return;
+    }
+
+    log('Starting TTS');
+    ttsCompletedRef.current = false;
+    
+    // Cancel any existing speech
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    const handleTTSComplete = () => {
+      if (ttsCompletedRef.current) return; // Prevent double-firing
+      ttsCompletedRef.current = true;
+      clearTTSFallback();
+      log('TTS completed');
+      setIsSpeaking(false);
+      
+      // Add a small delay before calling onEnd to let audio settle
+      if (onEnd) {
+        setTimeout(onEnd, POST_TTS_DELAY_MS);
+      }
+    };
+
+    utterance.onstart = () => {
+      log('TTS onstart fired');
+      setIsSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      log('TTS onend fired');
+      handleTTSComplete();
+    };
+
+    utterance.onerror = (event) => {
+      log(`TTS error: ${event.error}`);
+      handleTTSComplete();
+    };
+
+    // Fallback timeout in case onend never fires (common with Bluetooth)
+    clearTTSFallback();
+    ttsFallbackTimeoutRef.current = window.setTimeout(() => {
+      if (!ttsCompletedRef.current) {
+        log('TTS fallback timeout triggered');
+        window.speechSynthesis.cancel();
+        handleTTSComplete();
+      }
+    }, TTS_FALLBACK_TIMEOUT_MS);
+
+    window.speechSynthesis.speak(utterance);
+    
+    // Chrome bug workaround: speechSynthesis can pause indefinitely
+    // Ping it periodically to keep it alive
+    const keepAlive = setInterval(() => {
+      if (!window.speechSynthesis.speaking || ttsCompletedRef.current) {
+        clearInterval(keepAlive);
+      } else {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
+    }, 5000);
+
+  }, [isTTSSupported]);
+
   const handleSendInternal = useCallback(() => {
     clearAutoSend();
-    if (recognitionRef.current) {
-      recognitionRef.current.abort();
-      recognitionRef.current = null;
-      setIsListening(false);
-    }
+    stopListening({ abort: true });
+    
     const trimmed = inputRef.current.trim();
     if (!trimmed) return;
 
+    log(`Sending message: ${trimmed.substring(0, 50)}...`);
     setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
     updateInputValue('');
     setIsTyping(true);
@@ -288,17 +352,18 @@ export default function DiscoveryChat() {
       setMessages((prev) => [...prev, { role: 'assistant', content: assistantReply }]);
       setIsTyping(false);
 
-      // If voice session is active, speak the response and then resume listening
+      // If voice session is active, speak then listen
       if (voiceSessionActiveRef.current) {
+        log('Voice session active, speaking response');
         speakText(assistantReply, () => {
-          // After TTS finishes, resume listening if still in voice session
           if (voiceSessionActiveRef.current) {
+            log('TTS done, starting listening');
             startListening();
           }
         });
       }
     }, typingDelayMs);
-  }, [speakText, startListening]);
+  }, [speakText, startListening, stopListening]);
 
   const handleSend = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
@@ -307,6 +372,7 @@ export default function DiscoveryChat() {
 
   const startVoiceSession = async () => {
     if (!isSpeechSupported) return;
+    log('Starting voice session');
     setVoiceSessionActive(true);
     voiceSessionActiveRef.current = true;
     
@@ -324,21 +390,21 @@ export default function DiscoveryChat() {
   };
 
   const endVoiceSession = () => {
+    log('Ending voice session');
     setVoiceSessionActive(false);
     voiceSessionActiveRef.current = false;
     stopSpeaking();
     stopListening({ abort: true });
     clearAutoSend();
+    setVoiceStatus('');
   };
 
   const handleMicClick = async () => {
     if (!isSpeechSupported) return;
     
     if (voiceSessionActive) {
-      // If in voice session, clicking mic ends it
       endVoiceSession();
     } else {
-      // Start voice session
       await startVoiceSession();
     }
   };
@@ -376,6 +442,13 @@ export default function DiscoveryChat() {
           <span className="text-emerald-200/50">naf-discovery</span>
         </div>
       </div>
+
+      {/* Debug status - remove in production */}
+      {voiceStatus && (
+        <div className="text-xs font-mono text-amber-400/70 px-2">
+          Debug: {voiceStatus}
+        </div>
+      )}
 
       <div
         ref={messagesRef}
@@ -419,7 +492,7 @@ export default function DiscoveryChat() {
           />
           {autoSendCountdown !== null && (
             <span className="text-xs font-ai text-emerald-200/70">
-              Sending in {autoSendCountdown}s...
+              Sending in {autoSendCountdown}s... (type to cancel)
             </span>
           )}
         </div>
@@ -433,7 +506,6 @@ export default function DiscoveryChat() {
           className={micButtonClasses}
         >
           {voiceSessionActive ? (
-            // Hang-up phone icon
             <svg
               viewBox="0 0 24 24"
               className="h-5 w-5"
@@ -444,11 +516,9 @@ export default function DiscoveryChat() {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" />
-              <line x1="23" y1="1" x2="1" y2="23" />
+              <rect x="3" y="3" width="18" height="18" rx="2" />
             </svg>
           ) : (
-            // Microphone icon
             <svg
               viewBox="0 0 24 24"
               className="h-5 w-5"
