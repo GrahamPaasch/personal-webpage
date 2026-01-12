@@ -17,24 +17,12 @@ const getSpeechRecognitionConstructor = (): SpeechRecognitionConstructor | null 
   return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
 };
 
-const starterQuestions = [
-  "First, tell me about yourself. What's your role and what kind of network environment do you work with?",
-  "What's the most frustrating part of your current network operations? The thing that makes you think \"there has to be a better way\"?",
-  'Have you tried any automation before? Even simple scripts count. How did it go?',
-];
-
-const teaserMessage =
-  "Great start! I'm already seeing some patterns. Save your progress to continue and get your full assessment.";
-
 const initialMessages: Message[] = [
   {
     role: 'assistant',
     content: 'Welcome to the NAF Discovery Tool. I will ask a few quick questions to map your automation journey.',
   },
-  { role: 'assistant', content: starterQuestions[0] },
 ];
-
-const typingDelayMs = 700;
 
 export default function DiscoveryChat() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -43,9 +31,7 @@ export default function DiscoveryChat() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
 
-  const nextPromptIndexRef = useRef(1);
   const messagesRef = useRef<HTMLDivElement | null>(null);
-  const typingTimeoutRef = useRef<number | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const transcriptBaseRef = useRef('');
 
@@ -56,12 +42,6 @@ export default function DiscoveryChat() {
       behavior: 'smooth',
     });
   }, [messages, isTyping]);
-
-  useEffect(() => {
-    return () => {
-      if (typingTimeoutRef.current !== null) window.clearTimeout(typingTimeoutRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
@@ -145,36 +125,46 @@ export default function DiscoveryChat() {
     }
   };
 
-  const handleSend = (event?: FormEvent<HTMLFormElement>) => {
+  const handleSend = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
     const trimmed = input.trim();
     if (!trimmed || isTyping) return;
 
-    setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
+    const nextMessages = [...messages, { role: 'user', content: trimmed }];
+    setMessages(nextMessages);
     setInput('');
     setIsTyping(true);
 
-    if (typingTimeoutRef.current !== null) {
-      window.clearTimeout(typingTimeoutRef.current);
-    }
+    try {
+      const response = await fetch('/api/naf-discovery/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: nextMessages }),
+      });
+      const data = await response.json().catch(() => ({}));
 
-    typingTimeoutRef.current = window.setTimeout(() => {
-      const promptIndex = nextPromptIndexRef.current;
-      let assistantReply = teaserMessage;
-
-      if (promptIndex < starterQuestions.length) {
-        assistantReply = starterQuestions[promptIndex];
-        nextPromptIndexRef.current += 1;
-      } else if (promptIndex === starterQuestions.length) {
-        assistantReply = teaserMessage;
-        nextPromptIndexRef.current += 1;
-      } else {
-        assistantReply = 'Thanks for sharing. Save your progress to continue your full assessment.';
+      if (!response.ok) {
+        const errorMessage =
+          typeof data?.error === 'string'
+            ? data.error
+            : 'Sorry, I had trouble generating a response.';
+        setMessages((prev) => [...prev, { role: 'assistant', content: errorMessage }]);
+        return;
       }
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: assistantReply }]);
+      const reply =
+        typeof data?.message === 'string' && data.message.trim().length > 0
+          ? data.message
+          : 'Sorry, I had trouble generating a response.';
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: 'Sorry, I ran into a connection issue. Please try again.' },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, typingDelayMs);
+    }
   };
 
   const canSend = input.trim().length > 0 && !isTyping;
