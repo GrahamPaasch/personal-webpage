@@ -51,6 +51,18 @@ export default function HomePage() {
 
       <section className="grid">
       <div className="card">
+        <div className="prompt-header">
+          <h2>
+            <span aria-hidden="true">🔍</span> NAF Discovery Tool
+          </h2>
+          <span className="prompt-header-badge">BETA</span>
+        </div>
+        <p className="muted">
+          AI-powered network assessment that builds your Network Architecture Framework through conversation. Describe your environment, get structured documentation.
+        </p>
+        <Link className="button primary" href="/naf-discovery">Try the tool →</Link>
+      </div>
+      <div className="card">
         <h1>Hi, I'm Graham Paasch.</h1>
         <p>
           I blend a decade of network engineering with Python development, and I
