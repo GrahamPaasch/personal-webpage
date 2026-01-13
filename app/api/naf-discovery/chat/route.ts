@@ -17,6 +17,7 @@ type IncomingMessage = {
 };
 
 type GeneratedReply = { text: string; provider: string | null };
+type OpenAIUserKeyResult = { text: string | null; error: 'invalid_api_key' | 'request_failed' | null };
 
 // Provider helpers (OpenAI-compatible)
 async function callGemini(apiKey: string, system: string, user: string): Promise<string | null> {
@@ -63,6 +64,36 @@ function formatTranscript(messages: IncomingMessage[]): string {
     .join('\n');
 }
 
+function buildOpenAIMessages(messages: IncomingMessage[]): { role: string; content: string }[] {
+  return [{ role: 'system', content: SYSTEM_PROMPT }, ...messages];
+}
+
+async function callOpenAIWithUserKey(apiKey: string, messages: IncomingMessage[]): Promise<OpenAIUserKeyResult> {
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        messages: buildOpenAIMessages(messages),
+        temperature: 0.3,
+        max_tokens: 512,
+      }),
+    });
+    if (res.status === 401 || res.status === 403) {
+      return { text: null, error: 'invalid_api_key' };
+    }
+    if (!res.ok) {
+      return { text: null, error: 'request_failed' };
+    }
+    const data = await res.json();
+    const text = data?.choices?.[0]?.message?.content ?? null;
+    return { text: text && text.trim() ? text.trim() : null, error: null };
+  } catch {
+    return { text: null, error: 'request_failed' };
+  }
+}
+
 async function generateReply(messages: IncomingMessage[]): Promise<GeneratedReply> {
   const geminiKey = process.env.GOOGLE_API_KEY || '';
   const groqKey = process.env.GROQ_API_KEY || '';
@@ -79,7 +110,7 @@ async function generateReply(messages: IncomingMessage[]): Promise<GeneratedRepl
   const requestStart = Date.now();
   const transcript = formatTranscript(messages);
   const geminiPrompt = transcript ? `${transcript}\nAssistant:` : 'User:';
-  const openAIMessages = [{ role: 'system', content: SYSTEM_PROMPT }, ...messages];
+  const openAIMessages = buildOpenAIMessages(messages);
 
   for (const provider of providerOrder) {
     try {
@@ -172,6 +203,9 @@ export async function POST(request: Request) {
   if (!payload || !Array.isArray(payload.messages)) {
     return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
   }
+  if (payload.apiKey !== undefined && typeof payload.apiKey !== 'string') {
+    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
+  }
 
   const messages: IncomingMessage[] = [];
   for (const entry of payload.messages) {
@@ -186,6 +220,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
     }
     messages.push({ role: entry.role, content });
+  }
+
+  const apiKey = typeof payload.apiKey === 'string' ? payload.apiKey.trim() : '';
+  if (apiKey) {
+    const { text: reply, error } = await callOpenAIWithUserKey(apiKey, messages);
+    if (error === 'invalid_api_key') {
+      return NextResponse.json({ error: 'Invalid OpenAI API key.' }, { status: 401 });
+    }
+    if (!reply) {
+      return NextResponse.json(
+        { error: 'Failed to generate response with your API key.' },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json({ message: reply });
   }
 
   const hasProviders = [

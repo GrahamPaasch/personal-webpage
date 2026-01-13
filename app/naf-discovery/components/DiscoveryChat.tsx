@@ -30,6 +30,8 @@ export default function DiscoveryChat() {
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKey, setApiKey] = useState('');
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -136,10 +138,14 @@ export default function DiscoveryChat() {
     setIsTyping(true);
 
     try {
+      const trimmedApiKey = apiKey.trim();
       const response = await fetch('/api/naf-discovery/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({
+          messages: nextMessages,
+          ...(trimmedApiKey ? { apiKey: trimmedApiKey } : {}),
+        }),
       });
       const data = await response.json().catch(() => ({}));
 
@@ -219,6 +225,67 @@ export default function DiscoveryChat() {
           </div>
         )}
       </div>
+
+      <div className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-900/50 px-4 py-2">
+        <div className="flex items-center gap-2 text-[0.7rem] font-ai uppercase tracking-[0.28em] text-emerald-300/70">
+          <span>Settings</span>
+          <div className="group relative flex items-center">
+            <span className="sr-only">API key info</span>
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              className="h-4 w-4 text-emerald-200/70"
+              aria-hidden="true"
+            >
+              <circle cx="10" cy="10" r="7" />
+              <path d="M10 8v5" />
+              <path d="M10 5.5h0.02" />
+            </svg>
+            <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-56 -translate-x-1/2 rounded-lg border border-slate-700/60 bg-slate-950/95 px-3 py-2 text-[0.7rem] font-normal text-slate-200 opacity-0 transition group-hover:opacity-100">
+              Optional: enter your OpenAI API key to use it for this session only.
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsSettingsOpen((prev) => !prev)}
+          aria-expanded={isSettingsOpen}
+          aria-label={isSettingsOpen ? 'Hide settings' : 'Show settings'}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800/70 bg-slate-950/70 text-emerald-100 transition hover:border-emerald-400/40 hover:text-emerald-200"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.54V21a2 2 0 1 1-4 0v-.08a1.7 1.7 0 0 0-1-1.54 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.54-1H3a2 2 0 1 1 0-4h.08a1.7 1.7 0 0 0 1.54-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34 1.7 1.7 0 0 0 1-1.54V3a2 2 0 1 1 4 0v.08a1.7 1.7 0 0 0 1 1.54 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87 1.7 1.7 0 0 0 1.54 1H21a2 2 0 1 1 0 4h-.08a1.7 1.7 0 0 0-1.54 1Z" />
+          </svg>
+        </button>
+      </div>
+
+      {isSettingsOpen && (
+        <div className="grid gap-2 rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
+          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/70">
+            OpenAI API Key
+          </label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Optional: Enter your OpenAI API key"
+            className="w-full rounded-xl border border-slate-800/70 bg-slate-900/70 px-4 py-3 text-[0.95rem] text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 font-ai"
+          />
+          <p className="text-xs text-slate-400">Stored only in this session.</p>
+        </div>
+      )}
 
       <form onSubmit={handleSend} className="flex flex-col gap-3 sm:flex-row">
         <input
