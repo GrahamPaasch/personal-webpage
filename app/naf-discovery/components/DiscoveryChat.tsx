@@ -272,7 +272,7 @@ export default function DiscoveryChat() {
       </div>
 
       {isSettingsOpen && (
-        <div className="grid gap-2 rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
+        <div className="grid w-full grid-cols-1 gap-2 rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/70">
             OpenAI API Key
           </label>
