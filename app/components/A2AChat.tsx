@@ -96,8 +96,8 @@ export default function A2AChat({ fullscreen = false }: { fullscreen?: boolean }
   }
 
   return (
-    <div className={`a2a-chat ${fullscreen ? 'fullscreen' : ''}`}>
-      <div className="a2a-chat-window">
+    <div className={`a2a-chat ${fullscreen ? 'fullscreen' : ''} flex-1 w-full`}>
+      <div className="a2a-chat-window flex-1 w-full">
         <div className="a2a-messages">
           {messages.map((m) => (
             <div key={m.id} className={`a2a-msg ${m.role}`}>
@@ -119,10 +119,10 @@ export default function A2AChat({ fullscreen = false }: { fullscreen?: boolean }
         {typing && <div className="typing">Agent is typing…</div>}
       </div>
       <style jsx>{`
-        .a2a-chat { display: flex; justify-content: center; height: auto; }
+        .a2a-chat { display: flex; justify-content: center; height: auto; width: 100%; flex: 1; }
         .a2a-chat.fullscreen { height: 100%; }
-        .a2a-chat-window { width: 100%; max-width: 720px; border: 1px solid var(--border); background: var(--panel); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; }
-        .a2a-chat.fullscreen .a2a-chat-window { max-width: none; height: 100%; }
+        .a2a-chat-window { width: 100%; flex: 1; border: 1px solid var(--border); background: var(--panel); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; }
+        .a2a-chat.fullscreen .a2a-chat-window { height: 100%; }
         .a2a-messages { display: flex; flex-direction: column; gap: 8px; min-height: 240px; max-height: 50vh; overflow-y: auto; padding: 6px; }
         .a2a-chat.fullscreen .a2a-messages { flex: 1; max-height: none; }
         .a2a-msg { display: flex; }

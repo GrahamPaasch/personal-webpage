@@ -32,9 +32,8 @@ export default function FullScreenChat() {
         .chat-bar .title { font-weight: 600; }
         .chat-bar .close { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 10px; }
         .chat-body { flex: 1; padding: 12px; display: flex; }
-        .chat-body :global(.a2a-chat) { width: 100%; }
+        .chat-body :global(.a2a-chat) { width: 100%; flex: 1; }
       `}</style>
     </>
   );
 }
-
