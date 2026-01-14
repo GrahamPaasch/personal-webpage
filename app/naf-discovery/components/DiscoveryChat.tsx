@@ -192,8 +192,8 @@ export default function DiscoveryChat() {
     .join(' ');
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-800/70 bg-slate-950/70 p-4 shadow-[0_0_40px_rgba(15,23,42,0.55)]">
+    <div className="flex w-full flex-1 flex-col gap-4">
+      <div className="flex w-full flex-col gap-3 rounded-2xl border border-slate-800/70 bg-slate-950/70 p-4 shadow-[0_0_40px_rgba(15,23,42,0.55)]">
         <div className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-900/50 px-4 py-2">
           <div className="flex items-center gap-2 text-[0.7rem] font-ai uppercase tracking-[0.28em] text-emerald-300/70">
             <span>Settings</span>
@@ -256,7 +256,7 @@ export default function DiscoveryChat() {
         )}
       </div>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-800/70 bg-slate-950/70 p-4 shadow-[0_0_40px_rgba(15,23,42,0.55)]">
+      <div className="flex w-full flex-col gap-4 rounded-2xl border border-slate-800/70 bg-slate-950/70 p-4 shadow-[0_0_40px_rgba(15,23,42,0.55)]">
         <div className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-900/60 px-4 py-2 text-xs font-ai uppercase tracking-[0.32em] text-emerald-300/70">
           <span>Session</span>
           <span className="text-emerald-200/50">naf-discovery</span>
@@ -264,7 +264,7 @@ export default function DiscoveryChat() {
 
         <div
           ref={messagesRef}
-          className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto rounded-xl border border-slate-800/60 bg-slate-950/60 p-4"
+          className="flex w-full max-h-[60vh] flex-col gap-3 overflow-y-auto rounded-xl border border-slate-800/60 bg-slate-950/60 p-4"
         >
           {messages.map((message, index) => (
             <div
