@@ -1,4 +1,4 @@
-import './globals.css';
+﻿import './globals.css';
 import Link from 'next/link';
 import {
   DM_Mono,
@@ -87,13 +87,13 @@ export default function RootLayout({ children }: any) {
         <main id="main-content" className="container content">{children}</main>
         <footer className="site-footer">
           <div className="container footer-inner">
-            <span>© {new Date().getFullYear()} Graham Paasch</span>
+            <span>&copy; {new Date().getFullYear()} Graham Paasch</span>
             <nav className="nav" style={{ display: 'flex', gap: 12 }}>
               <a href="/agent/for-agents">For Agents</a>
               <a href="/.well-known/agent.json" target="_blank" rel="noreferrer">Agent Manifest</a>
-              <a href="/api/a2a/.well-known/agent-card.json" target="_blank" rel="noreferrer">Agent Card</a>
+              <a href="/.well-known/agent-card.json" target="_blank" rel="noreferrer">Agent Card</a>
             </nav>
-            <span className="muted">v{process.env.NEXT_PUBLIC_APP_VERSION} · {process.env.NEXT_PUBLIC_BUILD_TIME?.slice(0, 19).replace('T', ' ')}Z</span>
+            <span className="muted">v{process.env.NEXT_PUBLIC_APP_VERSION} &middot; {process.env.NEXT_PUBLIC_BUILD_TIME?.slice(0, 19).replace('T', ' ')}Z</span>
           </div>
         </footer>
         <FullScreenChat />
@@ -103,3 +103,4 @@ export default function RootLayout({ children }: any) {
     </html>
   );
 }
+

@@ -1,8 +1,11 @@
 import { NextRequest } from 'next/server';
 import { normalizeDomain, saveCrawlerOptIn } from '@/lib/a2aCrawlerIntake';
+import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const MAX_CONTENT_LENGTH = 15_000; // bytes (best-effort)
 
 type IntakeRequest = {
   domain?: string;
@@ -30,13 +33,29 @@ function validate(body: IntakeRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(req, { id: 'a2a:opt-in', limit: 6, windowMs: 60 * 60_000 });
+  if (!rl.ok) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded.' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', ...rateLimitHeaders(rl) },
+    });
+  }
+
+  const contentLength = Number(req.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
+    return new Response(JSON.stringify({ error: 'Payload too large.' }), {
+      status: 413,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', ...rateLimitHeaders(rl) },
+    });
+  }
+
   let body: IntakeRequest;
   try {
     body = await req.json();
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body.' }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8', ...rateLimitHeaders(rl) },
     });
   }
 
@@ -44,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (!validation.ok) {
     return new Response(JSON.stringify({ error: validation.error }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8', ...rateLimitHeaders(rl) },
     });
   }
 
@@ -56,7 +75,7 @@ export async function POST(req: NextRequest) {
       status === 400 ? 'Invalid domain.' : 'Failed to record request.';
     return new Response(JSON.stringify({ error: message }), {
       status,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8', ...rateLimitHeaders(rl) },
     });
   }
 
@@ -67,7 +86,7 @@ export async function POST(req: NextRequest) {
     }),
     {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8', ...rateLimitHeaders(rl) },
     }
   );
 }

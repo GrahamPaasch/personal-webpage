@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'node:crypto';
 
-const DEFAULT_CARD_URL = 'https://www.grahampaasch.com/api/a2a/.well-known/agent-card.json';
+const DEFAULT_CARD_URL = 'https://www.grahampaasch.com/.well-known/agent-card.json';
 const DEFAULT_RPC_URL = 'https://www.grahampaasch.com/api/a2a';
 const DEFAULT_USER_AGENT = 'graham-a2a-synthetic-ping/1.0';
 

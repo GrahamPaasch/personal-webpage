@@ -4,6 +4,7 @@ node_modules
 dist
 out
 *.log
+*.tsbuildinfo
 .DS_Store
 
 tmp/

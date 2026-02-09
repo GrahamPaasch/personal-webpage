@@ -13,33 +13,36 @@ export type StoredGraffiti = {
   createdAt: string;
 };
 
-export type StoredComment = {
-  id: string;
-  page: string;
-  author: string | null;
-  body: string;
-  createdAt: string;
-};
-
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
 type StorageImpl = {
   listGraffiti: () => Promise<StoredGraffiti[]>;
   addGraffiti: (payload: GraffitiPayload) => Promise<StoredGraffiti>;
   clearGraffiti: () => Promise<void>;
-  listComments: (page: string) => Promise<StoredComment[]>;
-  addComment: (
-    page: string,
-    body: string,
-    author: string | null,
-  ) => Promise<StoredComment>;
-  deleteComment: (id: string) => Promise<void>;
 };
 
 function createPgStorage(conn: string): StorageImpl {
-  const sslOption = process.env.DATABASE_SSL === 'false'
-    ? undefined
-    : { rejectUnauthorized: false };
+  // NOTE: Many managed Postgres providers require TLS, but don't provide a CA
+  // bundle that Node can validate by default. For compatibility we default to a
+  // "relaxed" TLS mode unless explicitly configured.
+  //
+  // Options:
+  // - DATABASE_SSL=false   -> disable TLS
+  // - DATABASE_SSL=strict  -> enable TLS + require a valid certificate chain
+  // - (unset|relaxed)      -> enable TLS with rejectUnauthorized=false
+  const sslMode = String(process.env.DATABASE_SSL || '').trim().toLowerCase();
+  const sslOption =
+    sslMode === 'false' || sslMode === '0' || sslMode === 'off' || sslMode === 'disable'
+      ? undefined
+      : sslMode === 'strict'
+        ? { rejectUnauthorized: true }
+        : { rejectUnauthorized: false };
+
+  if (sslOption && sslOption.rejectUnauthorized === false && sslMode !== 'strict') {
+    console.warn(
+      '[db] TLS enabled with rejectUnauthorized=false (DATABASE_SSL=relaxed). Set DATABASE_SSL=strict to verify certs.',
+    );
+  }
 
   const parsed = new URL(conn);
   const connectionConfig = {
@@ -60,15 +63,6 @@ function createPgStorage(conn: string): StorageImpl {
         CREATE TABLE IF NOT EXISTS graffiti_tags (
           id UUID PRIMARY KEY,
           payload JSONB NOT NULL,
-          created_at TIMESTAMPTZ NOT NULL
-        );
-      `);
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS comments (
-          id UUID PRIMARY KEY,
-          page TEXT NOT NULL,
-          author TEXT,
-          body TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL
         );
       `);
@@ -105,43 +99,14 @@ function createPgStorage(conn: string): StorageImpl {
       await ready;
       await pool.query('DELETE FROM graffiti_tags');
     },
-    async listComments(page) {
-      await ready;
-      const res = await pool.query(
-        'SELECT id, page, author, body, created_at FROM comments WHERE page = $1 ORDER BY created_at ASC',
-        [page],
-      );
-      return res.rows.map((row) => ({
-        id: row.id,
-        page: row.page,
-        author: row.author,
-        body: row.body,
-        createdAt: row.created_at.toISOString?.() ?? new Date(row.created_at).toISOString(),
-      }));
-    },
-    async addComment(page, body, author) {
-      await ready;
-      const id = randomUUID();
-      const createdAt = new Date().toISOString();
-      await pool.query(
-        'INSERT INTO comments (id, page, author, body, created_at) VALUES ($1, $2, $3, $4, $5)',
-        [id, page, author, body, createdAt],
-      );
-      return { id, page, author, body, createdAt };
-    },
-    async deleteComment(id) {
-      await ready;
-      await pool.query('DELETE FROM comments WHERE id = $1', [id]);
-    },
   };
 }
 
 function createMemoryStorage(): StorageImpl {
   console.warn(
-    'DATABASE_URL/POSTGRES_URL not configured; graffiti/comments API will use in-memory storage.',
+    'DATABASE_URL/POSTGRES_URL not configured; graffiti API will use in-memory storage.',
   );
   const graffiti: StoredGraffiti[] = [];
-  const comments: StoredComment[] = [];
 
   return {
     async listGraffiti() {
@@ -159,26 +124,6 @@ function createMemoryStorage(): StorageImpl {
     async clearGraffiti() {
       graffiti.length = 0;
     },
-    async listComments(page) {
-      return comments.filter((item) => item.page === page);
-    },
-    async addComment(page, body, author) {
-      const entry: StoredComment = {
-        id: randomUUID(),
-        page,
-        body,
-        author,
-        createdAt: new Date().toISOString(),
-      };
-      comments.push(entry);
-      return entry;
-    },
-    async deleteComment(id) {
-      const idx = comments.findIndex((row) => row.id === id);
-      if (idx !== -1) {
-        comments.splice(idx, 1);
-      }
-    },
   };
 }
 
@@ -190,7 +135,4 @@ export const {
   listGraffiti,
   addGraffiti,
   clearGraffiti,
-  listComments,
-  addComment,
-  deleteComment,
 } = storage;

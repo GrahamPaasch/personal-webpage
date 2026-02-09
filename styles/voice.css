@@ -400,7 +400,10 @@
   font-size: 0.78rem;
   padding: 0.2rem 0.45rem;
   border-radius: 0.5rem;
-  background: rgba(148, 163, 184, 0.14);
+  /* Solid dark chip so contrast stays AA even if rendered on a light surface. */
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: rgba(226, 232, 240, 0.95);
 }
 
 /* ==== A11Y SAFETY NET – DO NOT REMOVE ==== */

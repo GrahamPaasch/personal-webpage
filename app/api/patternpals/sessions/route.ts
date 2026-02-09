@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSession, listSessions, updateSession } from '@/lib/patternpals/storage';
 import type { SessionStatus } from '@/lib/patternpals/types';
+import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
+
+const MAX_CONTENT_LENGTH = 40_000; // bytes (best-effort)
 
 const STATUSES: SessionStatus[] = ['scheduled', 'completed', 'canceled'];
 
@@ -18,14 +21,29 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const rl = rateLimit(request, { id: 'patternpals:sessions:write', limit: 60, windowMs: 60_000 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded.' },
+      { status: 429, headers: rateLimitHeaders(rl) },
+    );
+  }
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
+    return NextResponse.json(
+      { error: 'Payload too large.' },
+      { status: 413, headers: rateLimitHeaders(rl) },
+    );
+  }
+
   const data = await request.json().catch(() => null);
   if (!data || typeof data.hostId !== 'string' || typeof data.scheduledFor !== 'string') {
-    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const scheduled = new Date(data.scheduledFor);
   if (Number.isNaN(scheduled.getTime())) {
-    return NextResponse.json({ error: 'Invalid scheduledFor date.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid scheduledFor date.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const focusPatterns = Array.isArray(data.focusPatterns)
@@ -49,13 +67,28 @@ export async function POST(request: NextRequest) {
     outcome: typeof data.outcome === 'string' ? data.outcome.trim() : null,
   });
 
-  return NextResponse.json(entry, { status: 201 });
+  return NextResponse.json(entry, { status: 201, headers: rateLimitHeaders(rl) });
 }
 
 export async function PATCH(request: NextRequest) {
+  const rl = rateLimit(request, { id: 'patternpals:sessions:write', limit: 60, windowMs: 60_000 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded.' },
+      { status: 429, headers: rateLimitHeaders(rl) },
+    );
+  }
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
+    return NextResponse.json(
+      { error: 'Payload too large.' },
+      { status: 413, headers: rateLimitHeaders(rl) },
+    );
+  }
+
   const data = await request.json().catch(() => null);
   if (!data || typeof data.id !== 'string') {
-    return NextResponse.json({ error: 'Session id is required.' }, { status: 400 });
+    return NextResponse.json({ error: 'Session id is required.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const updates = {
@@ -76,7 +109,7 @@ export async function PATCH(request: NextRequest) {
 
   const updated = await updateSession(data.id, updates);
   if (!updated) {
-    return NextResponse.json({ error: 'Session not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Session not found.' }, { status: 404, headers: rateLimitHeaders(rl) });
   }
-  return NextResponse.json(updated);
+  return NextResponse.json(updated, { headers: rateLimitHeaders(rl) });
 }

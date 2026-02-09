@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 
-// Konami code: ↑ ↑ ↓ ↓ ← → ← → B A
+// Konami code: ArrowUp ArrowUp ArrowDown ArrowDown ArrowLeft ArrowRight ArrowLeft ArrowRight B A
 const KONAMI_CODE = [
   'ArrowUp', 'ArrowUp', 
   'ArrowDown', 'ArrowDown', 
@@ -110,7 +110,7 @@ export default function EasterEgg() {
 
   return (
     <div className="easter-egg-overlay" aria-hidden="true">
-      <div className="easter-egg-message">🎪 You found the secret! 🤹</div>
+      <div className="easter-egg-message">&#x1F3AA; You found the secret! &#x1F939;</div>
       {balls.map(ball => (
         <div
           key={ball.id}
@@ -167,3 +167,4 @@ export default function EasterEgg() {
     </div>
   );
 }
+

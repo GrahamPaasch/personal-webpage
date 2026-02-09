@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createJuggler, listJugglers, updateJuggler } from '@/lib/patternpals/storage';
 import type { ExperienceLevel, PropType } from '@/lib/patternpals/types';
+import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
+
+const MAX_CONTENT_LENGTH = 30_000; // bytes (best-effort)
 
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
 const PROP_OPTIONS: PropType[] = ['clubs', 'balls', 'rings'];
@@ -18,12 +21,27 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const rl = rateLimit(request, { id: 'patternpals:jugglers:write', limit: 60, windowMs: 60_000 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded.' },
+      { status: 429, headers: rateLimitHeaders(rl) },
+    );
+  }
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
+    return NextResponse.json(
+      { error: 'Payload too large.' },
+      { status: 413, headers: rateLimitHeaders(rl) },
+    );
+  }
+
   const data = await request.json().catch(() => null);
   if (!data || typeof data.name !== 'string' || !data.name.trim()) {
-    return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
+    return NextResponse.json({ error: 'Name is required.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
   if (!isExperienceLevel(data.experience)) {
-    return NextResponse.json({ error: 'Invalid experience level.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid experience level.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const props = Array.isArray(data.props)
@@ -36,13 +54,28 @@ export async function POST(request: NextRequest) {
     props,
   });
 
-  return NextResponse.json(created, { status: 201 });
+  return NextResponse.json(created, { status: 201, headers: rateLimitHeaders(rl) });
 }
 
 export async function PATCH(request: NextRequest) {
+  const rl = rateLimit(request, { id: 'patternpals:jugglers:write', limit: 60, windowMs: 60_000 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded.' },
+      { status: 429, headers: rateLimitHeaders(rl) },
+    );
+  }
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
+    return NextResponse.json(
+      { error: 'Payload too large.' },
+      { status: 413, headers: rateLimitHeaders(rl) },
+    );
+  }
+
   const data = await request.json().catch(() => null);
   if (!data || typeof data.id !== 'string') {
-    return NextResponse.json({ error: 'Juggler id is required.' }, { status: 400 });
+    return NextResponse.json({ error: 'Juggler id is required.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const updates: {
@@ -63,7 +96,7 @@ export async function PATCH(request: NextRequest) {
 
   const updated = await updateJuggler(data.id, updates);
   if (!updated) {
-    return NextResponse.json({ error: 'Juggler not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Juggler not found.' }, { status: 404, headers: rateLimitHeaders(rl) });
   }
-  return NextResponse.json(updated);
+  return NextResponse.json(updated, { headers: rateLimitHeaders(rl) });
 }

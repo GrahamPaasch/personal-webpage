@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { PromptCategory } from './data';
 import { promptCategories } from './data';
 
@@ -119,19 +119,28 @@ export default function PromptPackTool() {
     [categoryId],
   );
 
-  useEffect(() => {
-    setUseCaseIndex(0);
-  }, [categoryId]);
-
   const selectedItem = selectedCategory.items[useCaseIndex] ?? selectedCategory.items[0];
 
-  useEffect(() => {
+  const resetPromptState = () => {
     setCustomValues({});
     setTone('default');
     setFormat('default');
     setIncludeBooster(false);
     setCopyState('idle');
-  }, [selectedItem]);
+  };
+
+  const handleSelectCategory = (nextCategoryId: string) => {
+    if (!nextCategoryId || nextCategoryId === categoryId) return;
+    setCategoryId(nextCategoryId);
+    setUseCaseIndex(0);
+    resetPromptState();
+  };
+
+  const handleSelectUseCase = (nextUseCaseIndex: number) => {
+    if (nextUseCaseIndex === useCaseIndex) return;
+    setUseCaseIndex(nextUseCaseIndex);
+    resetPromptState();
+  };
 
   const placeholders = useMemo<PlaceholderField[]>(() => {
     if (!selectedItem) return [];
@@ -235,7 +244,7 @@ export default function PromptPackTool() {
                   key={category.id}
                   type="button"
                   className={`prompt-category-button${isActive ? ' active' : ''}`}
-                  onClick={() => setCategoryId(category.id)}
+                  onClick={() => handleSelectCategory(category.id)}
                   aria-pressed={isActive}
                 >
                   <span className="prompt-category-title">{category.title}</span>
@@ -255,11 +264,11 @@ export default function PromptPackTool() {
                 return (
                   <button
                     key={item.useCase}
-                    type="button"
-                    className={`prompt-usecase-button${isActive ? ' active' : ''}`}
-                    onClick={() => setUseCaseIndex(index)}
-                    aria-pressed={isActive}
-                  >
+                  type="button"
+                  className={`prompt-usecase-button${isActive ? ' active' : ''}`}
+                  onClick={() => handleSelectUseCase(index)}
+                  aria-pressed={isActive}
+                >
                     {item.useCase}
                   </button>
                 );

@@ -1,18 +1,18 @@
-import { notFound } from 'next/navigation';
+﻿import { notFound } from 'next/navigation';
 import { getPost, listPostSlugs } from '@/lib/posts';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 import Giscus from './giscus';
-import Comments from '@/components/Comments';
 
-type Props = { params: { slug: string } };
+type Props = { params: Promise<{ slug: string }> };
 
 export function generateStaticParams() {
   return listPostSlugs().map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: Props) {
-  const post = getPost(params.slug);
+  const { slug } = await params;
+  const post = getPost(slug);
   if (!post) return {};
   return {
     title: post.meta.title,
@@ -20,8 +20,9 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-export default function PostPage({ params }: Props) {
-  const post = getPost(params.slug);
+export default async function PostPage({ params }: Props) {
+  const { slug } = await params;
+  const post = getPost(slug);
   if (!post) return notFound();
   const html = sanitizeHtml(marked.parse(post.content) as string, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'h3']),
@@ -38,12 +39,13 @@ export default function PostPage({ params }: Props) {
       <div className="post-meta">
         {new Date(post.meta.date).toLocaleDateString()}
         {post.meta.readingTime && (
-          <span className="reading-time"> · {post.meta.readingTime} min read</span>
+          <span className="reading-time"> &middot; {post.meta.readingTime} min read</span>
         )}
       </div>
       <div dangerouslySetInnerHTML={{ __html: html }} />
-      <Comments pageId={`/writings/${post.meta.slug}`} />
       <Giscus title={post.meta.title} slug={post.meta.slug} />
     </article>
   );
 }
+
+

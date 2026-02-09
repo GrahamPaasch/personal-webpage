@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 
 export default function VoiceSpecimenPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-12 px-6 py-16">
+    <section className="mx-auto flex min-h-screen max-w-6xl flex-col gap-12 px-6 py-16">
       <VoiceSpecimenExtreme />
-    </main>
+    </section>
   );
 }

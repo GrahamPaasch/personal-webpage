@@ -1,15 +1,44 @@
-import { listPostSlugs } from '@/lib/posts';
+import { getPost, listPostSlugs } from '@/lib/posts';
 
 export default async function sitemap() {
   const base = 'https://www.grahampaasch.com';
-  const now = new Date().toISOString();
-  const staticPages = ['', '/hobbies', '/professional', '/writings', '/career-vision', '/agent', '/agent/for-agents', '/patternpals'].map((p) => ({
+  const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || new Date().toISOString();
+
+  const staticPages = [
+    '',
+    '/agent',
+    '/agent/for-agents',
+    '/career-vision',
+    '/design/voice-system',
+    '/graffiti',
+    '/hobbies',
+    '/hobbies/juggling',
+    '/hobbies/shona-music',
+    '/hobbies/viola',
+    '/naf-discovery',
+    '/patternpals',
+    '/professional',
+    '/prompt-pack',
+    '/resume-tool',
+    '/sidewalks-of-rage/',
+    '/status',
+    '/version',
+    '/voice-specimen',
+    '/wellness',
+    '/wellness/box-breathing',
+    '/wellness/coherent-breathing',
+    '/writings',
+  ].map((p) => ({
     url: base + p,
-    lastModified: now,
+    lastModified: buildTime,
   }));
-  const posts = listPostSlugs().map((slug) => ({
-    url: `${base}/writings/${slug}`,
-    lastModified: now,
-  }));
+
+  const posts = listPostSlugs()
+    .map((slug) => getPost(slug))
+    .filter(Boolean)
+    .map((post) => ({
+      url: `${base}/writings/${post!.meta.slug}`,
+      lastModified: post!.meta.date,
+    }));
   return [...staticPages, ...posts];
 }

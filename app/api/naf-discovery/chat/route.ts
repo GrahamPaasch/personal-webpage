@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,11 @@ type IncomingMessage = {
 
 type GeneratedReply = { text: string; provider: string | null };
 type OpenAIUserKeyResult = { text: string | null; error: 'invalid_api_key' | 'request_failed' | null };
+
+const MAX_CONTENT_LENGTH = 80_000; // bytes (best-effort)
+const MAX_MESSAGES = 30;
+const MAX_MESSAGE_CHARS = 2_000;
+const MAX_TOTAL_CHARS = 15_000;
 
 // Provider helpers (OpenAI-compatible)
 async function callGemini(apiKey: string, system: string, user: string): Promise<string | null> {
@@ -199,42 +205,82 @@ async function generateReply(messages: IncomingMessage[]): Promise<GeneratedRepl
 }
 
 export async function POST(request: Request) {
+  const rl = rateLimit(request, { id: 'naf:chat', limit: 12, windowMs: 60_000 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded.' },
+      { status: 429, headers: rateLimitHeaders(rl) },
+    );
+  }
+
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
+    return NextResponse.json(
+      { error: 'Payload too large.' },
+      { status: 413, headers: rateLimitHeaders(rl) },
+    );
+  }
+
   const payload = await request.json().catch(() => null);
   if (!payload || !Array.isArray(payload.messages)) {
-    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
   if (payload.apiKey !== undefined && typeof payload.apiKey !== 'string') {
-    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const messages: IncomingMessage[] = [];
+  if (payload.messages.length > MAX_MESSAGES) {
+    return NextResponse.json(
+      { error: `Too many messages (max ${MAX_MESSAGES}).` },
+      { status: 400, headers: rateLimitHeaders(rl) },
+    );
+  }
+
+  let totalChars = 0;
   for (const entry of payload.messages) {
     if (!entry || typeof entry.role !== 'string' || typeof entry.content !== 'string') {
-      return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
     }
     if (entry.role !== 'user' && entry.role !== 'assistant') {
-      return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
     }
     const content = entry.content.trim();
     if (!content) {
-      return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
+    }
+    if (content.length > MAX_MESSAGE_CHARS) {
+      return NextResponse.json(
+        { error: `A message is too long (max ${MAX_MESSAGE_CHARS} chars).` },
+        { status: 400, headers: rateLimitHeaders(rl) },
+      );
+    }
+    totalChars += content.length;
+    if (totalChars > MAX_TOTAL_CHARS) {
+      return NextResponse.json(
+        { error: `Conversation is too long (max ${MAX_TOTAL_CHARS} chars total).` },
+        { status: 400, headers: rateLimitHeaders(rl) },
+      );
     }
     messages.push({ role: entry.role, content });
   }
 
   const apiKey = typeof payload.apiKey === 'string' ? payload.apiKey.trim() : '';
   if (apiKey) {
+    if (apiKey.length > 200) {
+      return NextResponse.json({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
+    }
     const { text: reply, error } = await callOpenAIWithUserKey(apiKey, messages);
     if (error === 'invalid_api_key') {
-      return NextResponse.json({ error: 'Invalid OpenAI API key.' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid OpenAI API key.' }, { status: 401, headers: rateLimitHeaders(rl) });
     }
     if (!reply) {
       return NextResponse.json(
         { error: 'Failed to generate response with your API key.' },
-        { status: 502 }
+        { status: 502, headers: rateLimitHeaders(rl) }
       );
     }
-    return NextResponse.json({ message: reply });
+    return NextResponse.json({ message: reply }, { headers: rateLimitHeaders(rl) });
   }
 
   const hasProviders = [
@@ -247,17 +293,17 @@ export async function POST(request: Request) {
   ].some(Boolean);
 
   if (!hasProviders) {
-    return NextResponse.json({ error: 'No AI providers are configured.' }, { status: 500 });
+    return NextResponse.json({ error: 'No AI providers are configured.' }, { status: 500, headers: rateLimitHeaders(rl) });
   }
 
   try {
     const { text: reply } = await generateReply(messages);
     if (!reply) {
-      return NextResponse.json({ error: 'No response generated.' }, { status: 500 });
+      return NextResponse.json({ error: 'No response generated.' }, { status: 500, headers: rateLimitHeaders(rl) });
     }
-    return NextResponse.json({ message: reply });
+    return NextResponse.json({ message: reply }, { headers: rateLimitHeaders(rl) });
   } catch (error) {
     console.error('NAF discovery error:', error);
-    return NextResponse.json({ error: 'Failed to generate response.' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate response.' }, { status: 500, headers: rateLimitHeaders(rl) });
   }
 }

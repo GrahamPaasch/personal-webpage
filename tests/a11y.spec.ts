@@ -20,7 +20,7 @@ function formatViolations(route: string, violations: AxeResults['violations']) {
   return `Accessibility violations on ${route}:\n${violations
     .map((violation) => {
       const nodes = violation.nodes
-        .map((node) => `  • ${node.html}\n    ${node.failureSummary}`)
+        .map((node) => `  - ${node.html}\n    ${node.failureSummary}`)
         .join('\n');
       return `${violation.id} (${violation.impact})\n${violation.help}\n${nodes}`;
     })
