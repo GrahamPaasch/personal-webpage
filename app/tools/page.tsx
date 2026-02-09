@@ -14,6 +14,18 @@ const musicTools = [
     desc: 'Tap tempo, subdivisions, swing, and a downbeat accent.',
   },
   {
+    href: '/tools/tempo-ramp',
+    title: 'Tempo Ramp',
+    badge: 'SPEED',
+    desc: 'Ramp from a start BPM to an end BPM in steps every N bars.',
+  },
+  {
+    href: '/tools/rhythm-trainer',
+    title: 'Rhythm Trainer',
+    badge: 'TIME',
+    desc: 'Tap along and measure early/late timing in milliseconds.',
+  },
+  {
     href: '/tools/drone',
     title: 'Drone',
     badge: 'INTONATION',
@@ -26,10 +38,34 @@ const musicTools = [
     desc: 'Build a practice session out of timed blocks. Beeps on transitions.',
   },
   {
+    href: '/tools/practice-log',
+    title: 'Practice Log',
+    badge: 'LOCAL',
+    desc: 'Local-only practice logging with export/import. No accounts.',
+  },
+  {
+    href: '/tools/setlist',
+    title: 'Setlist Mode',
+    badge: 'FLOW',
+    desc: 'Build a practice setlist that links out to tool presets.',
+  },
+  {
     href: '/tools/ear-trainer',
     title: 'Interval Ear Trainer',
     badge: 'EAR',
     desc: 'Melodic or harmonic intervals, with selectable interval sets and stats.',
+  },
+  {
+    href: '/tools/chord-looper',
+    title: 'Chord Looper',
+    badge: 'HARMONY',
+    desc: 'Loop common progressions in any key with a simple synth + optional click.',
+  },
+  {
+    href: '/tools/scale-randomizer',
+    title: 'Scale Randomizer',
+    badge: 'PROMPT',
+    desc: 'Random practice prompts for scales, arpeggios, and patterns.',
   },
   {
     href: '/tools/tuner',

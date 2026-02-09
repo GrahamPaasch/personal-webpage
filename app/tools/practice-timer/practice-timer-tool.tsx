@@ -60,11 +60,14 @@ const DEFAULT_SEGMENTS: Segment[] = [
   { id: 'cool', label: 'Cool down', seconds: 3 * 60 },
 ];
 
-export default function PracticeTimerTool() {
-  const [segments, setSegments] = useState<Segment[]>(DEFAULT_SEGMENTS);
+export default function PracticeTimerTool(props: { initialSegments?: Segment[] }) {
+  const initialSegments =
+    props.initialSegments && props.initialSegments.length ? props.initialSegments : DEFAULT_SEGMENTS;
+
+  const [segments, setSegments] = useState<Segment[]>(initialSegments);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [remainingMs, setRemainingMs] = useState(DEFAULT_SEGMENTS[0].seconds * 1000);
+  const [remainingMs, setRemainingMs] = useState(initialSegments[0].seconds * 1000);
   const [copyNote, setCopyNote] = useState<string | null>(null);
 
   const ctxRef = useRef<AudioContext | null>(null);

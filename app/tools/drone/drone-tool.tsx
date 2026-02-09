@@ -21,14 +21,29 @@ async function safeResume(ctx: AudioContext) {
   }
 }
 
-export default function DroneTool() {
+export default function DroneTool(props: {
+  initial?: Partial<{
+    noteIndex: number;
+    octave: number;
+    a4: number;
+    volume: number;
+    waveform: Waveform;
+    spelling: 'sharp' | 'flat';
+  }>;
+}) {
+  const init = props.initial;
+
   const [isOn, setIsOn] = useState(false);
-  const [noteIndex, setNoteIndex] = useState(9); // A
-  const [octave, setOctave] = useState(4);
-  const [a4, setA4] = useState(440);
-  const [volume, setVolume] = useState(0.25);
-  const [waveform, setWaveform] = useState<Waveform>('sine');
-  const [spelling, setSpelling] = useState<'sharp' | 'flat'>('flat');
+  const [noteIndex, setNoteIndex] = useState(clamp(init?.noteIndex ?? 9, 0, 11)); // A
+  const [octave, setOctave] = useState(clamp(init?.octave ?? 4, 0, 8));
+  const [a4, setA4] = useState(clamp(init?.a4 ?? 440, 415, 466));
+  const [volume, setVolume] = useState(clamp(init?.volume ?? 0.25, 0, 1));
+  const [waveform, setWaveform] = useState<Waveform>(() => {
+    const wf = init?.waveform;
+    if (wf && ['sine', 'triangle', 'sawtooth', 'square'].includes(wf)) return wf;
+    return 'sine';
+  });
+  const [spelling, setSpelling] = useState<'sharp' | 'flat'>(init?.spelling === 'sharp' ? 'sharp' : 'flat');
 
   const ctxRef = useRef<AudioContext | null>(null);
   const oscRef = useRef<OscillatorNode | null>(null);
@@ -241,4 +256,3 @@ export default function DroneTool() {
     </>
   );
 }
-
