@@ -85,7 +85,7 @@ export default function HomePage() {
             <Link className="button" href="/hobbies">Explore hobbies</Link>
             <Link className="button" href="/wellness/">Wellness</Link>
             <Link className="button" href="/professional">Professional profile</Link>
-            <Link className="button" href="/tools">Network toolbox</Link>
+            <Link className="button" href="/tools">Toolbox</Link>
             <Link className="button" href="/prompt-pack">Prompt Studio</Link>
             <Link className="button" href="/agent">Chat with my Agent</Link>
           </div>
@@ -185,9 +185,9 @@ export default function HomePage() {
         </div>
 
         <div className="card half">
-          <h2>Network toolbox</h2>
+          <h2>Toolbox</h2>
           <p className="muted">
-            Small utilities for day-to-day network work: CIDR planning, BGP community decoding, and config diffs.
+            Small utilities for day-to-day work and practice: network tools (CIDR, BGP, config diffs) plus music tools (metronome, drone, tuner).
           </p>
           <Link className="button" href="/tools">Open the toolbox</Link>
         </div>

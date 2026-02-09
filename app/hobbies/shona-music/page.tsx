@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export const metadata = {
   title: 'Shona Zimbabwean Music',
   description: 'Member of Mafaro Marimba at the Rattletree School of Music.',
@@ -19,6 +21,10 @@ export default function ShonaMusicPage() {
           Africa Night at Sahara Lounge
         </a>
         .
+      </p>
+      <p>
+        For practice, I keep a set of in-browser tools (metronome, interval trainer, timer).{' '}
+        <Link href="/tools#music">Open the music toolbox</Link>.
       </p>
     </article>
   );

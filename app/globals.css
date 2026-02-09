@@ -2215,9 +2215,13 @@ select:focus {
   }
 }
 
-/* ===================== */
-/* Network Toolbox Styles */
-/* ===================== */
+/* ================================ */
+/* Toolbox Styles (Network + Music) */
+/* ================================ */
+
+.toolbox-anchor {
+  scroll-margin-top: 84px;
+}
 
 .toolbox-row {
   display: flex;
@@ -2450,4 +2454,377 @@ select:focus {
 
 .toolbox-diff-del .toolbox-diff-code {
   background: rgba(244, 63, 94, 0.14);
+}
+
+/* ==================== */
+/* Music Toolbox Styles */
+/* ==================== */
+
+.music-bpm-display {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background:
+    radial-gradient(520px 190px at 0% 0%, rgba(236, 72, 153, 0.14), transparent 60%),
+    radial-gradient(520px 190px at 100% 0%, rgba(59, 130, 246, 0.14), transparent 60%),
+    rgba(15, 23, 42, 0.45);
+  min-width: 150px;
+}
+
+.music-bpm-number {
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
+  font-weight: 700;
+  font-size: 2.6rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.music-beat-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.music-beat-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.music-beat-dot-down {
+  width: 16px;
+  height: 16px;
+  border-color: rgba(93, 169, 255, 0.75);
+}
+
+.music-beat-dot-active {
+  border-color: rgba(147, 197, 253, 0.95);
+  background: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16), 0 0 14px rgba(93, 169, 255, 0.32);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes musicBeatPulse {
+    from { transform: scale(0.92); }
+    to { transform: scale(1); }
+  }
+
+  .music-beat-dot-active {
+    animation: musicBeatPulse 0.16s ease-out;
+  }
+}
+
+.button.primary.music-stop {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.button.primary.music-stop:hover {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+
+.music-timer-display {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.35);
+  min-width: 240px;
+  flex: 1;
+}
+
+.music-timer-label {
+  font-weight: 600;
+}
+
+.music-timer-clock {
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.music-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.music-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.78), rgba(236, 72, 153, 0.76));
+}
+
+.music-block-list {
+  display: grid;
+  gap: 10px;
+}
+
+.music-block {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  background: rgba(16, 19, 27, 0.55);
+  padding: 12px;
+}
+
+.music-block-active {
+  border-color: rgba(59, 130, 246, 0.65);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.music-block-head {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.music-block-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
+  color: rgba(219, 234, 254, 0.96);
+}
+
+.music-block-head input {
+  width: 100%;
+}
+
+.music-block-time {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+@media (max-width: 540px) {
+  .music-block-head {
+    grid-template-columns: 34px 1fr;
+  }
+
+  .music-block-head .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+.music-quiz-display {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.35);
+  min-width: 220px;
+}
+
+.music-quiz-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(159, 167, 184, 0.95);
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
+}
+
+.music-quiz-value {
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.music-result {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.music-result-ok {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: rgba(34, 197, 94, 0.14);
+}
+
+.music-result-bad {
+  border-color: rgba(244, 63, 94, 0.55);
+  background: rgba(244, 63, 94, 0.12);
+}
+
+.music-choices {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .music-choices {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.music-choice {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(16, 19, 27, 0.55);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.music-choice:hover {
+  transform: translateY(-1px);
+  border-color: rgba(93, 169, 255, 0.55);
+  background: rgba(30, 41, 59, 0.55);
+}
+
+.music-choice:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.music-choice:focus-visible {
+  outline: 2px solid rgba(147, 197, 253, 0.95);
+  outline-offset: 3px;
+}
+
+.music-choice-short {
+  font-family: var(--voice-ai-mono), var(--voice-dm), monospace;
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 6px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.45);
+  text-align: center;
+}
+
+.music-choice-name {
+  font-weight: 600;
+}
+
+.music-interval-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+@media (min-width: 720px) {
+  .music-interval-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.music-interval-toggle {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+}
+
+.music-interval-toggle input {
+  margin-top: 2px;
+}
+
+.music-interval-toggle:hover {
+  border-color: rgba(93, 169, 255, 0.55);
+  background: rgba(30, 41, 59, 0.4);
+}
+
+.music-interval-pill {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.music-tuner-display {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.35);
+  min-width: 260px;
+  flex: 1;
+}
+
+.music-tuner-note {
+  font-family: var(--voice-dm), var(--voice-ai-mono), monospace;
+  font-size: 2.6rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.music-cents-gauge {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.music-cents-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-family: var(--voice-ai-mono), var(--voice-dm), monospace;
+}
+
+.music-cents-track {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(148, 163, 184, 0.12);
+  overflow: hidden;
+}
+
+.music-cents-center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(226, 232, 240, 0.55);
+}
+
+.music-cents-pointer {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(236, 72, 153, 0.85);
+  border: 1px solid rgba(251, 207, 232, 0.75);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15);
 }

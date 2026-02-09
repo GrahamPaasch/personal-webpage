@@ -1,12 +1,45 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Network Toolbox',
-  description: 'Small, sharp utilities for network engineering: CIDR planning, BGP communities, config diffs.',
+  title: 'Toolbox',
+  description: 'Small, sharp utilities for network engineering and music practice. Everything runs in your browser.',
   alternates: { canonical: '/tools' },
 };
 
-const tools = [
+const musicTools = [
+  {
+    href: '/tools/metronome',
+    title: 'Metronome',
+    badge: 'TEMPO',
+    desc: 'Tap tempo, subdivisions, swing, and a downbeat accent.',
+  },
+  {
+    href: '/tools/drone',
+    title: 'Drone',
+    badge: 'INTONATION',
+    desc: 'A sustained pitch for intonation work (note + octave, waveform, and A4 tuning).',
+  },
+  {
+    href: '/tools/practice-timer',
+    title: 'Practice Timer',
+    badge: 'FOCUS',
+    desc: 'Build a practice session out of timed blocks. Beeps on transitions.',
+  },
+  {
+    href: '/tools/ear-trainer',
+    title: 'Interval Ear Trainer',
+    badge: 'EAR',
+    desc: 'Melodic or harmonic intervals, with selectable interval sets and stats.',
+  },
+  {
+    href: '/tools/tuner',
+    title: 'Tuner',
+    badge: 'MIC',
+    desc: 'Microphone-based pitch detection with cents deviation. Headphones recommended.',
+  },
+] as const;
+
+const networkTools = [
   {
     href: '/tools/subnet',
     title: 'IPv4 Subnet Planner',
@@ -27,16 +60,37 @@ const tools = [
   },
 ] as const;
 
+function ToolCard(props: { href: string; title: string; badge: string; desc: string }) {
+  return (
+    <div key={props.href} className="card half">
+      <div className="prompt-header" style={{ marginBottom: 10 }}>
+        <h3 style={{ margin: 0 }}>{props.title}</h3>
+        <span className="prompt-header-badge">{props.badge}</span>
+      </div>
+      <p className="muted">{props.desc}</p>
+      <Link className="button primary" href={props.href}>
+        Open tool &rarr;
+      </Link>
+    </div>
+  );
+}
+
 export default function ToolsIndexPage() {
   return (
     <section className="grid">
       <div className="card">
-        <h1>Network Toolbox Corner</h1>
+        <h1>Toolbox Corner</h1>
         <p className="muted">
-          A small collection of utilities I keep reaching for while doing network engineering and automation.
-          Everything on these pages runs in your browser.
+          A small collection of utilities I keep reaching for: network engineering, automation, and music practice.
+          Everything here runs in your browser.
         </p>
         <div className="cta-row" style={{ marginTop: 14 }}>
+          <a className="button primary" href="#music">
+            Music tools
+          </a>
+          <a className="button" href="#network">
+            Network tools
+          </a>
           <Link className="button" href="/naf-discovery">
             NAF Discovery Tool
           </Link>
@@ -46,19 +100,33 @@ export default function ToolsIndexPage() {
         </div>
       </div>
 
-      {tools.map((tool) => (
-        <div key={tool.href} className="card half">
-          <div className="prompt-header" style={{ marginBottom: 10 }}>
-            <h2 style={{ margin: 0 }}>{tool.title}</h2>
-            <span className="prompt-header-badge">{tool.badge}</span>
-          </div>
-          <p className="muted">{tool.desc}</p>
-          <Link className="button primary" href={tool.href}>
-            Open tool &rarr;
-          </Link>
+      <div id="music" className="card toolbox-anchor">
+        <div className="prompt-header" style={{ marginBottom: 10 }}>
+          <h2 style={{ margin: 0 }}>Music Practice</h2>
+          <span className="prompt-header-badge">MUSIC</span>
         </div>
+        <p className="muted">
+          Web Audio starts only after you press a button (browser policy). The tuner needs microphone permission.
+        </p>
+      </div>
+
+      {musicTools.map((tool) => (
+        <ToolCard key={tool.href} {...tool} />
+      ))}
+
+      <div id="network" className="card toolbox-anchor">
+        <div className="prompt-header" style={{ marginBottom: 10 }}>
+          <h2 style={{ margin: 0 }}>Network Engineering</h2>
+          <span className="prompt-header-badge">NETWORK</span>
+        </div>
+        <p className="muted">
+          CIDR planning, BGP communities, and quick config diffs. Everything runs locally in your browser.
+        </p>
+      </div>
+
+      {networkTools.map((tool) => (
+        <ToolCard key={tool.href} {...tool} />
       ))}
     </section>
   );
 }
-

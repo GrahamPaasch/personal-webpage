@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export const metadata = {
   title: 'Viola',
   description: 'Core member of the Central Texas Medical Orchestra.',
@@ -14,6 +16,10 @@ export default function ViolaPage() {
         </a>
         . Rehearsals and concerts demand close listening—balance, timing, and harmony are
         everything.
+      </p>
+      <p>
+        I also built a few browser-based music practice tools (metronome, drone, tuner, interval trainer).{' '}
+        <Link href="/tools#music">Open the music toolbox</Link>.
       </p>
       <p>
         CTMO unites Austin musicians and healthcare professionals to raise funds for local clinics.
