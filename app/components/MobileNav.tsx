@@ -8,6 +8,7 @@ const navLinks = [
   { href: '/hobbies', label: 'Hobbies' },
   { href: '/writings', label: 'Writings' },
   { href: '/professional', label: 'Professional' },
+  { href: '/tools', label: 'Toolbox' },
   { href: '/resume-tool', label: 'Resume Tool' },
   { href: '/career-vision', label: 'Career Vision' },
   { href: '/graffiti', label: 'Graffiti' },
@@ -105,7 +106,15 @@ export default function MobileNav() {
       {/* Desktop Navigation - hidden on mobile */}
       <nav className="nav nav-desktop">
         {navLinks.map((link) => (
-          <Link key={link.href} href={link.href} className={pathname === link.href ? 'active' : ''}>
+          <Link
+            key={link.href}
+            href={link.href}
+            className={
+              pathname === link.href || (link.href !== '/' && pathname.startsWith(`${link.href}/`))
+                ? 'active'
+                : ''
+            }
+          >
             {link.label}
           </Link>
         ))}
@@ -161,11 +170,15 @@ export default function MobileNav() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`mobile-nav-link ${pathname === link.href ? 'active' : ''}`}
+                    className={`mobile-nav-link ${
+                      pathname === link.href || (link.href !== '/' && pathname.startsWith(`${link.href}/`))
+                        ? 'active'
+                        : ''
+                    }`}
                     onClick={closeMenu}
                   >
                     {link.label}
-                    {pathname === link.href ? (
+                    {pathname === link.href || (link.href !== '/' && pathname.startsWith(`${link.href}/`)) ? (
                       <span className="mobile-nav-active-indicator" aria-hidden="true">
                         &bull;
                       </span>

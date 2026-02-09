@@ -85,6 +85,7 @@ export default function HomePage() {
             <Link className="button" href="/hobbies">Explore hobbies</Link>
             <Link className="button" href="/wellness/">Wellness</Link>
             <Link className="button" href="/professional">Professional profile</Link>
+            <Link className="button" href="/tools">Network toolbox</Link>
             <Link className="button" href="/prompt-pack">Prompt Studio</Link>
             <Link className="button" href="/agent">Chat with my Agent</Link>
           </div>
@@ -181,6 +182,14 @@ export default function HomePage() {
             Grab a virtual paint can and leave a tag on the site. It sticks until I wash the wall clean.
           </p>
           <Link className="button" href="/graffiti">Tag the wall</Link>
+        </div>
+
+        <div className="card half">
+          <h2>Network toolbox</h2>
+          <p className="muted">
+            Small utilities for day-to-day network work: CIDR planning, BGP community decoding, and config diffs.
+          </p>
+          <Link className="button" href="/tools">Open the toolbox</Link>
         </div>
       </section>
     </>
