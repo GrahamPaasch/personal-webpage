@@ -135,11 +135,18 @@ export default class GameScene extends Phaser.Scene {
     this.updateHealthBar();
 
     this.playerSpeed = 200;
-    this.playerDirection = new Phaser.Math.Vector2(0, 1);
     this.isAttacking = false;
+    this.attackTween = null;
+    this.attackStartTime = -1;
+    this.attackHitEnemies = new Set();
     this.isMoving = false;
     this.attackLungeDistance = 18;
     this.attackDuration = 140;
+    // Startup + recovery so attacks feel less like permanent i-frames/trades.
+    this.attackActiveStartMs = Math.floor(this.attackDuration * 0.22);
+    this.attackActiveEndMs = Math.floor(this.attackDuration * 0.78);
+    this.playerAttackRecoveryMs = 110;
+    this.nextAttackAllowedAt = 0;
     this.isJumping = false;
     this.jumpHeight = 28;
     this.jumpDuration = 240;
@@ -160,13 +167,6 @@ export default class GameScene extends Phaser.Scene {
     this.maxEnemies = 8;
     this.scheduleNextEnemySpawn();
 
-    this.physics.add.overlap(
-      this.player,
-      this.enemies,
-      this.handlePlayerEnemyOverlap,
-      this.canPlayerHitEnemy,
-      this
-    );
     this.physics.add.overlap(
       this.player,
       this.enemies,
@@ -392,8 +392,23 @@ export default class GameScene extends Phaser.Scene {
     this.enemies.add(enemy);
   }
 
+  isPlayerAttackActive(now = this.time.now) {
+    if (!this.isAttacking || this.isPlayerDead) {
+      return false;
+    }
+
+    const start = typeof this.attackStartTime === 'number' ? this.attackStartTime : -1;
+    if (start < 0) {
+      // Shouldn't happen, but keep attacks functional if state gets out of sync.
+      return true;
+    }
+
+    const elapsed = now - start;
+    return elapsed >= this.attackActiveStartMs && elapsed <= this.attackActiveEndMs;
+  }
+
   canPlayerHitEnemy(player, enemy) {
-    if (!this.isAttacking || this.isPlayerDead || !enemy.active || enemy.isDying) {
+    if (!this.isPlayerAttackActive() || !enemy.active || enemy.isDying) {
       return false;
     }
 
@@ -403,14 +418,14 @@ export default class GameScene extends Phaser.Scene {
 
   handlePlayerEnemyOverlap(player, enemy) {
     if (this.isPlayerDead) {
-      return;
+      return false;
     }
 
     const previousHitTime = enemy.lastHitTime;
     const defeated = enemy.takeHit(player);
     const hitLanded = enemy.lastHitTime !== previousHitTime;
     if (!hitLanded) {
-      return;
+      return false;
     }
 
     applyHitstop(this, player, enemy);
@@ -424,10 +439,65 @@ export default class GameScene extends Phaser.Scene {
       this.showKillMessage();
       this.reportKill();
     }
+
+    return true;
+  }
+
+  processPlayerAttackHits(now = this.time.now) {
+    if (!this.isPlayerAttackActive(now)) {
+      return;
+    }
+
+    for (const enemy of this.enemies.getChildren()) {
+      if (!enemy?.active || enemy.isDying) {
+        continue;
+      }
+      if (this.attackHitEnemies.has(enemy)) {
+        continue;
+      }
+      if (!this.canPlayerHitEnemy(this.player, enemy)) {
+        continue;
+      }
+
+      const hitLanded = this.handlePlayerEnemyOverlap(this.player, enemy);
+      if (hitLanded) {
+        this.attackHitEnemies.add(enemy);
+      }
+    }
   }
 
   canEnemyHitPlayer(player, enemy) {
-    return !this.isPlayerDead && enemy.active && !enemy.isDying;
+    if (this.isPlayerDead || !enemy.active || enemy.isDying) {
+      return false;
+    }
+
+    const now = this.time.now;
+
+    // Classic brawler rule: you can only be hit if you're in the same lane.
+    if (Math.abs(player.y - enemy.y) > COMBAT.DEPTH_TOLERANCE) {
+      return false;
+    }
+
+    // Jump is a dodge. (Also helps because jump moves Y and could still overlap tall bodies.)
+    if (this.isJumping) {
+      return false;
+    }
+
+    // Don't let enemies deal contact damage while they're in hitstun/knockback.
+    if (now < (enemy.knockbackUntil ?? 0) || enemy.inHitstop) {
+      return false;
+    }
+
+    // If the player is swinging and this enemy is inside the hitbox, give the player priority.
+    // This prevents "forced trades" where attacking requires taking contact damage.
+    if (this.isAttacking) {
+      const facing = this.facing === 'left' ? -1 : 1;
+      if (canHitTarget(player, enemy, facing)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   handleEnemyPlayerOverlap(player, enemy) {
@@ -502,6 +572,8 @@ export default class GameScene extends Phaser.Scene {
     this.updateHealthBar();
     this.tweens.killTweensOf(this.player);
     this.isAttacking = false;
+    this.attackTween = null;
+    this.attackStartTime = -1;
     this.isMoving = false;
     this.isJumping = false;
     this.jumpTween = null;
@@ -527,6 +599,7 @@ export default class GameScene extends Phaser.Scene {
     this.isPlayerDead = false;
     this.playerHealth = this.playerMaxHealth;
     this.lastPlayerHitTime = this.time.now;
+    this.nextAttackAllowedAt = this.time.now;
     this.updateHealthBar();
     this.isJumping = false;
     this.jumpTween = null;
@@ -536,7 +609,6 @@ export default class GameScene extends Phaser.Scene {
     this.player.body.enable = true;
     this.applyPlayerFactionTint();
     this.facing = 'right';
-    this.playerDirection.set(0, 1);
     this.player.play('fauci-idle-right', true);
     this.player.setDepth(this.player.y + this.player.displayHeight * (1 - this.player.originY));
     this.playerLabel.setVisible(true);
@@ -1056,6 +1128,8 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
+    const now = this.time.now;
+
     const jumpPressed = dpadState?.jumpJustPressed;
     if (jumpPressed && !this.isJumping && !this.isAttacking) {
       this.startJump();
@@ -1080,7 +1154,6 @@ export default class GameScene extends Phaser.Scene {
       const len = Math.hypot(moveX, moveY);
       moveX /= len;
       moveY /= len;
-      this.playerDirection.set(moveX, moveY);
     }
 
     this.isMoving = moveX !== 0 || moveY !== 0;
@@ -1104,22 +1177,29 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const attackPressed = Phaser.Input.Keyboard.JustDown(this.keys.attack) || dpadState?.attackJustPressed;
-    if (attackPressed && !this.isAttacking && !this.isJumping) {
+    if (attackPressed && !this.isAttacking && !this.isJumping && now >= this.nextAttackAllowedAt) {
       this.isAttacking = true;
+      this.attackStartTime = now;
+      this.attackHitEnemies.clear();
       this.player.play(attackAnim, true);
       this.client?.send(MESSAGE_TYPES.PLAYER_ATTACK, {
         x: this.player.x,
         y: this.player.y,
         facing: this.facing
       });
-      const lungeDir = this.playerDirection.clone();
-      if (lungeDir.lengthSq() === 0) {
-        lungeDir.set(0, 1);
-      } else {
+
+      this.nextAttackAllowedAt = now + this.attackDuration + (this.playerAttackRecoveryMs ?? 0);
+
+      const facing = this.facing === 'left' ? -1 : 1;
+      const lungeDir = new Phaser.Math.Vector2(facing, 0);
+      // Tiny lane drift if the player is holding up/down at the moment of the attack.
+      if (moveY !== 0) {
+        lungeDir.y = moveY * 0.35;
         lungeDir.normalize();
       }
 
-      this.tweens.add({
+      this.attackTween?.stop();
+      this.attackTween = this.tweens.add({
         targets: this.player,
         x: this.player.x + lungeDir.x * this.attackLungeDistance,
         y: this.player.y + lungeDir.y * this.attackLungeDistance * 0.85,
@@ -1128,9 +1208,12 @@ export default class GameScene extends Phaser.Scene {
         ease: 'Quad.out',
         onComplete: () => {
           this.isAttacking = false;
+          this.attackTween = null;
         }
       });
     }
+
+    this.processPlayerAttackHits(now);
 
     if (this.isAttacking) {
       if (this.player.anims.currentAnim?.key !== attackAnim) {

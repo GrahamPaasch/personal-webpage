@@ -68,11 +68,7 @@ export function canHitTarget(attacker, target, facing) {
  * This creates the "freeze frame" impact feel
  */
 export function applyHitstop(scene, attacker, target, duration = COMBAT.HITSTOP_LIGHT) {
-  // Store original velocities
-  const attackerVel = attacker.body ? { x: attacker.body.velocity.x, y: attacker.body.velocity.y } : null;
-  const targetVel = target.body ? { x: target.body.velocity.x, y: target.body.velocity.y } : null;
-  
-  // Freeze both
+  // Freeze physics bodies (if any).
   if (attacker.body) {
     attacker.body.velocity.set(0, 0);
   }
@@ -83,12 +79,33 @@ export function applyHitstop(scene, attacker, target, duration = COMBAT.HITSTOP_
   // Store hitstop state
   attacker.inHitstop = true;
   target.inHitstop = true;
+
+  // Pause any tweens affecting the participants so tweens/manual movement "feel" the hitstop too.
+  const pausedTweens = new Set();
+  if (scene.tweens?.getTweensOf) {
+    for (const tween of scene.tweens.getTweensOf(attacker)) {
+      pausedTweens.add(tween);
+    }
+    for (const tween of scene.tweens.getTweensOf(target)) {
+      pausedTweens.add(tween);
+    }
+    for (const tween of pausedTweens) {
+      if (typeof tween?.pause === 'function') {
+        tween.pause();
+      }
+    }
+  }
   
   // Resume after duration
   scene.time.delayedCall(duration, () => {
     attacker.inHitstop = false;
     target.inHitstop = false;
     // Don't restore velocity - let normal movement take over
+    for (const tween of pausedTweens) {
+      if (typeof tween?.resume === 'function') {
+        tween.resume();
+      }
+    }
   });
 }
 
