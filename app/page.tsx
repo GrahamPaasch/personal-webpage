@@ -75,6 +75,21 @@ export default function HomePage() {
         </div>
 
         <div className="card">
+          <div className="prompt-header">
+            <h2>
+              <span aria-hidden="true">&#x1F3A8;</span> AI Creative Playground
+            </h2>
+            <span className="prompt-header-badge">NEW</span>
+          </div>
+          <p className="muted">
+            Interactive canvas art powered by particle physics and generative styles. Draw, explore, and create something unexpected.
+          </p>
+          <a className="button primary" href="/create-now/index.html">
+            Launch playground &rarr;
+          </a>
+        </div>
+
+        <div className="card">
           <h1>Hi, I&apos;m Graham Paasch.</h1>
           <p>
             I blend a decade of network engineering with Python development, and I
@@ -88,6 +103,7 @@ export default function HomePage() {
             <Link className="button" href="/tools">Toolbox</Link>
             <Link className="button" href="/prompt-pack">Prompt Studio</Link>
             <Link className="button" href="/agent">Chat with my Agent</Link>
+            <a className="button primary" href="/create-now/index.html">AI Creative Playground</a>
           </div>
         </div>
 

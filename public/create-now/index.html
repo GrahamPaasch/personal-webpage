@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>AI Creative Playground | Create Now Austin 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --panel: rgba(255, 255, 255, 0.06);
+      --panel-strong: rgba(255, 255, 255, 0.09);
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #f3f6ff;
+      --muted: #b5bed4;
+      --adobe-red: #ff0000;
+      --adobe-orange: #ff4500;
+      --adobe-violet: #9b30ff;
+      --adobe-cyan: #00c4ff;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      --radius: 24px;
+      --max-width: 1120px;
+      --parallax: 0px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -2;
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(255, 0, 0, 0.14), transparent 28%),
+        radial-gradient(circle at 84% 72%, rgba(0, 196, 255, 0.16), transparent 32%),
+        radial-gradient(circle at 62% 16%, rgba(155, 48, 255, 0.14), transparent 26%);
+      filter: blur(12px);
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+      opacity: 0.14;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+      background-size: 180px 180px;
+      mix-blend-mode: soft-light;
+    }
+
+    .ambient {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .shape-wrap {
+      position: absolute;
+      left: var(--left);
+      top: var(--top);
+      transform: translateY(calc(var(--parallax) * var(--depth)));
+      will-change: transform;
+    }
+
+    .shape {
+      width: var(--size);
+      height: var(--size);
+      opacity: 0.24;
+      animation: float var(--duration) ease-in-out infinite alternate;
+      filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.08));
+    }
+
+    .shape.circle {
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.34), rgba(255, 69, 0, 0.15));
+    }
+
+    .shape.square {
+      border-radius: 20%;
+      background: linear-gradient(135deg, rgba(0, 196, 255, 0.35), rgba(155, 48, 255, 0.16));
+    }
+
+    .shape.triangle {
+      clip-path: polygon(50% 0, 0 100%, 100% 100%);
+      background: linear-gradient(180deg, rgba(255, 0, 0, 0.34), rgba(255, 255, 255, 0.09));
+    }
+
+    @keyframes float {
+      0% {
+        transform: translate3d(0, 0, 0) rotate(0deg);
+      }
+      50% {
+        transform: translate3d(var(--drift-x), var(--drift-y), 0) rotate(100deg);
+      }
+      100% {
+        transform: translate3d(calc(var(--drift-x) * -1), calc(var(--drift-y) * -1), 0) rotate(200deg);
+      }
+    }
+
+    main {
+      width: min(100%, var(--max-width));
+      margin: 0 auto;
+      padding: 20px 14px 42px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .snap-section {
+      min-height: 92vh;
+      display: grid;
+      align-items: center;
+      padding: 22px 0;
+    }
+
+    .glass {
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: linear-gradient(150deg, var(--panel-strong), var(--panel));
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: clamp(24px, 5vw, 56px);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      inset: -20% 15% auto;
+      height: 180px;
+      background: radial-gradient(circle, rgba(255, 69, 0, 0.18), transparent 68%);
+      filter: blur(10px);
+      pointer-events: none;
+    }
+
+    .kicker {
+      font-family: 'Space Grotesk', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #d0daef;
+      font-size: 0.78rem;
+      margin: 0 0 12px;
+      opacity: 0.86;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2.3rem, 8vw, 5.9rem);
+      line-height: 1.02;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      background: linear-gradient(120deg, #ff0000, #ff4500, #9b30ff, #00c4ff, #ff0000);
+      background-size: 290% 290%;
+      -webkit-background-clip: text;
+      color: transparent;
+      animation: gradientShift 7.5s ease infinite;
+      text-wrap: balance;
+    }
+
+    @keyframes gradientShift {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .subtitle {
+      margin: 16px auto 0;
+      max-width: 52ch;
+      color: var(--muted);
+      font-size: clamp(1rem, 2.8vw, 1.25rem);
+    }
+
+    .pill {
+      display: inline-block;
+      margin-top: 22px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #e9eeff;
+      text-decoration: none;
+      font-size: 0.92rem;
+      background: linear-gradient(120deg, rgba(255, 0, 0, 0.18), rgba(0, 196, 255, 0.18));
+      transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    .pill:hover,
+    .pill:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.45);
+      box-shadow: 0 10px 24px rgba(0, 196, 255, 0.2);
+    }
+
+    .panel {
+      padding: clamp(18px, 3.6vw, 32px);
+    }
+
+    .section-title {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(1.4rem, 3.8vw, 2rem);
+      letter-spacing: -0.02em;
+    }
+
+    .section-subtitle {
+      margin: 8px 0 18px;
+      color: var(--muted);
+      max-width: 64ch;
+    }
+
+    .canvas-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    button {
+      border: 1px solid rgba(255, 255, 255, 0.26);
+      background: rgba(255, 255, 255, 0.07);
+      color: #f2f6ff;
+      border-radius: 13px;
+      padding: 10px 14px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+    }
+
+    button:hover,
+    button:focus-visible {
+      transform: translateY(-1px);
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.13);
+    }
+
+    .style-chip {
+      font-size: 0.83rem;
+      color: #d8e2ff;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.06);
+      margin-left: auto;
+      white-space: nowrap;
+      transition: background 240ms ease, border-color 240ms ease, color 240ms ease, box-shadow 240ms ease;
+    }
+
+    #artCanvas {
+      width: 100%;
+      height: min(52vh, 440px);
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background:
+        radial-gradient(circle at 22% 20%, rgba(255, 69, 0, 0.11), transparent 36%),
+        radial-gradient(circle at 80% 70%, rgba(0, 196, 255, 0.12), transparent 38%),
+        rgba(8, 9, 12, 0.9);
+      touch-action: none;
+      display: block;
+    }
+
+    .hint {
+      margin: 10px 0 0;
+      color: #9faccc;
+      font-size: 0.9rem;
+    }
+
+    .quote-stage {
+      min-height: 300px;
+      padding: clamp(24px, 5vw, 40px);
+      display: grid;
+      align-content: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 220ms ease, transform 220ms ease;
+    }
+
+    .quote-stage:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    .quote-content {
+      transition: opacity 420ms ease, transform 420ms ease;
+      opacity: 1;
+      transform: translateY(0);
+      min-height: 150px;
+      display: grid;
+      align-content: center;
+      gap: 8px;
+    }
+
+    .quote-content.fade {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    blockquote {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(1.2rem, 3.2vw, 1.9rem);
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+      color: #edf2ff;
+      text-wrap: balance;
+    }
+
+    .quote-author {
+      margin: 0;
+      color: #9fb0d7;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .quote-instruction {
+      margin: 0;
+      font-size: 0.86rem;
+      color: #89a6df;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .palette-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .strategy-label {
+      color: #9db7ee;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .swatch {
+      border-radius: 14px;
+      min-height: 120px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: grid;
+      place-items: end start;
+      padding: 12px;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .swatch::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, 0.38));
+      pointer-events: none;
+    }
+
+    .swatch:hover,
+    .swatch:focus-visible {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4);
+    }
+
+    .swatch-code {
+      position: relative;
+      z-index: 1;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.95rem;
+      color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+      letter-spacing: 0.05em;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%) translateY(14px);
+      background: rgba(16, 18, 25, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: #ecf3ff;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease, transform 220ms ease;
+      z-index: 20;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    footer {
+      min-height: 30vh;
+      display: grid;
+      place-items: center;
+      padding: 28px 0 12px;
+    }
+
+    .stack-badge {
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      font-size: 0.86rem;
+      color: #dce7ff;
+      background: linear-gradient(120deg, rgba(255, 0, 0, 0.12), rgba(155, 48, 255, 0.12), rgba(0, 196, 255, 0.12));
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+    }
+
+    @media (max-width: 900px) {
+      body {
+        scroll-snap-type: y mandatory;
+      }
+
+      .snap-section {
+        min-height: 100svh;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+      }
+
+      main {
+        padding-top: 10px;
+      }
+
+      .style-chip {
+        margin-left: 0;
+      }
+
+      #artCanvas {
+        height: min(50svh, 360px);
+      }
+
+      .palette-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .swatch {
+        min-height: 96px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="shape-wrap" style="--left: 6%; --top: 8%; --depth: 0.26;"><div class="shape circle" style="--size: 120px; --duration: 18s; --drift-x: 26px; --drift-y: -20px;"></div></div>
+    <div class="shape-wrap" style="--left: 82%; --top: 12%; --depth: 0.38;"><div class="shape triangle" style="--size: 100px; --duration: 20s; --drift-x: -24px; --drift-y: 30px;"></div></div>
+    <div class="shape-wrap" style="--left: 75%; --top: 44%; --depth: 0.32;"><div class="shape square" style="--size: 110px; --duration: 16s; --drift-x: 28px; --drift-y: -20px;"></div></div>
+    <div class="shape-wrap" style="--left: 16%; --top: 62%; --depth: 0.42;"><div class="shape triangle" style="--size: 130px; --duration: 19s; --drift-x: -18px; --drift-y: 24px;"></div></div>
+    <div class="shape-wrap" style="--left: 48%; --top: 78%; --depth: 0.29;"><div class="shape circle" style="--size: 90px; --duration: 14s; --drift-x: 20px; --drift-y: -16px;"></div></div>
+    <div class="shape-wrap" style="--left: 36%; --top: 18%; --depth: 0.24;"><div class="shape square" style="--size: 80px; --duration: 17s; --drift-x: 16px; --drift-y: 18px;"></div></div>
+  </div>
+
+  <main>
+    <section id="hero" class="snap-section">
+      <div class="hero-card glass">
+        <p class="kicker">AI Creative Playground</p>
+        <h1>Where AI Meets Creativity</h1>
+        <p class="subtitle">Built live at Create Now Austin 2026</p>
+        <a class="pill" href="#playground">Explore the Canvas</a>
+      </div>
+    </section>
+
+    <section id="playground" class="snap-section">
+      <div class="panel glass">
+        <h2 class="section-title">Interactive Generative Art Canvas</h2>
+        <p class="section-subtitle">Draw with your mouse or finger and watch motion-reactive particles bloom in Adobe-inspired gradients.</p>
+        <div class="canvas-controls">
+          <button id="clearCanvas" type="button">Clear</button>
+          <button id="randomizeStyle" type="button">Randomize Style</button>
+          <div id="styleChip" class="style-chip">Style: Sparks</div>
+        </div>
+        <canvas id="artCanvas" aria-label="Generative drawing canvas"></canvas>
+        <p class="hint">Tip: drag slowly for silky ribbons, fast strokes for energetic sparks.</p>
+      </div>
+    </section>
+
+    <section id="quotes" class="snap-section">
+      <div class="panel glass">
+        <h2 class="section-title">AI + Creativity Quotes</h2>
+        <p class="section-subtitle">Tap anywhere on the card to advance the next thought.</p>
+        <div class="quote-stage glass" id="quoteStage" role="button" tabindex="0" aria-label="Advance quote">
+          <div class="quote-content" id="quoteContent">
+            <blockquote id="quoteText"></blockquote>
+            <p id="quoteAuthor" class="quote-author"></p>
+          </div>
+          <p class="quote-instruction">Auto-rotating every 6 seconds • Tap to advance</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="palette" class="snap-section">
+      <div class="panel glass">
+        <div class="palette-head">
+          <div>
+            <h2 class="section-title">Interactive Color Palette Generator</h2>
+            <p class="section-subtitle">Generate harmonious palettes using complementary, analogous, and triadic color logic.</p>
+          </div>
+          <button id="generatePalette" type="button">Generate Palette</button>
+        </div>
+        <p id="strategyLabel" class="strategy-label">Harmony: Triadic</p>
+        <div id="paletteGrid" class="palette-grid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <footer class="snap-section">
+      <div class="stack-badge">Crafted with AI 🤖 | HTML/CSS/JS | No frameworks, no libraries</div>
+    </footer>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite">Copied!</div>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const quoteStage = document.getElementById('quoteStage');
+      const quoteContent = document.getElementById('quoteContent');
+      const quoteText = document.getElementById('quoteText');
+      const quoteAuthor = document.getElementById('quoteAuthor');
+      const paletteGrid = document.getElementById('paletteGrid');
+      const strategyLabel = document.getElementById('strategyLabel');
+      const toast = document.getElementById('toast');
+      const generatePaletteBtn = document.getElementById('generatePalette');
+
+      const adobeColors = ['#FF0000', '#FF4500', '#9B30FF', '#00C4FF'];
+
+      const quotes = [
+        { text: 'Artificial intelligence is not a substitute for human intelligence; it is a tool to amplify human creativity and ingenuity.', author: 'Fei-Fei Li' },
+        { text: 'Technology alone is not enough. It is technology married with the liberal arts that makes our hearts sing.', author: 'Steve Jobs' },
+        { text: 'Design is not just what it looks like and feels like. Design is how it works.', author: 'Steve Jobs' },
+        { text: 'The details are not the details. They make the design.', author: 'Charles Eames' },
+        { text: 'You can’t use up creativity. The more you use, the more you have.', author: 'Maya Angelou' },
+        { text: 'The best way to predict the future is to invent it.', author: 'Alan Kay' },
+        { text: 'Design is a solution to a problem. Art is a question to a problem.', author: 'John Maeda' },
+        { text: 'An essential aspect of creativity is not being afraid to fail.', author: 'Edwin Land' },
+        { text: 'Art is the lie that enables us to realize the truth.', author: 'Pablo Picasso' },
+        { text: 'Creativity involves breaking out of established patterns to look at things in a different way.', author: 'Edward de Bono' },
+        { text: 'Technology is best when it brings people together.', author: 'Matt Mullenweg' },
+        { text: 'The role of the designer is that of a good, thoughtful host anticipating the needs of the guest.', author: 'Charles Eames' }
+      ];
+
+      let quoteIndex = 0;
+      let quoteInterval;
+
+      function updateParallax() {
+        root.style.setProperty('--parallax', `${window.scrollY * -0.18}px`);
+      }
+
+      window.addEventListener('scroll', updateParallax, { passive: true });
+      updateParallax();
+
+      function renderQuote(index) {
+        const quote = quotes[index % quotes.length];
+        quoteContent.classList.add('fade');
+        window.setTimeout(() => {
+          quoteText.textContent = `“${quote.text}”`;
+          quoteAuthor.textContent = `— ${quote.author}`;
+          quoteContent.classList.remove('fade');
+        }, 220);
+      }
+
+      function nextQuote() {
+        quoteIndex = (quoteIndex + 1) % quotes.length;
+        renderQuote(quoteIndex);
+      }
+
+      function startQuoteRotation() {
+        window.clearInterval(quoteInterval);
+        quoteInterval = window.setInterval(nextQuote, 6000);
+      }
+
+      quoteStage.addEventListener('click', () => {
+        nextQuote();
+        startQuoteRotation();
+      });
+
+      quoteStage.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          nextQuote();
+          startQuoteRotation();
+        }
+      });
+
+      renderQuote(quoteIndex);
+      startQuoteRotation();
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function hslToHex(h, s, l) {
+        s /= 100;
+        l /= 100;
+        const c = (1 - Math.abs(2 * l - 1)) * s;
+        const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        const m = l - c / 2;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+
+        if (h < 60) {
+          r = c;
+          g = x;
+        } else if (h < 120) {
+          r = x;
+          g = c;
+        } else if (h < 180) {
+          g = c;
+          b = x;
+        } else if (h < 240) {
+          g = x;
+          b = c;
+        } else if (h < 300) {
+          r = x;
+          b = c;
+        } else {
+          r = c;
+          b = x;
+        }
+
+        const toHex = (channel) => {
+          const hex = Math.round((channel + m) * 255).toString(16).padStart(2, '0');
+          return hex;
+        };
+
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+      }
+
+      function buildPalette() {
+        const strategies = ['Complementary', 'Analogous', 'Triadic'];
+        const strategy = strategies[Math.floor(Math.random() * strategies.length)];
+        const baseHue = Math.floor(Math.random() * 360);
+        const sat = 66 + Math.random() * 20;
+        let hues = [];
+
+        if (strategy === 'Complementary') {
+          hues = [baseHue, (baseHue + 18) % 360, (baseHue + 180) % 360, (baseHue + 198) % 360, (baseHue + 150) % 360];
+        }
+
+        if (strategy === 'Analogous') {
+          hues = [baseHue, (baseHue + 20) % 360, (baseHue + 40) % 360, (baseHue + 330) % 360, (baseHue + 310) % 360];
+        }
+
+        if (strategy === 'Triadic') {
+          hues = [baseHue, (baseHue + 120) % 360, (baseHue + 240) % 360, (baseHue + 60) % 360, (baseHue + 180) % 360];
+        }
+
+        const lights = [46, 54, 41, 60, 36];
+
+        const colors = hues.map((hue, index) => {
+          const lightness = clamp(lights[index] + (Math.random() * 8 - 4), 28, 70);
+          const saturation = clamp(sat + (Math.random() * 10 - 5), 52, 92);
+          return hslToHex(hue, saturation, lightness);
+        });
+
+        return { strategy, colors };
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        window.clearTimeout(showToast.timeoutId);
+        showToast.timeoutId = window.setTimeout(() => {
+          toast.classList.remove('show');
+        }, 1200);
+      }
+
+      async function copyHex(value) {
+        try {
+          await navigator.clipboard.writeText(value);
+          showToast(`Copied ${value}`);
+        } catch (error) {
+          showToast('Copy not allowed on this browser');
+        }
+      }
+
+      function renderPalette() {
+        const palette = buildPalette();
+        strategyLabel.textContent = `Harmony: ${palette.strategy}`;
+        paletteGrid.innerHTML = '';
+
+        palette.colors.forEach((color) => {
+          const swatch = document.createElement('button');
+          swatch.type = 'button';
+          swatch.className = 'swatch';
+          swatch.style.background = color;
+          swatch.setAttribute('aria-label', `Copy color ${color}`);
+          swatch.innerHTML = `<span class="swatch-code">${color}</span>`;
+          swatch.addEventListener('click', () => copyHex(color));
+          paletteGrid.appendChild(swatch);
+        });
+      }
+
+      generatePaletteBtn.addEventListener('click', renderPalette);
+      renderPalette();
+
+      const canvas = document.getElementById('artCanvas');
+      const clearCanvasBtn = document.getElementById('clearCanvas');
+      const randomizeStyleBtn = document.getElementById('randomizeStyle');
+      const styleChip = document.getElementById('styleChip');
+      const ctx = canvas.getContext('2d');
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+      const MAX_PARTICLES = 350;
+      const styles = ['sparks', 'ribbons', 'dots', 'glow', 'galaxy', 'neon', 'confetti', 'aurora', 'pixelate', 'lightning', 'ink', 'fireflies'];
+      const styleLabels = {
+        sparks: 'Sparks',
+        ribbons: 'Ribbons',
+        dots: 'Dots',
+        glow: 'Glow',
+        galaxy: 'Galaxy',
+        neon: 'Neon',
+        confetti: 'Confetti',
+        aurora: 'Aurora',
+        pixelate: 'Pixelate',
+        lightning: 'Lightning',
+        ink: 'Ink',
+        fireflies: 'Fireflies'
+      };
+      const styleChipThemes = {
+        sparks: {
+          background: 'linear-gradient(110deg, rgba(255, 88, 88, 0.22), rgba(255, 168, 76, 0.18))',
+          borderColor: 'rgba(255, 162, 130, 0.5)',
+          color: '#ffe8db',
+          shadow: '0 0 14px rgba(255, 90, 70, 0.24)'
+        },
+        ribbons: {
+          background: 'linear-gradient(110deg, rgba(156, 94, 255, 0.2), rgba(0, 196, 255, 0.18))',
+          borderColor: 'rgba(165, 181, 255, 0.45)',
+          color: '#e9ecff',
+          shadow: '0 0 12px rgba(120, 116, 255, 0.2)'
+        },
+        dots: {
+          background: 'linear-gradient(110deg, rgba(255, 139, 80, 0.2), rgba(255, 207, 92, 0.2))',
+          borderColor: 'rgba(255, 193, 122, 0.45)',
+          color: '#fff1de',
+          shadow: '0 0 11px rgba(255, 173, 93, 0.22)'
+        },
+        glow: {
+          background: 'linear-gradient(110deg, rgba(139, 90, 255, 0.24), rgba(88, 188, 255, 0.2))',
+          borderColor: 'rgba(159, 164, 255, 0.46)',
+          color: '#ecf1ff',
+          shadow: '0 0 16px rgba(118, 127, 255, 0.28)'
+        },
+        galaxy: {
+          background: 'linear-gradient(110deg, rgba(56, 88, 255, 0.24), rgba(171, 91, 255, 0.2))',
+          borderColor: 'rgba(146, 142, 255, 0.5)',
+          color: '#e8e7ff',
+          shadow: '0 0 18px rgba(104, 113, 255, 0.3)'
+        },
+        neon: {
+          background: 'linear-gradient(110deg, rgba(0, 255, 214, 0.24), rgba(255, 0, 153, 0.2))',
+          borderColor: 'rgba(133, 255, 234, 0.58)',
+          color: '#e8fff9',
+          shadow: '0 0 18px rgba(0, 255, 224, 0.3)'
+        },
+        confetti: {
+          background: 'linear-gradient(110deg, rgba(255, 120, 66, 0.24), rgba(78, 170, 255, 0.2))',
+          borderColor: 'rgba(255, 195, 118, 0.54)',
+          color: '#fff1e2',
+          shadow: '0 0 14px rgba(255, 168, 81, 0.24)'
+        },
+        aurora: {
+          background: 'linear-gradient(110deg, rgba(84, 245, 179, 0.24), rgba(123, 110, 255, 0.2), rgba(99, 230, 255, 0.2))',
+          borderColor: 'rgba(149, 255, 227, 0.58)',
+          color: '#e7fff8',
+          shadow: '0 0 18px rgba(106, 244, 220, 0.3)'
+        },
+        pixelate: {
+          background: 'linear-gradient(110deg, rgba(111, 217, 255, 0.2), rgba(97, 127, 255, 0.2))',
+          borderColor: 'rgba(136, 195, 255, 0.5)',
+          color: '#e9f4ff',
+          shadow: '0 0 12px rgba(95, 157, 255, 0.22)'
+        },
+        lightning: {
+          background: 'linear-gradient(110deg, rgba(122, 173, 255, 0.24), rgba(196, 234, 255, 0.22))',
+          borderColor: 'rgba(171, 211, 255, 0.58)',
+          color: '#eaf7ff',
+          shadow: '0 0 18px rgba(117, 186, 255, 0.32)'
+        },
+        ink: {
+          background: 'linear-gradient(110deg, rgba(72, 92, 138, 0.3), rgba(45, 50, 78, 0.32))',
+          borderColor: 'rgba(125, 150, 208, 0.45)',
+          color: '#dfe7ff',
+          shadow: '0 0 12px rgba(88, 106, 167, 0.24)'
+        },
+        fireflies: {
+          background: 'linear-gradient(110deg, rgba(255, 205, 95, 0.25), rgba(255, 146, 76, 0.22))',
+          borderColor: 'rgba(255, 219, 129, 0.58)',
+          color: '#fff7df',
+          shadow: '0 0 16px rgba(255, 193, 92, 0.3)'
+        }
+      };
+      const styleDensity = {
+        sparks: 1,
+        ribbons: 0.9,
+        dots: 1,
+        glow: 0.75,
+        galaxy: 0.62,
+        neon: 0.7,
+        confetti: 0.56,
+        aurora: 0.36,
+        pixelate: 0.82,
+        lightning: 0.85,
+        ink: 0.52,
+        fireflies: 0.5
+      };
+      const auroraPalette = [
+        { r: 94, g: 248, b: 170 },
+        { r: 136, g: 103, b: 255 },
+        { r: 101, g: 235, b: 255 },
+        { r: 65, g: 202, b: 172 }
+      ];
+      const confettiPalette = [
+        { r: 255, g: 87, b: 87 },
+        { r: 255, g: 182, b: 64 },
+        { r: 125, g: 219, b: 115 },
+        { r: 86, g: 196, b: 255 },
+        { r: 190, g: 108, b: 255 },
+        { r: 255, g: 113, b: 186 }
+      ];
+      const lightningPalette = [
+        { r: 112, g: 191, b: 255 },
+        { r: 152, g: 224, b: 255 },
+        { r: 196, g: 235, b: 255 }
+      ];
+      const fireflyPalette = [
+        { r: 255, g: 214, b: 106 },
+        { r: 255, g: 193, b: 96 },
+        { r: 255, g: 231, b: 158 },
+        { r: 255, g: 169, b: 88 }
+      ];
+
+      let currentStyle = styles[0];
+      let particles = [];
+      let drawing = false;
+      let previousPoint = null;
+      let lastFrameTime = performance.now();
+      let frameCount = 0;
+      let cssWidth = 0;
+      let cssHeight = 0;
+
+      function hexToRgb(hex) {
+        const cleaned = hex.replace('#', '');
+        const bigint = parseInt(cleaned, 16);
+        return {
+          r: (bigint >> 16) & 255,
+          g: (bigint >> 8) & 255,
+          b: bigint & 255
+        };
+      }
+
+      function lerp(start, end, amount) {
+        return start + (end - start) * amount;
+      }
+
+      function gradientColor(timeOffset = 0) {
+        const t = (performance.now() * 0.00028 + timeOffset) % adobeColors.length;
+        const index = Math.floor(t);
+        const nextIndex = (index + 1) % adobeColors.length;
+        const blend = t - index;
+        const c1 = hexToRgb(adobeColors[index]);
+        const c2 = hexToRgb(adobeColors[nextIndex]);
+        const r = Math.round(lerp(c1.r, c2.r, blend));
+        const g = Math.round(lerp(c1.g, c2.g, blend));
+        const b = Math.round(lerp(c1.b, c2.b, blend));
+        return { r, g, b, css: `rgb(${r}, ${g}, ${b})` };
+      }
+
+      function pickColor(palette) {
+        const color = palette[Math.floor(Math.random() * palette.length)];
+        return { r: color.r, g: color.g, b: color.b, css: `rgb(${color.r}, ${color.g}, ${color.b})` };
+      }
+
+      function setCanvasSize() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        cssWidth = rect.width;
+        cssHeight = rect.height;
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+      }
+
+      function pointFromEvent(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+      }
+
+      function createParticle(x, y, motionX = 0, motionY = 0, burst = false) {
+        const style = currentStyle;
+        let color = gradientColor(Math.random() * 0.8);
+        const direction = Math.random() * Math.PI * 2;
+        const speed = burst ? 1.8 + Math.random() * 2.4 : 0.6 + Math.random() * 1.3;
+        let velocityX = Math.cos(direction) * speed + motionX * 0.02;
+        let velocityY = Math.sin(direction) * speed + motionY * 0.02;
+
+        let size = 1.8 + Math.random() * 2.1;
+        let life = 0.55 + Math.random() * 0.55;
+
+        const particle = {
+          x,
+          y,
+          prevX: x,
+          prevY: y,
+          vx: 0,
+          vy: 0,
+          size: 0,
+          color,
+          life: 0,
+          maxLife: 0,
+          style,
+          history: [{ x, y }],
+          historyLimit: 10
+        };
+
+        if (style === 'ribbons') {
+          size = 2.4 + Math.random() * 2.4;
+          life = 0.85 + Math.random() * 0.65;
+          particle.historyLimit = 14;
+        } else if (style === 'dots') {
+          size = 2.6 + Math.random() * 2.6;
+          life = 0.65 + Math.random() * 0.45;
+        } else if (style === 'glow') {
+          size = 3.4 + Math.random() * 3.8;
+          life = 0.95 + Math.random() * 0.75;
+        } else if (style === 'galaxy') {
+          size = 1.2 + Math.random() * 1.9;
+          life = 1.2 + Math.random() * 0.9;
+          velocityX *= 0.18;
+          velocityY *= 0.18;
+          particle.originX = x + (Math.random() - 0.5) * 10;
+          particle.originY = y + (Math.random() - 0.5) * 10;
+          particle.theta = direction;
+          particle.radius = burst ? 4 + Math.random() * 8 : Math.random() * 5;
+          particle.radialVelocity = (burst ? 42 : 24) + Math.random() * 34;
+          particle.angularVelocity = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2.6);
+          particle.twinkleOffset = Math.random() * Math.PI * 2;
+          particle.historyLimit = isMobile ? 6 : 12;
+        } else if (style === 'neon') {
+          size = 2.2 + Math.random() * 2.4;
+          life = 0.95 + Math.random() * 0.85;
+          velocityX *= 0.68;
+          velocityY *= 0.68;
+          particle.neonFlicker = Math.random() * Math.PI * 2;
+          particle.historyLimit = 12;
+        } else if (style === 'confetti') {
+          color = pickColor(confettiPalette);
+          size = 2 + Math.random() * 1.6;
+          life = 1.1 + Math.random() * 1;
+          velocityX = (Math.random() - 0.5) * (burst ? 4.4 : 2.6) + motionX * 0.025;
+          velocityY = -1.6 - Math.random() * 2.4 + motionY * 0.008;
+          particle.width = 2 + Math.random() * 5;
+          particle.height = 2 + Math.random() * 3.2;
+          particle.rotation = Math.random() * Math.PI * 2;
+          particle.spin = (Math.random() - 0.5) * (8 + Math.random() * 10);
+          particle.flipPhase = Math.random() * Math.PI * 2;
+          particle.historyLimit = 3;
+        } else if (style === 'aurora') {
+          color = pickColor(auroraPalette);
+          size = 10 + Math.random() * 16;
+          life = 1.45 + Math.random() * 1.2;
+          velocityX = motionX * 0.004 + (Math.random() - 0.5) * 0.14;
+          velocityY = (Math.random() - 0.5) * 0.06;
+          particle.secondaryColor = pickColor(auroraPalette);
+          particle.wavePhase = Math.random() * Math.PI * 2;
+          particle.waveFrequency = 0.01 + Math.random() * 0.024;
+          particle.waveAmplitude = 12 + Math.random() * 26;
+          particle.waveSpeed = 1.2 + Math.random() * 1.4;
+          particle.historyLimit = isMobile ? 5 : 10;
+        } else if (style === 'pixelate') {
+          size = 2 + Math.random() * 2.2;
+          life = 0.9 + Math.random() * 0.8;
+          velocityX = (Math.random() - 0.5) * (burst ? 2.7 : 1.6) + motionX * 0.015;
+          velocityY = (Math.random() - 0.5) * (burst ? 2.7 : 1.6) + motionY * 0.015;
+          particle.gridSize = 5 + Math.floor(Math.random() * 6);
+          particle.historyLimit = 5;
+        } else if (style === 'lightning') {
+          color = pickColor(lightningPalette);
+          size = 1.1 + Math.random() * 1.3;
+          life = 0.25 + Math.random() * 0.28;
+          velocityX = Math.cos(direction) * (burst ? 4.1 : 2.5) + motionX * 0.03;
+          velocityY = Math.sin(direction) * (burst ? 4.1 : 2.5) + motionY * 0.03;
+          particle.jaggedness = 3 + Math.random() * 6;
+          particle.branchChance = 0.25 + Math.random() * 0.45;
+          particle.forkCount = 1 + Math.floor(Math.random() * 3);
+          particle.historyLimit = 6;
+        } else if (style === 'ink') {
+          size = 2.8 + Math.random() * 5.2;
+          life = 1.1 + Math.random() * 1.15;
+          velocityX = (Math.random() - 0.5) * (burst ? 1.8 : 1) + motionX * 0.008;
+          velocityY = (Math.random() - 0.5) * (burst ? 1.8 : 1) + motionY * 0.008;
+          const inkTone = 0.32 + Math.random() * 0.38;
+          color = {
+            r: Math.round(color.r * inkTone),
+            g: Math.round(color.g * inkTone),
+            b: Math.round(color.b * inkTone),
+            css: `rgb(${Math.round(color.r * inkTone)}, ${Math.round(color.g * inkTone)}, ${Math.round(color.b * inkTone)})`
+          };
+          particle.bleed = 0.18 + Math.random() * 0.32;
+          particle.seed = Math.random() * Math.PI * 2;
+          particle.blobCount = 2 + Math.floor(Math.random() * 4);
+          particle.historyLimit = 4;
+        } else if (style === 'fireflies') {
+          color = pickColor(fireflyPalette);
+          size = 1.6 + Math.random() * 2.6;
+          life = 1.8 + Math.random() * 1.6;
+          velocityX = (Math.random() - 0.5) * 0.45 + motionX * 0.003;
+          velocityY = (Math.random() - 0.5) * 0.4 + motionY * 0.003;
+          particle.pulsePhase = Math.random() * Math.PI * 2;
+          particle.pulseSpeed = 2.4 + Math.random() * 3.2;
+          particle.wanderPhase = Math.random() * Math.PI * 2;
+          particle.wanderSpeed = 0.8 + Math.random() * 1.4;
+          particle.historyLimit = 8;
+        }
+
+        particle.vx = velocityX;
+        particle.vy = velocityY;
+        particle.size = size;
+        particle.color = color;
+        particle.life = life;
+        particle.maxLife = life;
+
+        return particle;
+      }
+
+      function sprayParticles(x, y, motionX = 0, motionY = 0, intensity = 1) {
+        if (particles.length >= MAX_PARTICLES) {
+          return;
+        }
+        const density = styleDensity[currentStyle] || 1;
+        const baseCount = isMobile ? 4 : 6;
+        const count = Math.max(2, Math.floor(baseCount * intensity * density));
+        for (let i = 0; i < count; i += 1) {
+          if (particles.length >= MAX_PARTICLES) {
+            return;
+          }
+          particles.push(createParticle(x, y, motionX, motionY));
+        }
+      }
+
+      function burstParticles(x, y) {
+        if (particles.length >= MAX_PARTICLES) {
+          return;
+        }
+        const density = styleDensity[currentStyle] || 1;
+        const burstCount = Math.max(10, Math.floor(26 * density));
+        for (let i = 0; i < burstCount; i += 1) {
+          if (particles.length >= MAX_PARTICLES) {
+            return;
+          }
+          particles.push(createParticle(x, y, 0, 0, true));
+        }
+      }
+
+      function drawStrokeSegment(startPoint, endPoint) {
+        const dx = endPoint.x - startPoint.x;
+        const dy = endPoint.y - startPoint.y;
+        const distance = Math.hypot(dx, dy);
+        const steps = Math.max(1, Math.floor(distance / 4));
+
+        for (let i = 0; i <= steps; i += 1) {
+          const progress = i / steps;
+          const x = startPoint.x + dx * progress;
+          const y = startPoint.y + dy * progress;
+          sprayParticles(x, y, dx, dy, 1 + Math.min(distance / 45, 1.6));
+        }
+      }
+
+      function traceHistoryPath(history) {
+        ctx.beginPath();
+        ctx.moveTo(history[0].x, history[0].y);
+        for (let i = 1; i < history.length; i += 1) {
+          const point = history[i];
+          ctx.lineTo(point.x, point.y);
+        }
+      }
+
+      function paintParticle(particle, alpha) {
+        const color = particle.color;
+
+        if (particle.style === 'sparks') {
+          ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+          ctx.lineWidth = particle.size * 0.8;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(particle.prevX, particle.prevY);
+          ctx.lineTo(particle.x, particle.y);
+          ctx.stroke();
+          return;
+        }
+
+        if (particle.style === 'ribbons') {
+          if (particle.history.length > 1) {
+            ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.9})`;
+            ctx.lineWidth = particle.size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(particle.history[0].x, particle.history[0].y);
+            for (let i = 1; i < particle.history.length; i += 1) {
+              const point = particle.history[i];
+              ctx.lineTo(point.x, point.y);
+            }
+            ctx.stroke();
+          }
+          return;
+        }
+
+        if (particle.style === 'dots') {
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+          ctx.fill();
+          return;
+        }
+
+        if (particle.style === 'glow') {
+          ctx.shadowBlur = isMobile ? 0 : 8;
+          ctx.shadowColor = `rgba(${color.r}, ${color.g}, ${color.b}, ${Math.min(0.7, alpha)})`;
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.85})`;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * 1.1, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          return;
+        }
+
+        if (particle.style === 'galaxy') {
+          if (particle.history.length > 1) {
+            const twinkle = 0.55 + 0.45 * Math.sin(performance.now() * 0.011 + particle.twinkleOffset);
+            ctx.save();
+            ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.55 * twinkle})`;
+            ctx.lineWidth = particle.size * 1.35;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowBlur = isMobile ? 0 : 8;
+            ctx.shadowColor = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.7})`;
+            traceHistoryPath(particle.history);
+            ctx.stroke();
+            if (!isMobile) {
+              ctx.fillStyle = `rgba(255, 255, 255, ${alpha * (0.4 + twinkle * 0.4)})`;
+              ctx.beginPath();
+              ctx.arc(particle.x, particle.y, particle.size * (0.35 + twinkle * 0.22), 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+          return;
+        }
+
+        if (particle.style === 'neon') {
+          if (particle.history.length > 1) {
+            const flicker = 0.84 + 0.16 * Math.sin(performance.now() * 0.018 + particle.neonFlicker);
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowBlur = isMobile ? 0 : 16;
+            ctx.shadowColor = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.95})`;
+            ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * flicker})`;
+            ctx.lineWidth = particle.size * 2.3;
+            traceHistoryPath(particle.history);
+            ctx.stroke();
+            ctx.shadowBlur = isMobile ? 0 : 5;
+            ctx.shadowColor = `rgba(255, 255, 255, ${alpha * 0.8})`;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
+            ctx.lineWidth = Math.max(1, particle.size * 0.55);
+            traceHistoryPath(particle.history);
+            ctx.stroke();
+            ctx.restore();
+          }
+          return;
+        }
+
+        if (particle.style === 'confetti') {
+          const flip = 0.35 + Math.abs(Math.sin(particle.flipPhase)) * 0.95;
+          ctx.save();
+          ctx.translate(particle.x, particle.y);
+          ctx.rotate(particle.rotation);
+          ctx.scale(1, flip);
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+          ctx.fillRect(-particle.width * 0.5, -particle.height * 0.5, particle.width, particle.height);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.34})`;
+          ctx.lineWidth = 0.8;
+          ctx.strokeRect(-particle.width * 0.5, -particle.height * 0.5, particle.width, particle.height);
+          ctx.restore();
+          return;
+        }
+
+        if (particle.style === 'aurora') {
+          if (particle.history.length > 1) {
+            const trailStart = particle.history[0];
+            const trailEnd = particle.history[particle.history.length - 1];
+            const secondary = particle.secondaryColor || color;
+            const ribbon = ctx.createLinearGradient(trailStart.x, trailStart.y, trailEnd.x, trailEnd.y);
+            ribbon.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.06})`);
+            ribbon.addColorStop(0.52, `rgba(${secondary.r}, ${secondary.g}, ${secondary.b}, ${alpha * 0.28})`);
+            ribbon.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.08})`);
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = ribbon;
+            ctx.lineWidth = particle.size;
+            traceHistoryPath(particle.history);
+            ctx.stroke();
+            ctx.strokeStyle = `rgba(211, 255, 246, ${alpha * 0.2})`;
+            ctx.lineWidth = particle.size * 0.24;
+            traceHistoryPath(particle.history);
+            ctx.stroke();
+            ctx.restore();
+          }
+          return;
+        }
+
+        if (particle.style === 'pixelate') {
+          const grid = particle.gridSize || 6;
+          const pixelX = Math.round(particle.x / grid) * grid;
+          const pixelY = Math.round(particle.y / grid) * grid;
+          const block = Math.max(2, grid * 0.72);
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.95})`;
+          ctx.fillRect(pixelX - block * 0.5, pixelY - block * 0.5, block, block);
+          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.26})`;
+          ctx.fillRect(pixelX - block * 0.5, pixelY - block * 0.5, block * 0.5, block * 0.5);
+          return;
+        }
+
+        if (particle.style === 'lightning') {
+          const dx = particle.x - particle.prevX;
+          const dy = particle.y - particle.prevY;
+          const angle = Math.atan2(dy, dx);
+          ctx.save();
+          ctx.lineCap = 'round';
+          ctx.shadowBlur = isMobile ? 0 : 10;
+          ctx.shadowColor = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+          ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.9})`;
+          ctx.lineWidth = particle.size * 1.3;
+          ctx.beginPath();
+          ctx.moveTo(particle.prevX, particle.prevY);
+          for (let i = 1; i <= 3; i += 1) {
+            const progress = i / 3;
+            const jitterX = (Math.random() - 0.5) * particle.jaggedness;
+            const jitterY = (Math.random() - 0.5) * particle.jaggedness;
+            ctx.lineTo(particle.prevX + dx * progress + jitterX, particle.prevY + dy * progress + jitterY);
+          }
+          ctx.stroke();
+
+          for (let i = 0; i < particle.forkCount; i += 1) {
+            if (Math.random() > particle.branchChance * alpha) {
+              continue;
+            }
+            const branchAngle = angle + (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.9);
+            const branchLength = particle.size * (3 + Math.random() * 7);
+            const startX = particle.prevX + dx * (0.2 + Math.random() * 0.6);
+            const startY = particle.prevY + dy * (0.2 + Math.random() * 0.6);
+            const endX = startX + Math.cos(branchAngle) * branchLength;
+            const endY = startY + Math.sin(branchAngle) * branchLength;
+            ctx.strokeStyle = `rgba(187, 231, 255, ${alpha * 0.62})`;
+            ctx.lineWidth = Math.max(0.8, particle.size * 0.7);
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+          }
+
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.95})`;
+          ctx.lineWidth = Math.max(0.7, particle.size * 0.45);
+          ctx.beginPath();
+          ctx.moveTo(particle.prevX, particle.prevY);
+          ctx.lineTo(particle.x, particle.y);
+          ctx.stroke();
+          ctx.restore();
+          return;
+        }
+
+        if (particle.style === 'ink') {
+          const spread = (1 - alpha) * particle.bleed * 24;
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.7})`;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          for (let i = 0; i < particle.blobCount; i += 1) {
+            const angle = particle.seed + i * 2.399;
+            const distance = particle.size * (0.45 + i * 0.2) + spread * (0.35 + i * 0.2);
+            const blobX = particle.x + Math.cos(angle) * distance;
+            const blobY = particle.y + Math.sin(angle * 1.32) * distance;
+            const blobSize = particle.size * (0.2 + (i % 3) * 0.11);
+            ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.46})`;
+            ctx.beginPath();
+            ctx.arc(blobX, blobY, blobSize, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.22})`;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * (1.45 + particle.bleed * 0.55), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          return;
+        }
+
+        if (particle.style === 'fireflies') {
+          const pulse = 0.55 + 0.45 * Math.sin(particle.pulsePhase);
+          ctx.save();
+          ctx.shadowBlur = isMobile ? 0 : 7 + pulse * 10;
+          ctx.shadowColor = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.8})`;
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * (0.45 + pulse * 0.45)})`;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * (0.75 + pulse * 0.45), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = `rgba(255, 244, 200, ${alpha * (0.35 + pulse * 0.4)})`;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * 0.28, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          return;
+        }
+
+        ctx.shadowBlur = 16;
+        ctx.shadowColor = `rgba(${color.r}, ${color.g}, ${color.b}, ${Math.min(0.7, alpha)})`;
+        ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.85})`;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size * 1.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      function animateCanvas(now) {
+        const delta = Math.min(0.033, (now - lastFrameTime) / 1000);
+        lastFrameTime = now;
+        frameCount += 1;
+        const shouldPaint = !isMobile || frameCount % 2 === 0;
+
+        if (shouldPaint) {
+          ctx.fillStyle = 'rgba(8, 9, 12, 0.22)';
+          ctx.fillRect(0, 0, cssWidth, cssHeight);
+          ctx.globalCompositeOperation = 'lighter';
+        }
+
+        particles = particles.filter((particle) => {
+          particle.life -= delta;
+          if (particle.life <= 0) {
+            return false;
+          }
+
+          particle.prevX = particle.x;
+          particle.prevY = particle.y;
+
+          if (particle.style === 'galaxy') {
+            particle.theta += particle.angularVelocity * delta;
+            particle.radius += particle.radialVelocity * delta;
+            particle.originX += particle.vx * 26 * delta;
+            particle.originY += particle.vy * 26 * delta;
+            particle.x = particle.originX + Math.cos(particle.theta) * particle.radius;
+            particle.y = particle.originY + Math.sin(particle.theta) * particle.radius * 0.72;
+            particle.radialVelocity *= 0.992;
+            particle.angularVelocity *= 0.996;
+            particle.vx *= 0.992;
+            particle.vy *= 0.992;
+          } else if (particle.style === 'aurora') {
+            particle.wavePhase += particle.waveSpeed * delta;
+            particle.x += particle.vx * 42 * delta;
+            particle.y += Math.sin(particle.wavePhase + particle.x * particle.waveFrequency) * particle.waveAmplitude * delta;
+            particle.y += particle.vy * 30 * delta;
+            particle.vx *= 0.996;
+            particle.vy *= 0.995;
+          } else if (particle.style === 'confetti') {
+            particle.x += particle.vx * 45 * delta;
+            particle.y += particle.vy * 45 * delta;
+            particle.vx *= 0.992;
+            particle.vy += 0.09;
+            particle.rotation += particle.spin * delta;
+            particle.flipPhase += delta * (8 + Math.abs(particle.spin) * 0.2);
+          } else if (particle.style === 'pixelate') {
+            particle.x += particle.vx * 46 * delta;
+            particle.y += particle.vy * 46 * delta;
+            particle.vx *= 0.965;
+            particle.vy *= 0.965;
+            particle.vy += 0.01;
+            const grid = particle.gridSize || 6;
+            particle.x = Math.round(particle.x / grid) * grid;
+            particle.y = Math.round(particle.y / grid) * grid;
+          } else if (particle.style === 'lightning') {
+            particle.x += particle.vx * 62 * delta;
+            particle.y += particle.vy * 62 * delta;
+            particle.vx = particle.vx * 0.9 + (Math.random() - 0.5) * 0.28;
+            particle.vy = particle.vy * 0.9 + (Math.random() - 0.5) * 0.28;
+          } else if (particle.style === 'ink') {
+            particle.x += particle.vx * 34 * delta;
+            particle.y += particle.vy * 34 * delta;
+            particle.vx *= 0.9;
+            particle.vy *= 0.9;
+            particle.size += particle.bleed * delta * 3.2;
+          } else if (particle.style === 'fireflies') {
+            particle.wanderPhase += particle.wanderSpeed * delta;
+            particle.pulsePhase += particle.pulseSpeed * delta;
+            particle.vx += Math.cos(particle.wanderPhase) * 0.011;
+            particle.vy += Math.sin(particle.wanderPhase * 0.7) * 0.011 - 0.004;
+            particle.vx *= 0.985;
+            particle.vy *= 0.985;
+            particle.x += particle.vx * 34 * delta;
+            particle.y += particle.vy * 34 * delta;
+          } else if (particle.style === 'neon') {
+            particle.x += particle.vx * 52 * delta;
+            particle.y += particle.vy * 52 * delta;
+            particle.vx *= 0.988;
+            particle.vy *= 0.988;
+            particle.vy += 0.006;
+          } else {
+            particle.x += particle.vx * 55 * delta;
+            particle.y += particle.vy * 55 * delta;
+            particle.vx *= 0.985;
+            particle.vy *= 0.985;
+            particle.vy += 0.02;
+          }
+
+          particle.history.push({ x: particle.x, y: particle.y });
+          if (particle.history.length > (particle.historyLimit || 10)) {
+            particle.history.shift();
+          }
+
+          if (shouldPaint) {
+            const alpha = particle.life / particle.maxLife;
+            paintParticle(particle, alpha);
+          }
+
+          const margin = particle.style === 'aurora' ? 140 : 70;
+          return particle.x > -margin && particle.x < cssWidth + margin && particle.y > -margin && particle.y < cssHeight + margin;
+        });
+
+        if (shouldPaint) {
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        requestAnimationFrame(animateCanvas);
+      }
+
+      function updateStyleChip() {
+        const label = styleLabels[currentStyle] || `${currentStyle.charAt(0).toUpperCase()}${currentStyle.slice(1)}`;
+        const theme = styleChipThemes[currentStyle] || styleChipThemes.sparks;
+        styleChip.textContent = `Style: ${label}`;
+        styleChip.style.background = theme.background;
+        styleChip.style.borderColor = theme.borderColor;
+        styleChip.style.color = theme.color;
+        styleChip.style.boxShadow = theme.shadow;
+      }
+
+      canvas.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        drawing = true;
+        canvas.setPointerCapture(event.pointerId);
+        previousPoint = pointFromEvent(event);
+        burstParticles(previousPoint.x, previousPoint.y);
+      });
+
+      canvas.addEventListener('pointermove', (event) => {
+        if (!drawing) {
+          return;
+        }
+
+        const currentPoint = pointFromEvent(event);
+        if (previousPoint) {
+          drawStrokeSegment(previousPoint, currentPoint);
+        }
+        previousPoint = currentPoint;
+      });
+
+      const stopDrawing = () => {
+        drawing = false;
+        previousPoint = null;
+      };
+
+      canvas.addEventListener('pointerup', stopDrawing);
+      canvas.addEventListener('pointercancel', stopDrawing);
+      canvas.addEventListener('pointerleave', () => {
+        if (!drawing) {
+          previousPoint = null;
+        }
+      });
+
+      clearCanvasBtn.addEventListener('click', () => {
+        particles = [];
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+        ctx.fillStyle = 'rgba(8, 9, 12, 1)';
+        ctx.fillRect(0, 0, cssWidth, cssHeight);
+      });
+
+      randomizeStyleBtn.addEventListener('click', () => {
+        const options = styles.filter((style) => style !== currentStyle);
+        currentStyle = options[Math.floor(Math.random() * options.length)];
+        updateStyleChip();
+        burstParticles(cssWidth * 0.5, cssHeight * 0.5);
+      });
+
+      window.addEventListener('resize', () => {
+        setCanvasSize();
+      });
+
+      setCanvasSize();
+      updateStyleChip();
+      ctx.fillStyle = 'rgba(8, 9, 12, 1)';
+      ctx.fillRect(0, 0, cssWidth, cssHeight);
+      requestAnimationFrame(animateCanvas);
+    })();
+  </script>
+</body>
+</html>
