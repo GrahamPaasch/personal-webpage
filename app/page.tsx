@@ -90,6 +90,21 @@ export default function HomePage() {
         </div>
 
         <div className="card">
+          <div className="prompt-header">
+            <h2>
+              <span aria-hidden="true">&#x1F3B5;</span> Synthwave Beats
+            </h2>
+            <span className="prompt-header-badge">NEW</span>
+          </div>
+          <p className="muted">
+            A browser-based rhythm game with procedural synthwave music. Hit the notes, feel the beat.
+          </p>
+          <Link className="button primary" href="/synthwave">
+            Play Synthwave Beats &rarr;
+          </Link>
+        </div>
+
+        <div className="card">
           <h1>Hi, I&apos;m Graham Paasch.</h1>
           <p>
             I blend a decade of network engineering with Python development, and I

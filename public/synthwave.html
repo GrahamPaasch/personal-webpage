@@ -1,0 +1,2947 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Analogous Harmony</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --c1: #E710E4;
+      --c2: #EB1CA3;
+      --c3: #C50F49;
+      --c4: #9531F2;
+      --c5: #2809AF;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // =========================
+      // Constants and Config
+      // =========================
+      const PALETTE = {
+        pink: '#E710E4',
+        magenta: '#EB1CA3',
+        red: '#C50F49',
+        violet: '#9531F2',
+        indigo: '#2809AF',
+        black: '#0a0a0f'
+      };
+
+      const LANE_COLORS = [PALETTE.violet, PALETTE.pink, PALETTE.magenta, PALETTE.red];
+      const LANE_KEY_CODES = ['KeyD', 'KeyF', 'KeyJ', 'KeyK'];
+      const LANE_LABELS = ['D', 'F', 'J', 'K'];
+      const LANE_PITCH_HZ = [130.81, 155.56, 196.0, 233.08]; // C3, Eb3, G3, Bb3
+      const KEY_TO_LANE = {
+        KeyD: 0,
+        KeyF: 1,
+        KeyJ: 2,
+        KeyK: 3
+      };
+
+      const BPM = 128;
+      const BEAT_SEC = 60 / BPM;
+      const STEP_SEC = BEAT_SEC / 4;
+      const TOTAL_BEATS = 128;
+      const TOTAL_STEPS = TOTAL_BEATS * 4;
+      const TUTORIAL_BEATS = 8;
+      const FIXED_STEP_SEC = 1 / 120;
+      const MAX_SIM_STEPS = 10;
+      const PARTICLE_POOL_SIZE = 200;
+      const POPUP_POOL_SIZE = 72;
+      const COMBO_MILESTONES = [25, 50, 100];
+      const COUNTDOWN_LABELS = ['3', '2', '1', 'GO!'];
+      const COUNTDOWN_BEATS = COUNTDOWN_LABELS.length;
+      const COUNTDOWN_SEC = COUNTDOWN_BEATS * BEAT_SEC;
+      const AUDIO_START_DELAY_SEC = 0.06;
+
+      const TIMING_MS = {
+        perfect: 40,
+        great: 80,
+        good: 120
+      };
+
+      const BASE_POINTS = {
+        perfect: 300,
+        great: 200,
+        good: 100,
+        miss: 0
+      };
+
+      const HIGH_SCORE_KEY = 'analogous_harmony_highscores_v1';
+
+      const DIFFICULTIES = [
+        {
+          id: 'easy',
+          name: 'Easy',
+          approachSec: 4.0,
+          timingMs: { perfect: 80, great: 150, good: 220 },
+          missDamage: 3,
+          hitHeal: { perfect: 6.2, great: 4.6, good: 3.2 }
+        },
+        {
+          id: 'normal',
+          name: 'Normal',
+          approachSec: 2.0,
+          missDamage: 11,
+          hitHeal: { perfect: 3.0, great: 2.0, good: 1.2 }
+        },
+        {
+          id: 'hard',
+          name: 'Hard',
+          approachSec: 1.45,
+          missDamage: 13,
+          hitHeal: { perfect: 2.4, great: 1.5, good: 0.8 }
+        }
+      ];
+
+      // 8th-note motifs in C minor used for chart lane hinting.
+      const BASS_PATTERN_BARS = [
+        ['C2', null, 'C2', null, 'G1', null, 'C2', null],
+        ['Ab1', null, 'Ab1', null, 'Eb2', null, 'G1', null],
+        ['Eb2', null, 'Eb2', null, 'Bb1', null, 'G1', null],
+        ['Bb1', null, 'Bb1', null, 'F2', null, 'G1', null]
+      ];
+
+      const LEAD_PATTERN_BARS = [
+        ['G4', null, 'C5', null, 'Eb5', null, 'G5', null],
+        ['Ab4', null, 'C5', null, 'Eb5', null, 'C5', null],
+        ['G4', null, 'Bb4', null, 'C5', null, 'Eb5', null],
+        ['F4', null, 'Bb4', null, 'D5', null, 'C5', null]
+      ];
+
+      const PAD_CHORD_PROGRESSION = [
+        ['C3', 'Eb3', 'G3', 'C4'], // Cm
+        ['Ab2', 'C3', 'Eb3', 'Ab3'], // Ab
+        ['Eb2', 'G2', 'Bb2', 'Eb3'], // Eb
+        ['Bb2', 'D3', 'F3', 'Bb3'] // Bb
+      ];
+
+      // =========================
+      // Canvas and Global State
+      // =========================
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+
+      const layout = {
+        playAreaX: 0,
+        playAreaWidth: 0,
+        laneOuterWidth: 0,
+        laneInnerWidth: 0,
+        lanePadding: 0,
+        laneTop: 0,
+        hitY: 0,
+        touchTopY: 0,
+        laneCenters: [0, 0, 0, 0],
+        difficultyButtons: []
+      };
+
+      const game = {
+        screen: 'start', // start | playing | gameover
+        startStage: 'splash', // splash | difficulty
+        selectedDifficulty: 1,
+        currentDifficulty: DIFFICULTIES[1],
+        chart: [],
+        chartKeySet: new Set(),
+        judgedCount: 0,
+        score: 0,
+        combo: 0,
+        maxCombo: 0,
+        health: 100,
+        beatPulse: 0,
+        lastBeatIndex: -1,
+        screenShake: {
+          amplitude: 0,
+          life: 0,
+          maxLife: 0.15
+        },
+        missFlash: 0,
+        frameFlash: 0,
+        comboPop: 0,
+        comboSad: 0,
+        milestoneFlash: 0,
+        laneFlash: [0, 0, 0, 0],
+        laneFlashWhite: [0, 0, 0, 0],
+        lanePressedKeyboard: [false, false, false, false],
+        lanePressedTouch: [false, false, false, false],
+        popups: [],
+        popupPool: [],
+        popupPoolCursor: 0,
+        particles: [],
+        particlePool: [],
+        particlePoolCursor: 0,
+        stars: [],
+        activePointers: new Map(),
+        songStartAudioTime: 0,
+        songStartPerfTime: 0,
+        usingAudioClock: false,
+        totalBeats: TOTAL_BEATS,
+        totalSteps: TOTAL_STEPS,
+        startedAtPerf: performance.now(),
+        completed: false,
+        judgments: {
+          perfect: 0,
+          great: 0,
+          good: 0,
+          miss: 0
+        },
+        chartSeed: 1,
+        highScores: null,
+        densityCache: []
+      };
+
+      const runtime = {
+        lastFrame: performance.now(),
+        elapsedSec: 0,
+        accumulator: 0,
+        songTimePrev: 0,
+        songTimeCurr: 0
+      };
+
+      // =========================
+      // Utility Functions
+      // =========================
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function easeOutCubic(t) {
+        const p = clamp(t, 0, 1);
+        const q = 1 - p;
+        return 1 - (q * q * q);
+      }
+
+      function hash01(n) {
+        const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+        return x - Math.floor(x);
+      }
+
+      function createSeededRng(seed) {
+        let state = (seed >>> 0) || 1;
+        return () => {
+          state = (state + 0x6D2B79F5) >>> 0;
+          let t = state;
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function mixSeedWithText(seed, text) {
+        let mixed = (seed >>> 0) || 1;
+        for (let i = 0; i < text.length; i += 1) {
+          mixed ^= text.charCodeAt(i);
+          mixed = Math.imul(mixed, 16777619) >>> 0;
+        }
+        return mixed >>> 0;
+      }
+
+      function randomInt(rng, min, max) {
+        return min + Math.floor(rng() * ((max - min) + 1));
+      }
+
+      function shuffleInPlace(array, rng) {
+        for (let i = array.length - 1; i > 0; i -= 1) {
+          const j = randomInt(rng, 0, i);
+          const tmp = array[i];
+          array[i] = array[j];
+          array[j] = tmp;
+        }
+      }
+
+      function densityCurveAtProgress(progress) {
+        const p = clamp(progress, 0, 1);
+        if (p < 0.18) return lerp(0.35, 0.58, p / 0.18);
+        if (p < 0.72) return lerp(0.58, 1.0, (p - 0.18) / 0.54);
+        if (p < 0.9) return lerp(1.0, 0.82, (p - 0.72) / 0.18);
+        return lerp(0.82, 0.68, (p - 0.9) / 0.1);
+      }
+
+      function allocParticleFromPool() {
+        const pool = game.particlePool;
+        if (!pool.length) return null;
+
+        for (let i = 0; i < pool.length; i += 1) {
+          const idx = (game.particlePoolCursor + i) % pool.length;
+          const particle = pool[idx];
+          if (!particle.active) {
+            particle.active = true;
+            game.particlePoolCursor = (idx + 1) % pool.length;
+            game.particles.push(particle);
+            return particle;
+          }
+        }
+
+        if (game.particles.length > 0) {
+          const recycled = game.particles.shift();
+          if (recycled) {
+            recycled.active = true;
+            game.particles.push(recycled);
+            return recycled;
+          }
+        }
+
+        return null;
+      }
+
+      function allocPopupFromPool() {
+        const pool = game.popupPool;
+        if (!pool.length) return null;
+
+        for (let i = 0; i < pool.length; i += 1) {
+          const idx = (game.popupPoolCursor + i) % pool.length;
+          const popup = pool[idx];
+          if (!popup.active) {
+            popup.active = true;
+            game.popupPoolCursor = (idx + 1) % pool.length;
+            game.popups.push(popup);
+            return popup;
+          }
+        }
+
+        if (game.popups.length > 0) {
+          const recycled = game.popups.shift();
+          if (recycled) {
+            recycled.active = true;
+            game.popups.push(recycled);
+            return recycled;
+          }
+        }
+
+        return null;
+      }
+
+      function initObjectPools() {
+        game.particlePool.length = 0;
+        game.popupPool.length = 0;
+        game.particlePoolCursor = 0;
+        game.popupPoolCursor = 0;
+
+        for (let i = 0; i < PARTICLE_POOL_SIZE; i += 1) {
+          game.particlePool.push({
+            active: false,
+            x: 0,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            life: 0,
+            maxLife: 0,
+            size: 0,
+            color: PALETTE.pink
+          });
+        }
+
+        for (let i = 0; i < POPUP_POOL_SIZE; i += 1) {
+          game.popupPool.push({
+            active: false,
+            text: '',
+            color: PALETTE.pink,
+            x: 0,
+            y: 0,
+            vy: 0,
+            life: 0,
+            maxLife: 0,
+            scale: 1,
+            startScale: 1,
+            endScale: 1
+          });
+        }
+      }
+
+      function clearTransientEffects() {
+        game.particles.length = 0;
+        game.popups.length = 0;
+        game.particlePoolCursor = 0;
+        game.popupPoolCursor = 0;
+
+        for (let i = 0; i < game.particlePool.length; i += 1) {
+          game.particlePool[i].active = false;
+        }
+        for (let i = 0; i < game.popupPool.length; i += 1) {
+          game.popupPool[i].active = false;
+        }
+      }
+
+      function drawRoundedRect(g, x, y, w, h, r) {
+        const rr = Math.min(r, w * 0.5, h * 0.5);
+        g.beginPath();
+        g.moveTo(x + rr, y);
+        g.lineTo(x + w - rr, y);
+        g.quadraticCurveTo(x + w, y, x + w, y + rr);
+        g.lineTo(x + w, y + h - rr);
+        g.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+        g.lineTo(x + rr, y + h);
+        g.quadraticCurveTo(x, y + h, x, y + h - rr);
+        g.lineTo(x, y + rr);
+        g.quadraticCurveTo(x, y, x + rr, y);
+        g.closePath();
+      }
+
+      function noteNameToFrequency(note) {
+        if (!note) return 0;
+        const match = /^([A-G])([#b]?)(-?\d)$/.exec(note);
+        if (!match) return 0;
+
+        const letter = match[1];
+        const accidental = match[2];
+        const octave = Number(match[3]);
+        const semitoneMap = {
+          C: 0,
+          D: 2,
+          E: 4,
+          F: 5,
+          G: 7,
+          A: 9,
+          B: 11
+        };
+
+        let semitone = semitoneMap[letter];
+        if (accidental === '#') semitone += 1;
+        if (accidental === 'b') semitone -= 1;
+
+        const midi = (octave + 1) * 12 + semitone;
+        return 440 * Math.pow(2, (midi - 69) / 12);
+      }
+
+      function formatNumber(value) {
+        return Math.floor(value).toLocaleString('en-US');
+      }
+
+      function comboMultiplier(combo) {
+        return Math.min(8, Math.floor(combo / 10) + 1);
+      }
+
+      function timingWindowsForCurrentDifficulty() {
+        if (game.currentDifficulty && game.currentDifficulty.timingMs) {
+          return game.currentDifficulty.timingMs;
+        }
+        return TIMING_MS;
+      }
+
+      function currentAccuracy() {
+        const totalNotes = game.chart.length;
+        if (totalNotes <= 0) return 100;
+        const earned =
+          (game.judgments.perfect * BASE_POINTS.perfect) +
+          (game.judgments.great * BASE_POINTS.great) +
+          (game.judgments.good * BASE_POINTS.good);
+        const possible = totalNotes * BASE_POINTS.perfect;
+        return clamp((earned / possible) * 100, 0, 100);
+      }
+
+      function gradeFromAccuracy(acc) {
+        if (acc >= 98) return 'SS';
+        if (acc >= 92) return 'S';
+        if (acc >= 84) return 'A';
+        if (acc >= 72) return 'B';
+        return 'C';
+      }
+
+      function getLanePressed(index) {
+        return game.lanePressedKeyboard[index] || game.lanePressedTouch[index];
+      }
+
+      // =========================
+      // High Score Persistence
+      // =========================
+      function createDefaultHighScores() {
+        return {
+          Easy: { score: 0, accuracy: 0, maxCombo: 0, grade: 'C' },
+          Normal: { score: 0, accuracy: 0, maxCombo: 0, grade: 'C' },
+          Hard: { score: 0, accuracy: 0, maxCombo: 0, grade: 'C' }
+        };
+      }
+
+      function loadHighScores() {
+        const fallback = createDefaultHighScores();
+        try {
+          const raw = localStorage.getItem(HIGH_SCORE_KEY);
+          if (!raw) return fallback;
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== 'object') return fallback;
+          return {
+            Easy: parsed.Easy || fallback.Easy,
+            Normal: parsed.Normal || fallback.Normal,
+            Hard: parsed.Hard || fallback.Hard
+          };
+        } catch (err) {
+          return fallback;
+        }
+      }
+
+      function saveHighScores() {
+        try {
+          localStorage.setItem(HIGH_SCORE_KEY, JSON.stringify(game.highScores));
+        } catch (err) {
+          // Ignore persistence errors.
+        }
+      }
+
+      function maybeUpdateHighScore() {
+        const name = game.currentDifficulty.name;
+        const entry = game.highScores[name] || { score: 0, accuracy: 0, maxCombo: 0, grade: 'C' };
+        const acc = currentAccuracy();
+        const grade = gradeFromAccuracy(acc);
+
+        if (game.score > entry.score) {
+          game.highScores[name] = {
+            score: game.score,
+            accuracy: acc,
+            maxCombo: game.maxCombo,
+            grade
+          };
+          saveHighScores();
+        }
+      }
+
+      // =========================
+      // Audio Engine
+      // =========================
+      const audio = {
+        ctx: null,
+        masterGain: null,
+        musicGain: null,
+        drumBus: null,
+        bassBus: null,
+        melodyBus: null,
+        arpBus: null,
+        padBus: null,
+        synthDucker: null,
+        melodyDelay: null,
+        melodyFeedback: null,
+        noiseBuffer: null,
+        active: false,
+        nextStepTime: 0,
+        nextStepIndex: 0,
+        maxSteps: TOTAL_STEPS,
+        audioReady: false,
+        arpPattern: [0, 1, 2, 1, 3, 2, 1, 0],
+        arpIndex: 0,
+        lastHitLane: 0,
+        sidechainDepth: 0.4,
+        sidechainDuckSec: 0.05,
+        sidechainRecoverSec: 0.1
+      };
+
+      function lanePitchHz(lane) {
+        const safeLane = clamp((lane | 0), 0, LANE_PITCH_HZ.length - 1);
+        return LANE_PITCH_HZ[safeLane] || LANE_PITCH_HZ[0];
+      }
+
+      function buildArpPatternFromChart(chartNotes) {
+        const counts = [0, 0, 0, 0];
+        for (let i = 0; i < chartNotes.length; i += 1) {
+          const lane = chartNotes[i].lane;
+          if (lane >= 0 && lane < 4) {
+            counts[lane] += 1;
+          }
+        }
+
+        const order = [0, 1, 2, 3].sort((a, b) => {
+          if (counts[b] !== counts[a]) return counts[b] - counts[a];
+          return a - b;
+        });
+
+        return [
+          order[0],
+          order[1],
+          order[2],
+          order[1],
+          order[3],
+          order[2],
+          order[1],
+          order[0]
+        ];
+      }
+
+      function createNoiseBuffer(context) {
+        const durationSec = 1;
+        const buffer = context.createBuffer(1, Math.floor(context.sampleRate * durationSec), context.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i += 1) {
+          data[i] = (Math.random() * 2) - 1;
+        }
+        return buffer;
+      }
+
+      async function ensureAudioContext() {
+        if (!audio.ctx) {
+          const AudioCtor = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtor) {
+            throw new Error('Web Audio API unavailable');
+          }
+
+          audio.ctx = new AudioCtor();
+
+          audio.masterGain = audio.ctx.createGain();
+          audio.musicGain = audio.ctx.createGain();
+          audio.drumBus = audio.ctx.createGain();
+          audio.bassBus = audio.ctx.createGain();
+          audio.melodyBus = audio.ctx.createGain();
+          audio.arpBus = audio.ctx.createGain();
+          audio.padBus = audio.ctx.createGain();
+          audio.synthDucker = audio.ctx.createGain();
+          audio.melodyDelay = audio.ctx.createDelay(0.5);
+          audio.melodyFeedback = audio.ctx.createGain();
+
+          audio.masterGain.gain.value = 0.9;
+          audio.musicGain.gain.value = 0.0001;
+          audio.drumBus.gain.value = 0.92;
+          audio.bassBus.gain.value = 0.64;
+          audio.melodyBus.gain.value = 0.58;
+          audio.arpBus.gain.value = 0.23;
+          audio.padBus.gain.value = 0.14;
+          audio.synthDucker.gain.value = 1.0;
+          audio.melodyDelay.delayTime.value = 0.17;
+          audio.melodyFeedback.gain.value = 0.24;
+
+          audio.drumBus.connect(audio.musicGain);
+          audio.bassBus.connect(audio.musicGain);
+          audio.melodyBus.connect(audio.synthDucker);
+          audio.arpBus.connect(audio.synthDucker);
+          audio.padBus.connect(audio.synthDucker);
+
+          audio.melodyBus.connect(audio.melodyDelay);
+          audio.melodyDelay.connect(audio.melodyFeedback);
+          audio.melodyFeedback.connect(audio.melodyDelay);
+          audio.melodyDelay.connect(audio.synthDucker);
+
+          audio.synthDucker.connect(audio.musicGain);
+
+          audio.musicGain.connect(audio.masterGain);
+          audio.masterGain.connect(audio.ctx.destination);
+
+          audio.noiseBuffer = createNoiseBuffer(audio.ctx);
+        }
+
+        if (audio.ctx.state !== 'running') {
+          await audio.ctx.resume();
+        }
+        audio.audioReady = true;
+      }
+
+      function primeAudioFromGesture() {
+        if (audio.ctx && audio.ctx.state === 'running') return;
+        ensureAudioContext().catch(() => {});
+      }
+
+      function triggerSidechainPump(time) {
+        if (!audio.ctx || !audio.synthDucker) return;
+        const gain = audio.synthDucker.gain;
+        const duckTo = 1 - audio.sidechainDepth;
+        const duckEnd = time + audio.sidechainDuckSec;
+        const recoverEnd = duckEnd + audio.sidechainRecoverSec;
+        gain.cancelScheduledValues(time);
+        gain.setValueAtTime(Math.max(0.0001, gain.value), time);
+        gain.linearRampToValueAtTime(duckTo, duckEnd);
+        gain.linearRampToValueAtTime(1.0, recoverEnd);
+      }
+
+      function scheduleKick(time) {
+        const context = audio.ctx;
+        if (!context) return;
+
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(155, time);
+        osc.frequency.exponentialRampToValueAtTime(52, time + 0.14);
+
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(1.1, time + 0.003);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.15);
+
+        osc.connect(gain);
+        gain.connect(audio.drumBus);
+
+        osc.start(time);
+        osc.stop(time + 0.18);
+
+        triggerSidechainPump(time);
+      }
+
+      function scheduleSnare(time) {
+        const context = audio.ctx;
+        if (!context || !audio.noiseBuffer) return;
+
+        const noise = context.createBufferSource();
+        noise.buffer = audio.noiseBuffer;
+
+        const noiseFilter = context.createBiquadFilter();
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.setValueAtTime(1800, time);
+
+        const noiseGain = context.createGain();
+        noiseGain.gain.setValueAtTime(0.0001, time);
+        noiseGain.gain.exponentialRampToValueAtTime(0.85, time + 0.002);
+        noiseGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.2);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(audio.drumBus);
+
+        const tone = context.createOscillator();
+        const toneGain = context.createGain();
+        tone.type = 'triangle';
+        tone.frequency.setValueAtTime(180, time);
+        toneGain.gain.setValueAtTime(0.0001, time);
+        toneGain.gain.exponentialRampToValueAtTime(0.35, time + 0.002);
+        toneGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.12);
+
+        tone.connect(toneGain);
+        toneGain.connect(audio.drumBus);
+
+        noise.start(time);
+        noise.stop(time + 0.21);
+        tone.start(time);
+        tone.stop(time + 0.13);
+      }
+
+      function scheduleHiHat(time, accent = false) {
+        const context = audio.ctx;
+        if (!context || !audio.noiseBuffer) return;
+
+        const noise = context.createBufferSource();
+        noise.buffer = audio.noiseBuffer;
+
+        const hp = context.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(5500, time);
+
+        const bp = context.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(accent ? 9400 : 8800, time);
+        bp.Q.setValueAtTime(0.6, time);
+
+        const gain = context.createGain();
+        const length = accent ? 0.052 : 0.04;
+        const amp = accent ? 0.2 : 0.13;
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(amp, time + 0.001);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + length);
+
+        noise.connect(hp);
+        hp.connect(bp);
+        bp.connect(gain);
+        gain.connect(audio.drumBus);
+
+        noise.start(time);
+        noise.stop(time + length + 0.015);
+      }
+
+      function scheduleOpenHiHat(time, accent = false) {
+        const context = audio.ctx;
+        if (!context || !audio.noiseBuffer) return;
+
+        const noise = context.createBufferSource();
+        noise.buffer = audio.noiseBuffer;
+
+        const hp = context.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(4200, time);
+
+        const bp = context.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(accent ? 7600 : 7000, time);
+        bp.Q.setValueAtTime(0.55, time);
+
+        const gain = context.createGain();
+        const length = accent ? 0.15 : 0.12;
+        const amp = accent ? 0.17 : 0.135;
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(amp, time + 0.003);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + length);
+
+        noise.connect(hp);
+        hp.connect(bp);
+        bp.connect(gain);
+        gain.connect(audio.drumBus);
+
+        noise.start(time);
+        noise.stop(time + length + 0.02);
+      }
+
+      function scheduleSubBass(time, frequency, durationSec) {
+        const context = audio.ctx;
+        if (!context || frequency <= 0) return;
+
+        const saw = context.createOscillator();
+        const sub = context.createOscillator();
+        const filter = context.createBiquadFilter();
+        const gain = context.createGain();
+
+        saw.type = 'sawtooth';
+        saw.frequency.setValueAtTime(frequency, time);
+        sub.type = 'triangle';
+        sub.frequency.setValueAtTime(frequency * 0.5, time);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(190, time);
+        filter.Q.setValueAtTime(0.9, time);
+
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(0.62, time + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + durationSec);
+
+        saw.connect(filter);
+        sub.connect(filter);
+        filter.connect(gain);
+        gain.connect(audio.bassBus);
+
+        saw.start(time);
+        sub.start(time);
+        saw.stop(time + durationSec + 0.05);
+        sub.stop(time + durationSec + 0.05);
+      }
+
+      function scheduleChartLead(time, frequency, options = {}) {
+        const context = audio.ctx;
+        if (!context || frequency <= 0) return;
+
+        const volume = Math.max(0.0002, options.volume || 0.22);
+        const sustain = Math.max(0.05, options.sustain || 0.22);
+        const cutoff = Math.max(140, options.cutoff || 2200);
+        const q = options.q || 1.2;
+        const dual = Boolean(options.dual);
+        const detuneSpread = options.detuneSpread || 8;
+        const waveform = options.waveform || 'sawtooth';
+
+        const filter = context.createBiquadFilter();
+        const gain = context.createGain();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(cutoff * 0.72, time);
+        filter.frequency.linearRampToValueAtTime(cutoff, time + 0.05);
+        filter.Q.setValueAtTime(q, time);
+
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(volume, time + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + sustain);
+
+        const oscA = context.createOscillator();
+        oscA.type = waveform;
+        oscA.frequency.setValueAtTime(frequency, time);
+        oscA.detune.setValueAtTime(dual ? -detuneSpread * 0.5 : 0, time);
+        oscA.connect(filter);
+
+        let oscB = null;
+        if (dual) {
+          oscB = context.createOscillator();
+          oscB.type = waveform;
+          oscB.frequency.setValueAtTime(frequency, time);
+          oscB.detune.setValueAtTime(detuneSpread * 0.5, time);
+          oscB.connect(filter);
+        }
+
+        filter.connect(gain);
+        gain.connect(audio.melodyBus);
+
+        oscA.start(time);
+        oscA.stop(time + sustain + 0.04);
+        if (oscB) {
+          oscB.start(time);
+          oscB.stop(time + sustain + 0.04);
+        }
+      }
+
+      function scheduleArp(time, frequency, durationSec = 0.15) {
+        const context = audio.ctx;
+        if (!context || frequency <= 0) return;
+
+        const osc = context.createOscillator();
+        const filter = context.createBiquadFilter();
+        const gain = context.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(frequency, time);
+
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1500, time);
+        filter.Q.setValueAtTime(1.6, time);
+
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(0.075, time + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + durationSec);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audio.arpBus);
+
+        osc.start(time);
+        osc.stop(time + durationSec + 0.03);
+      }
+
+      function schedulePadChord(time, chordNotes, durationSec) {
+        const context = audio.ctx;
+        if (!context || !Array.isArray(chordNotes) || chordNotes.length <= 0) return;
+
+        const filter = context.createBiquadFilter();
+        const gain = context.createGain();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1050, time);
+        filter.frequency.linearRampToValueAtTime(1320, time + 0.65);
+        filter.Q.setValueAtTime(0.7, time);
+
+        const attack = 0.4;
+        const releaseStart = Math.max(time + attack + 0.2, time + durationSec - 0.45);
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.linearRampToValueAtTime(0.34, time + attack);
+        gain.gain.setValueAtTime(0.34, releaseStart);
+        gain.gain.linearRampToValueAtTime(0.0001, time + durationSec);
+
+        filter.connect(gain);
+        gain.connect(audio.padBus);
+
+        for (let i = 0; i < chordNotes.length; i += 1) {
+          const frequency = noteNameToFrequency(chordNotes[i]);
+          if (frequency <= 0) continue;
+          const osc = context.createOscillator();
+          osc.type = i % 2 === 0 ? 'triangle' : 'sawtooth';
+          osc.frequency.setValueAtTime(frequency, time);
+          osc.detune.setValueAtTime(i * 3 - 3, time);
+          osc.connect(filter);
+          osc.start(time);
+          osc.stop(time + durationSec + 0.05);
+        }
+      }
+
+      function triggerChartMelody(note, quality) {
+        if (!audio.ctx || !audio.audioReady || !note) return;
+
+        const lane = clamp((note.lane | 0), 0, LANE_PITCH_HZ.length - 1);
+        const frequency = lanePitchHz(lane);
+        const now = audio.ctx.currentTime;
+        let when = now + 0.003;
+
+        if (game.usingAudioClock && Number.isFinite(game.songStartAudioTime) && Number.isFinite(note.time)) {
+          when = Math.max(when, game.songStartAudioTime + note.time);
+        }
+
+        if (quality === 'miss') {
+          scheduleChartLead(when, frequency, {
+            volume: 0.028,
+            sustain: 0.11,
+            cutoff: 410,
+            q: 0.5,
+            dual: false,
+            waveform: 'triangle'
+          });
+          return;
+        }
+
+        audio.lastHitLane = lane;
+
+        if (quality === 'perfect') {
+          scheduleChartLead(when, frequency, {
+            volume: 0.34,
+            sustain: 0.38,
+            cutoff: 3200,
+            q: 2.0,
+            dual: true,
+            detuneSpread: 12,
+            waveform: 'sawtooth'
+          });
+          return;
+        }
+
+        if (quality === 'great') {
+          scheduleChartLead(when, frequency, {
+            volume: 0.26,
+            sustain: 0.27,
+            cutoff: 2600,
+            q: 1.5,
+            dual: false,
+            waveform: 'sawtooth'
+          });
+          return;
+        }
+
+        scheduleChartLead(when, frequency, {
+          volume: 0.18,
+          sustain: 0.18,
+          cutoff: 2100,
+          q: 1.1,
+          dual: false,
+          waveform: 'sawtooth'
+        });
+      }
+
+      function scheduleCountdownBar(startTimeSec) {
+        if (!audio.ctx || !audio.audioReady) return;
+
+        for (let i = 0; i < COUNTDOWN_BEATS; i += 1) {
+          const when = startTimeSec + i * BEAT_SEC;
+          if (i === 0 || i === 2) {
+            scheduleKick(when);
+          } else {
+            scheduleSnare(when);
+          }
+        }
+      }
+
+      function startScheduledAudio(startTimeSec, totalSteps) {
+        if (!audio.ctx || !audio.audioReady) {
+          return;
+        }
+        audio.active = true;
+        audio.nextStepTime = startTimeSec;
+        audio.nextStepIndex = 0;
+        audio.maxSteps = totalSteps;
+        audio.lastHitLane = 0;
+        audio.arpPattern = buildArpPatternFromChart(game.chart);
+        audio.arpIndex = 0;
+
+        const now = audio.ctx.currentTime;
+        const preStartHoldTime = Math.max(now + 0.12, startTimeSec - 0.02);
+        audio.musicGain.gain.cancelScheduledValues(now);
+        audio.musicGain.gain.setValueAtTime(0.0001, now);
+        audio.musicGain.gain.linearRampToValueAtTime(0.65, Math.min(startTimeSec, now + 0.12));
+        audio.musicGain.gain.setValueAtTime(0.65, preStartHoldTime);
+        audio.musicGain.gain.linearRampToValueAtTime(0.75, startTimeSec + 0.1);
+        if (audio.synthDucker) {
+          audio.synthDucker.gain.cancelScheduledValues(now);
+          audio.synthDucker.gain.setValueAtTime(1.0, now);
+        }
+      }
+
+      function stopScheduledAudio() {
+        if (!audio.ctx || !audio.audioReady) return;
+
+        audio.active = false;
+        const now = audio.ctx.currentTime;
+        audio.musicGain.gain.cancelScheduledValues(now);
+        audio.musicGain.gain.setValueAtTime(audio.musicGain.gain.value, now);
+        audio.musicGain.gain.linearRampToValueAtTime(0.0001, now + 0.15);
+        if (audio.synthDucker) {
+          audio.synthDucker.gain.cancelScheduledValues(now);
+          audio.synthDucker.gain.setValueAtTime(audio.synthDucker.gain.value, now);
+          audio.synthDucker.gain.linearRampToValueAtTime(1.0, now + 0.15);
+        }
+      }
+
+      function scheduleAudioStep(stepIndex, when) {
+        if (stepIndex >= game.totalSteps) {
+          return;
+        }
+
+        const beatStep = stepIndex % 4;
+        const beatIndex = Math.floor(stepIndex / 4);
+        const beatInBar = beatIndex % 4;
+
+        if (beatStep === 0) {
+          if (beatInBar === 0 || beatInBar === 2) {
+            scheduleKick(when);
+          } else {
+            scheduleSnare(when);
+          }
+        }
+
+        if (stepIndex % 2 === 0) {
+          const openHatSlot = beatStep === 2 && (beatInBar === 1 || beatInBar === 3);
+          const useOpenHat = openHatSlot && hash01(stepIndex * 2.11 + game.chartSeed * 0.0001) > 0.64;
+          if (useOpenHat) {
+            scheduleOpenHiHat(when, false);
+          } else {
+            scheduleHiHat(when, stepIndex % 4 === 0);
+          }
+        }
+
+        if (stepIndex % 8 === 0) {
+          const rootFrequency = lanePitchHz(audio.lastHitLane) * 0.5;
+          scheduleSubBass(when, rootFrequency, BEAT_SEC * 0.92);
+        }
+
+        if (stepIndex % 64 === 0) {
+          const progressionIndex = Math.floor(stepIndex / 64) % PAD_CHORD_PROGRESSION.length;
+          const chord = PAD_CHORD_PROGRESSION[progressionIndex];
+          schedulePadChord(when, chord, BEAT_SEC * 15.8);
+        }
+
+        if (stepIndex % 4 === 2 && audio.arpPattern.length > 0) {
+          const lane = audio.arpPattern[audio.arpIndex % audio.arpPattern.length];
+          audio.arpIndex += 1;
+          scheduleArp(when, lanePitchHz(lane) * 2, STEP_SEC * 1.35);
+        }
+      }
+
+      function scheduleAudioAhead() {
+        if (!audio.active || !audio.ctx) return;
+
+        const lookAhead = 0.18;
+        while (audio.nextStepTime < audio.ctx.currentTime + lookAhead) {
+          scheduleAudioStep(audio.nextStepIndex, audio.nextStepTime);
+          audio.nextStepIndex += 1;
+          audio.nextStepTime += STEP_SEC;
+
+          if (audio.nextStepIndex > audio.maxSteps + 24) {
+            audio.active = false;
+            break;
+          }
+        }
+      }
+
+      // =========================
+      // Chart Generation
+      // =========================
+      function resetChartContainer() {
+        game.chart = [];
+        game.chartKeySet = new Set();
+      }
+
+      function addChartNote(timeSec, lane, stepIndex = Math.round(timeSec / STEP_SEC)) {
+        const rounded = timeSec.toFixed(5);
+        const key = `${rounded}:${lane}`;
+        if (game.chartKeySet.has(key)) return;
+        game.chartKeySet.add(key);
+        game.chart.push({
+          time: timeSec,
+          step: stepIndex,
+          lane,
+          judged: false,
+          hit: false,
+          miss: false
+        });
+      }
+
+      function getMusicalLaneHints(stepInBar, patternIndex) {
+        const hints = [];
+        if (stepInBar % 4 === 0) hints.push(0);
+        if (stepInBar % 8 === 4) hints.push(1);
+
+        if (stepInBar % 2 === 0) {
+          const eighthIndex = Math.floor(stepInBar / 2);
+          const bassNote = BASS_PATTERN_BARS[patternIndex][eighthIndex];
+          const leadNote = LEAD_PATTERN_BARS[patternIndex][eighthIndex];
+          if (bassNote) hints.push(stepInBar % 4 === 0 ? 0 : 2);
+          if (leadNote) hints.push(noteNameToFrequency(leadNote) >= 500 ? 3 : 2);
+        }
+
+        if (stepInBar % 4 === 2) hints.push(3);
+        return Array.from(new Set(hints.filter((lane) => lane >= 0 && lane < 4)));
+      }
+
+      function weightedPick(rng, values, weightForValue) {
+        if (!values || values.length <= 0) return null;
+        let totalWeight = 0;
+        const weights = [];
+        for (let i = 0; i < values.length; i += 1) {
+          const weight = Math.max(0, weightForValue(values[i], i));
+          weights.push(weight);
+          totalWeight += weight;
+        }
+
+        if (totalWeight <= 0) {
+          return values[randomInt(rng, 0, values.length - 1)];
+        }
+
+        let roll = rng() * totalWeight;
+        for (let i = 0; i < values.length; i += 1) {
+          roll -= weights[i];
+          if (roll <= 0) return values[i];
+        }
+        return values[values.length - 1];
+      }
+
+      function targetNotesForBar(difficultyId, density, rng, isIntro) {
+        if (difficultyId === 'easy') {
+          const target = (isIntro ? 1.5 : 1.8) + density * 1.0 + (rng() - 0.5) * 0.45;
+          return clamp(Math.round(target), 1, 4);
+        }
+
+        if (difficultyId === 'normal') {
+          const target = (isIntro ? 2.5 : 2.8) + density * 1.35 + (rng() - 0.5) * 0.55;
+          return clamp(Math.round(target), isIntro ? 2 : 3, 4);
+        }
+
+        const target = (isIntro ? 4.4 : 4.9) + density * 1.95 + (rng() - 0.5) * 0.9;
+        return clamp(Math.round(target), isIntro ? 4 : 5, 7);
+      }
+
+      function chooseEasyBarEvents(rng, targetNotes, isIntro) {
+        const stepPool = isIntro ? [0, 8] : [0, 4, 8, 12];
+        const stepSet = new Set();
+        while (stepSet.size < Math.min(targetNotes, stepPool.length)) {
+          stepSet.add(weightedPick(rng, stepPool, (step) => (step % 8 === 0 ? 1.25 : 1)));
+        }
+        return Array.from(stepSet).sort((a, b) => a - b).map((step) => ({ step, chord: false }));
+      }
+
+      function chooseNormalBarEvents(rng, targetNotes, density, isIntro) {
+        const stepPool = isIntro ? [0, 4, 8, 12] : [0, 2, 4, 6, 8, 10, 12, 14];
+        const stepSet = new Set();
+        const goal = Math.min(targetNotes, stepPool.length);
+
+        while (stepSet.size < goal) {
+          const openPool = stepPool.filter((step) => !stepSet.has(step));
+          const choice = weightedPick(rng, openPool, (step) => {
+            let w = step % 4 === 0 ? 1.35 : 1;
+            if (step % 8 === 6) w *= 0.88;
+            return w;
+          });
+          if (choice === null || choice === undefined) break;
+          stepSet.add(choice);
+        }
+
+        if (!isIntro && rng() < (0.14 + density * 0.2)) {
+          const pairStart = weightedPick(rng, [1, 5, 9, 13], (step) => (step === 9 ? 1.2 : 1));
+          if (pairStart !== null) {
+            stepSet.add(pairStart);
+            if (pairStart + 1 <= 15) {
+              stepSet.add(pairStart + 1);
+            }
+          }
+        }
+
+        const orderedSteps = Array.from(stepSet).sort((a, b) => a - b);
+        while (orderedSteps.length > targetNotes + 1) {
+          let removeIndex = -1;
+          for (let i = orderedSteps.length - 1; i >= 0; i -= 1) {
+            if (orderedSteps[i] % 2 === 1) {
+              removeIndex = i;
+              break;
+            }
+          }
+          if (removeIndex < 0) removeIndex = orderedSteps.length - 1;
+          orderedSteps.splice(removeIndex, 1);
+        }
+
+        return orderedSteps.map((step) => ({ step, chord: false }));
+      }
+
+      function chooseHardBarEvents(rng, targetNotes, density, isIntro) {
+        const stepSet = new Set();
+        const goal = clamp(targetNotes, 4, 8);
+
+        if (isIntro) {
+          stepSet.add(0);
+          stepSet.add(4);
+          stepSet.add(8);
+          stepSet.add(12);
+        }
+
+        if (!isIntro && rng() < (0.42 + density * 0.33)) {
+          const runLength = randomInt(rng, 3, 5);
+          const start = randomInt(rng, 1, 15 - runLength);
+          for (let i = 0; i < runLength; i += 1) {
+            stepSet.add(start + i);
+          }
+        }
+
+        while (stepSet.size < goal) {
+          const options = [];
+          for (let step = 0; step < 16; step += 1) {
+            if (!stepSet.has(step)) options.push(step);
+          }
+          const choice = weightedPick(rng, options, (step) => {
+            let w = 1;
+            if (step % 4 === 0) w += 0.7;
+            if (step % 2 === 1) w += 0.45; // syncopation
+            if (step % 4 === 3 && density > 0.75) w += 0.35;
+            return w;
+          });
+          if (choice === null || choice === undefined) break;
+          stepSet.add(choice);
+        }
+
+        const steps = Array.from(stepSet).sort((a, b) => a - b);
+        while (steps.length > goal + 1) {
+          let removeIndex = -1;
+          for (let i = steps.length - 1; i >= 0; i -= 1) {
+            if (steps[i] % 4 !== 0) {
+              removeIndex = i;
+              break;
+            }
+          }
+          if (removeIndex < 0) removeIndex = steps.length - 1;
+          steps.splice(removeIndex, 1);
+        }
+
+        const chordSteps = new Set();
+        if (!isIntro && steps.length > 2 && rng() < (0.14 + density * 0.28)) {
+          const firstChord = weightedPick(rng, steps, (step) => (step % 2 === 0 ? 1.3 : 1));
+          if (firstChord !== null) chordSteps.add(firstChord);
+
+          if (density > 0.86 && rng() < 0.24) {
+            const secondOptions = steps.filter((step) => !chordSteps.has(step) && Math.abs(step - firstChord) >= 2);
+            const secondChord = weightedPick(rng, secondOptions, (step) => (step % 2 === 0 ? 1.2 : 0.95));
+            if (secondChord !== null) chordSteps.add(secondChord);
+          }
+        }
+
+        return steps.map((step) => ({ step, chord: chordSteps.has(step) }));
+      }
+
+      function buildBarEventsForDifficulty(difficultyId, rng, targetNotes, density, isIntro) {
+        if (difficultyId === 'easy') {
+          return chooseEasyBarEvents(rng, targetNotes, isIntro);
+        }
+        if (difficultyId === 'normal') {
+          return chooseNormalBarEvents(rng, targetNotes, density, isIntro);
+        }
+        return chooseHardBarEvents(rng, targetNotes, density, isIntro);
+      }
+
+      function updateLaneState(state, lane, absoluteStep) {
+        state.laneCounts[lane] += 1;
+        if (state.recentLane === lane) {
+          state.recentLaneStreak += 1;
+        } else {
+          state.recentLane = lane;
+          state.recentLaneStreak = 1;
+        }
+        state.lastLane = lane;
+        if (absoluteStep !== state.lastStep) {
+          state.lastStepLanes = [lane];
+        } else if (!state.lastStepLanes.includes(lane)) {
+          state.lastStepLanes.push(lane);
+        }
+        state.lastStep = absoluteStep;
+      }
+
+      function detectFastRunEndStep(events) {
+        if (!events || events.length <= 0) return -1;
+        let runLen = 1;
+        let lastStep = events[0].step;
+        let runEndStep = -1;
+        for (let i = 1; i < events.length; i += 1) {
+          const step = events[i].step;
+          if (step - lastStep === 1) {
+            runLen += 1;
+          } else {
+            if (runLen >= 3) runEndStep = lastStep;
+            runLen = 1;
+          }
+          lastStep = step;
+        }
+        if (runLen >= 3) runEndStep = lastStep;
+        return runEndStep;
+      }
+
+      function pickLaneWithConstraints(rng, state, absoluteStep, stepInBar, patternIndex, difficultyId, excludeLane = -1) {
+        const allLanes = [0, 1, 2, 3].filter((lane) => lane !== excludeLane);
+        const hints = getMusicalLaneHints(stepInBar, patternIndex);
+        const adjacentSixteenth = absoluteStep - state.lastStep === 1;
+
+        let candidates = allLanes.filter((lane) => {
+          if (state.recentLaneStreak >= 3 && lane === state.recentLane) return false;
+          if (adjacentSixteenth && state.lastStepLanes.includes(lane)) return false;
+          return true;
+        });
+
+        if (candidates.length <= 0) {
+          candidates = allLanes.filter((lane) => !(adjacentSixteenth && state.lastStepLanes.includes(lane)));
+        }
+        if (candidates.length <= 0) {
+          candidates = allLanes.slice();
+        }
+
+        const totalPlaced = state.laneCounts[0] + state.laneCounts[1] + state.laneCounts[2] + state.laneCounts[3];
+        const avg = (totalPlaced + 1) / 4;
+
+        return weightedPick(rng, candidates, (lane) => {
+          const deficit = avg - state.laneCounts[lane];
+          let weight = 1 + deficit * 0.95;
+          if (hints.includes(lane)) {
+            weight *= difficultyId === 'hard' ? 1.45 : 1.32;
+          }
+          if (lane === state.lastLane) weight *= 0.72;
+          return Math.max(0.05, weight);
+        });
+      }
+
+      function buildChartForDifficulty(difficulty, seed) {
+        resetChartContainer();
+        game.densityCache = [];
+
+        const fallbackSeed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF)) >>> 0;
+        const baseSeed = ((typeof seed === 'number' ? seed : fallbackSeed) >>> 0) || 1;
+        const rng = createSeededRng(mixSeedWithText(baseSeed, difficulty.id));
+
+        const totalBars = Math.ceil(game.totalSteps / 16);
+        const introBars = Math.ceil(TUTORIAL_BEATS / 4);
+        const state = {
+          laneCounts: [0, 0, 0, 0],
+          recentLane: -1,
+          recentLaneStreak: 0,
+          lastLane: -1,
+          lastStep: -999,
+          lastStepLanes: [],
+          restUntilStep: 0
+        };
+
+        for (let bar = 0; bar < totalBars; bar += 1) {
+          const barStartStep = bar * 16;
+          const progress = bar / Math.max(1, totalBars - 1);
+          const density = densityCurveAtProgress(progress);
+          game.densityCache.push(density);
+
+          const isIntro = bar < introBars;
+          const targetNotes = targetNotesForBar(difficulty.id, density, rng, isIntro);
+          const events = buildBarEventsForDifficulty(difficulty.id, rng, targetNotes, density, isIntro)
+            .sort((a, b) => a.step - b.step);
+          const patternIndex = bar % BASS_PATTERN_BARS.length;
+          const runEndStep = detectFastRunEndStep(events);
+
+          for (let i = 0; i < events.length; i += 1) {
+            const event = events[i];
+            const absoluteStep = barStartStep + event.step;
+            if (absoluteStep < 0 || absoluteStep >= game.totalSteps) continue;
+            if (absoluteStep < state.restUntilStep) continue;
+
+            const firstLane = pickLaneWithConstraints(
+              rng,
+              state,
+              absoluteStep,
+              event.step,
+              patternIndex,
+              difficulty.id,
+              -1
+            );
+
+            if (firstLane === null || firstLane === undefined) continue;
+
+            addChartNote(absoluteStep * STEP_SEC, firstLane, absoluteStep);
+            updateLaneState(state, firstLane, absoluteStep);
+
+            if (difficulty.id === 'hard' && event.chord) {
+              const secondLane = pickLaneWithConstraints(
+                rng,
+                state,
+                absoluteStep,
+                event.step,
+                patternIndex,
+                difficulty.id,
+                firstLane
+              );
+              if (secondLane !== null && secondLane !== undefined && secondLane !== firstLane) {
+                addChartNote(absoluteStep * STEP_SEC, secondLane, absoluteStep);
+                updateLaneState(state, secondLane, absoluteStep);
+              }
+            }
+          }
+
+          if (runEndStep >= 0) {
+            state.restUntilStep = Math.max(state.restUntilStep, barStartStep + runEndStep + 4);
+          }
+        }
+
+        game.chart.sort((a, b) => a.time - b.time || a.lane - b.lane);
+        if (game.chart.length <= 0 || game.chart[0].time > 0) {
+          const anchorLane = game.chart.length > 0 ? game.chart[0].lane : 0;
+          addChartNote(0, anchorLane, 0);
+          game.chart.sort((a, b) => a.time - b.time || a.lane - b.lane);
+        }
+      }
+
+      // =========================
+      // Game Flow
+      // =========================
+      function getSongTimeSec() {
+        if (game.screen !== 'playing') return 0;
+
+        if (game.usingAudioClock && audio.ctx) {
+          return audio.ctx.currentTime - game.songStartAudioTime;
+        }
+
+        return (performance.now() - game.songStartPerfTime) / 1000;
+      }
+
+      async function startGame() {
+        if (game.screen === 'playing') return;
+
+        game.currentDifficulty = DIFFICULTIES[game.selectedDifficulty];
+        const leadInSec = game.currentDifficulty.approachSec + COUNTDOWN_SEC;
+
+        game.chartSeed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF) ^ Math.floor(performance.now() * 1000)) >>> 0;
+        if (game.chartSeed === 0) game.chartSeed = 1;
+        buildChartForDifficulty(game.currentDifficulty, game.chartSeed);
+
+        game.score = 0;
+        game.combo = 0;
+        game.maxCombo = 0;
+        game.health = 100;
+        game.judgedCount = 0;
+        game.judgments.perfect = 0;
+        game.judgments.great = 0;
+        game.judgments.good = 0;
+        game.judgments.miss = 0;
+        clearTransientEffects();
+        game.laneFlash = [0, 0, 0, 0];
+        game.laneFlashWhite = [0, 0, 0, 0];
+        game.lanePressedKeyboard = [false, false, false, false];
+        game.lanePressedTouch = [false, false, false, false];
+        game.activePointers.clear();
+        game.comboPop = 0;
+        game.comboSad = 0;
+        game.milestoneFlash = 0;
+        game.beatPulse = 0;
+        game.lastBeatIndex = -1;
+        game.screenShake.amplitude = 0;
+        game.screenShake.life = 0;
+        game.missFlash = 0;
+        game.frameFlash = 0;
+        game.completed = false;
+
+        runtime.songTimePrev = -leadInSec;
+        runtime.songTimeCurr = -leadInSec;
+        runtime.accumulator = 0;
+
+        game.songStartPerfTime = performance.now() + leadInSec * 1000;
+        game.usingAudioClock = false;
+        game.screen = 'playing';
+
+        try {
+          await ensureAudioContext();
+          const countInAudioStart = audio.ctx.currentTime + AUDIO_START_DELAY_SEC;
+          game.songStartAudioTime = countInAudioStart + leadInSec;
+          game.songStartPerfTime = performance.now() + (leadInSec + AUDIO_START_DELAY_SEC) * 1000;
+          game.usingAudioClock = true;
+          scheduleCountdownBar(game.songStartAudioTime - COUNTDOWN_SEC);
+          startScheduledAudio(game.songStartAudioTime, game.totalSteps);
+        } catch (err) {
+          game.songStartPerfTime = performance.now() + leadInSec * 1000;
+          game.usingAudioClock = false;
+        }
+
+      }
+
+      function endGame(completed) {
+        if (game.screen !== 'playing') return;
+        game.completed = completed;
+        game.screen = 'gameover';
+        stopScheduledAudio();
+        maybeUpdateHighScore();
+      }
+
+      // =========================
+      // Input and Judging
+      // =========================
+      function judgmentFromDeltaMs(absMs) {
+        const timing = timingWindowsForCurrentDifficulty();
+        if (absMs <= timing.perfect) return 'perfect';
+        if (absMs <= timing.great) return 'great';
+        if (absMs <= timing.good) return 'good';
+        return 'miss';
+      }
+
+      function spawnParticleBurst(x, y, count, color, speedMin, speedMax, sizeBase, lifeMin, lifeRange, upwardBias = 0) {
+        for (let i = 0; i < count; i += 1) {
+          const particle = allocParticleFromPool();
+          if (!particle) break;
+
+          const angle = (Math.PI * 2 * (i / Math.max(1, count))) + hash01((i + 1) * 39.17 + runtime.elapsedSec * 7.1) * 0.95;
+          const speed = speedMin + hash01((i + 2) * 21.9 + runtime.elapsedSec * 1.7) * (speedMax - speedMin);
+          const life = lifeMin + hash01((i + 11) * 13.7 + runtime.elapsedSec * 2.4) * lifeRange;
+
+          particle.x = x;
+          particle.y = y;
+          particle.vx = Math.cos(angle) * speed;
+          particle.vy = Math.sin(angle) * speed - upwardBias;
+          particle.life = life;
+          particle.maxLife = life;
+          particle.size = sizeBase + hash01((i + 3) * 17.3 + runtime.elapsedSec * 3.3) * 1.4;
+          particle.color = color;
+        }
+      }
+
+      function spawnHitParticles(lane, quality) {
+        const centerX = layout.laneCenters[lane];
+        const centerY = layout.hitY;
+        const count = quality === 'perfect' ? 12 : quality === 'great' ? 10 : 8;
+        const color = quality === 'perfect'
+          ? PALETTE.pink
+          : quality === 'great'
+            ? PALETTE.magenta
+            : PALETTE.violet;
+        spawnParticleBurst(centerX, centerY, count, color, 130, 245, 2.5, 0.32, 0.22, 34);
+      }
+
+      function spawnPerfectStarburst(lane) {
+        const centerX = layout.laneCenters[lane];
+        const centerY = layout.hitY - 4;
+        spawnParticleBurst(centerX, centerY, 14, '#ffffff', 170, 290, 2.2, 0.22, 0.18, 10);
+      }
+
+      function spawnComboMilestoneBurst() {
+        const centerX = width * 0.5;
+        const centerY = height * 0.15;
+        spawnParticleBurst(centerX, centerY, 24, PALETTE.pink, 110, 260, 2.4, 0.34, 0.2, 20);
+      }
+
+      function pushJudgmentPopup(lane, text, color) {
+        const popup = allocPopupFromPool();
+        if (!popup) return;
+        popup.text = text;
+        popup.color = color;
+        popup.x = layout.laneCenters[lane];
+        popup.y = layout.hitY - 18;
+        popup.vy = -58;
+        popup.life = 0.35;
+        popup.maxLife = 0.35;
+        popup.startScale = 1.3;
+        popup.endScale = 1.0;
+        popup.scale = popup.startScale;
+      }
+
+      function triggerMissFeedback(previousCombo) {
+        game.missFlash = Math.max(game.missFlash, 1);
+        game.screenShake.amplitude = Math.max(game.screenShake.amplitude, 4);
+        game.screenShake.life = game.screenShake.maxLife;
+        if (previousCombo > 10) {
+          game.comboSad = Math.max(game.comboSad, 1);
+        }
+      }
+
+      function applyJudgment(note, quality, deltaMs) {
+        note.judged = true;
+        note.hit = quality !== 'miss';
+        note.miss = quality === 'miss';
+        game.judgedCount += 1;
+
+        const lane = note.lane;
+        triggerChartMelody(note, quality);
+
+        if (quality === 'miss') {
+          const comboBeforeMiss = game.combo;
+          game.judgments.miss += 1;
+          game.combo = 0;
+          game.health = clamp(game.health - game.currentDifficulty.missDamage, 0, 100);
+          game.laneFlash[lane] = Math.max(game.laneFlash[lane], 0.45);
+          game.laneFlashWhite[lane] = Math.max(game.laneFlashWhite[lane], 0.25);
+          pushJudgmentPopup(lane, 'MISS', PALETTE.red);
+          spawnParticleBurst(layout.laneCenters[lane], layout.hitY, 8, PALETTE.red, 80, 160, 2.2, 0.24, 0.16, 0);
+          triggerMissFeedback(comboBeforeMiss);
+
+          if (navigator.vibrate) {
+            navigator.vibrate(8);
+          }
+          return;
+        }
+
+        game.judgments[quality] += 1;
+
+        game.combo += 1;
+        game.maxCombo = Math.max(game.maxCombo, game.combo);
+
+        const mult = comboMultiplier(game.combo);
+        const base = BASE_POINTS[quality];
+        game.score += base * mult;
+
+        const heal = game.currentDifficulty.hitHeal[quality] || 0;
+        game.health = clamp(game.health + heal, 0, 100);
+
+        game.laneFlash[lane] = Math.max(game.laneFlash[lane], quality === 'perfect' ? 1 : quality === 'great' ? 0.82 : 0.7);
+        game.laneFlashWhite[lane] = 1;
+        game.comboPop = Math.max(game.comboPop, 1);
+
+        if (quality === 'perfect') {
+          pushJudgmentPopup(lane, 'PERFECT', PALETTE.pink);
+          spawnPerfectStarburst(lane);
+          game.frameFlash = Math.max(game.frameFlash, 0.05);
+        } else if (quality === 'great') {
+          pushJudgmentPopup(lane, 'GREAT', PALETTE.magenta);
+        } else {
+          pushJudgmentPopup(lane, 'GOOD', PALETTE.violet);
+        }
+
+        spawnHitParticles(lane, quality);
+
+        if (COMBO_MILESTONES.includes(game.combo)) {
+          game.milestoneFlash = Math.max(game.milestoneFlash, 1);
+          game.frameFlash = Math.max(game.frameFlash, 0.08);
+          spawnComboMilestoneBurst();
+        }
+
+        if (navigator.vibrate && quality === 'perfect') {
+          navigator.vibrate(6);
+        }
+      }
+
+      function attemptLaneHit(lane) {
+        if (game.screen !== 'playing') return;
+
+        const songTime = getSongTimeSec();
+        if (songTime < -BEAT_SEC) {
+          game.laneFlash[lane] = Math.max(game.laneFlash[lane], 0.2);
+          return;
+        }
+        const windowSec = timingWindowsForCurrentDifficulty().good / 1000;
+
+        let best = null;
+        let bestAbs = Infinity;
+
+        for (let i = 0; i < game.chart.length; i += 1) {
+          const note = game.chart[i];
+          if (note.judged || note.lane !== lane) continue;
+
+          const deltaSec = songTime - note.time;
+          const absSec = Math.abs(deltaSec);
+
+          if (absSec <= windowSec && absSec < bestAbs) {
+            best = note;
+            bestAbs = absSec;
+          }
+
+          if (note.time - songTime > windowSec) {
+            // Chart sorted by time; notes beyond this point are too early.
+            break;
+          }
+        }
+
+        if (!best) {
+          game.laneFlash[lane] = Math.max(game.laneFlash[lane], 0.35);
+          return;
+        }
+
+        const deltaMs = (songTime - best.time) * 1000;
+        const quality = judgmentFromDeltaMs(Math.abs(deltaMs));
+        applyJudgment(best, quality, deltaMs);
+      }
+
+      function processMissedNotes(songTime) {
+        const missWindowSec = timingWindowsForCurrentDifficulty().good / 1000;
+
+        for (let i = 0; i < game.chart.length; i += 1) {
+          const note = game.chart[i];
+          if (note.judged) continue;
+
+          if (songTime - note.time > missWindowSec) {
+            applyJudgment(note, 'miss', missWindowSec * 1000);
+          } else {
+            // Remaining notes are in the future.
+            break;
+          }
+        }
+      }
+
+      function handleKeyDown(event) {
+        primeAudioFromGesture();
+        const lane = KEY_TO_LANE[event.code];
+
+        if (game.screen === 'playing') {
+          if (lane !== undefined) {
+            if (!game.lanePressedKeyboard[lane]) {
+              attemptLaneHit(lane);
+            }
+            game.lanePressedKeyboard[lane] = true;
+            event.preventDefault();
+            return;
+          }
+        }
+
+        if (game.screen === 'start') {
+          if (game.startStage === 'splash') {
+            if (event.code === 'Space' || event.code === 'Enter') {
+              if (!event.repeat) {
+                game.startStage = 'difficulty';
+              }
+              event.preventDefault();
+            }
+            return;
+          }
+
+          if (event.code === 'ArrowLeft') {
+            game.selectedDifficulty = (game.selectedDifficulty + DIFFICULTIES.length - 1) % DIFFICULTIES.length;
+            event.preventDefault();
+            return;
+          }
+
+          if (event.code === 'ArrowRight') {
+            game.selectedDifficulty = (game.selectedDifficulty + 1) % DIFFICULTIES.length;
+            event.preventDefault();
+            return;
+          }
+
+          if (event.code === 'Digit1') {
+            game.selectedDifficulty = 0;
+            event.preventDefault();
+            return;
+          }
+
+          if (event.code === 'Digit2') {
+            game.selectedDifficulty = 1;
+            event.preventDefault();
+            return;
+          }
+
+          if (event.code === 'Digit3') {
+            game.selectedDifficulty = 2;
+            event.preventDefault();
+            return;
+          }
+
+          if (event.code === 'Space' || event.code === 'Enter') {
+            if (!event.repeat) {
+              startGame();
+            }
+            event.preventDefault();
+            return;
+          }
+
+          if (event.code === 'Escape') {
+            game.startStage = 'splash';
+            event.preventDefault();
+          }
+          return;
+        }
+
+        if (game.screen === 'gameover') {
+          if (event.code === 'Space' || event.code === 'Enter') {
+            game.screen = 'start';
+            game.startStage = 'splash';
+            event.preventDefault();
+          }
+        }
+      }
+
+      function handleKeyUp(event) {
+        const lane = KEY_TO_LANE[event.code];
+        if (lane !== undefined) {
+          game.lanePressedKeyboard[lane] = false;
+        }
+      }
+
+      function pointerLaneFromCoords(clientX, clientY) {
+        if (clientY < layout.touchTopY) return -1;
+        const lane = Math.floor((clientX / width) * 4);
+        return clamp(lane, 0, 3);
+      }
+
+      function recomputeTouchLanePressed() {
+        game.lanePressedTouch = [false, false, false, false];
+        game.activePointers.forEach((lane) => {
+          if (lane >= 0 && lane < 4) {
+            game.lanePressedTouch[lane] = true;
+          }
+        });
+      }
+
+      function hitTestDifficultyButtons(x, y) {
+        for (let i = 0; i < layout.difficultyButtons.length; i += 1) {
+          const button = layout.difficultyButtons[i];
+          if (x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h) {
+            return i;
+          }
+        }
+        return -1;
+      }
+
+      function handlePointerDown(event) {
+        primeAudioFromGesture();
+        const x = event.clientX;
+        const y = event.clientY;
+
+        if (game.screen === 'start') {
+          if (game.startStage === 'splash') {
+            game.startStage = 'difficulty';
+            event.preventDefault();
+            return;
+          }
+
+          const difficultyHit = hitTestDifficultyButtons(x, y);
+          if (difficultyHit >= 0) {
+            game.selectedDifficulty = difficultyHit;
+          } else {
+            startGame();
+          }
+          event.preventDefault();
+          return;
+        }
+
+        if (game.screen === 'gameover') {
+          game.screen = 'start';
+          game.startStage = 'splash';
+          event.preventDefault();
+          return;
+        }
+
+        if (game.screen !== 'playing') return;
+
+        const lane = pointerLaneFromCoords(x, y);
+        game.activePointers.set(event.pointerId, lane);
+        recomputeTouchLanePressed();
+
+        if (lane >= 0) {
+          attemptLaneHit(lane);
+        }
+
+        event.preventDefault();
+      }
+
+      function handlePointerMove(event) {
+        if (game.screen !== 'playing') return;
+        if (!game.activePointers.has(event.pointerId)) return;
+
+        const lane = pointerLaneFromCoords(event.clientX, event.clientY);
+        const previousLane = game.activePointers.get(event.pointerId);
+
+        if (lane !== previousLane) {
+          game.activePointers.set(event.pointerId, lane);
+          recomputeTouchLanePressed();
+          if (lane >= 0) {
+            attemptLaneHit(lane);
+          }
+        }
+      }
+
+      function handlePointerUp(event) {
+        if (game.activePointers.has(event.pointerId)) {
+          game.activePointers.delete(event.pointerId);
+          recomputeTouchLanePressed();
+        }
+      }
+
+      // =========================
+      // Visual Initialization
+      // =========================
+      function initStars() {
+        game.stars.length = 0;
+        const starCount = 170;
+        for (let i = 0; i < starCount; i += 1) {
+          game.stars.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            z: 0.2 + Math.random() * 0.8,
+            twinkle: Math.random() * Math.PI * 2,
+            driftX: (Math.random() * 2 - 1) * (0.6 + Math.random() * 0.8),
+            driftY: 0.6 + Math.random() * 1.4
+          });
+        }
+      }
+
+      function resize() {
+        dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+        width = Math.max(320, window.innerWidth);
+        height = Math.max(560, window.innerHeight);
+
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        layout.playAreaWidth = Math.min(width * 0.82, 560);
+        layout.playAreaX = (width - layout.playAreaWidth) * 0.5;
+        layout.laneOuterWidth = layout.playAreaWidth / 4;
+        layout.lanePadding = Math.max(3, layout.laneOuterWidth * 0.05);
+        layout.laneInnerWidth = layout.laneOuterWidth - layout.lanePadding * 2;
+        layout.laneTop = height * 0.08;
+        layout.hitY = height * 0.8;
+        layout.touchTopY = height * 0.6;
+
+        for (let i = 0; i < 4; i += 1) {
+          const x = layout.playAreaX + i * layout.laneOuterWidth + layout.lanePadding;
+          layout.laneCenters[i] = x + layout.laneInnerWidth * 0.5;
+        }
+
+        initStars();
+      }
+
+      // =========================
+      // Update Loop
+      // =========================
+      function updateStars(dt, songTime) {
+        const pulse = game.screen === 'playing' ? game.beatPulse : 0.35 + 0.15 * Math.sin(runtime.elapsedSec * 1.7);
+        const drift = 2.6 + pulse * 3.3;
+
+        for (let i = 0; i < game.stars.length; i += 1) {
+          const star = game.stars[i];
+          star.x += star.driftX * dt * (0.8 + star.z * 0.7);
+          star.y += (drift + star.driftY) * dt * (0.35 + star.z * 0.8);
+          star.twinkle += dt * (1.2 + star.z * 2.2);
+          if (star.x < -6) star.x = width + 6;
+          if (star.x > width + 6) star.x = -6;
+          if (star.y > height + 8) {
+            star.y = -8;
+            star.x = Math.random() * width;
+            star.z = 0.2 + Math.random() * 0.8;
+            star.driftX = (Math.random() * 2 - 1) * (0.6 + Math.random() * 0.8);
+            star.driftY = 0.6 + Math.random() * 1.4;
+          }
+        }
+      }
+
+      function updatePopups(dt) {
+        for (let i = game.popups.length - 1; i >= 0; i -= 1) {
+          const popup = game.popups[i];
+          popup.life -= dt;
+          popup.y += popup.vy * dt;
+          const progress = 1 - clamp(popup.life / Math.max(0.0001, popup.maxLife), 0, 1);
+          const popProgress = clamp(progress / (0.2 / Math.max(0.2, popup.maxLife)), 0, 1);
+          popup.scale = lerp(popup.startScale, popup.endScale, easeOutCubic(popProgress));
+          if (popup.life <= 0) {
+            popup.active = false;
+            game.popups.splice(i, 1);
+          }
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = game.particles.length - 1; i >= 0; i -= 1) {
+          const particle = game.particles[i];
+          particle.life -= dt;
+          particle.vy += 280 * dt;
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= 0.986;
+          particle.vy *= 0.986;
+
+          if (particle.life <= 0) {
+            particle.active = false;
+            game.particles.splice(i, 1);
+          }
+        }
+      }
+
+      function updateVisualEffects(dt) {
+        for (let i = 0; i < 4; i += 1) {
+          game.laneFlash[i] = Math.max(0, game.laneFlash[i] - dt * 4.2);
+          game.laneFlashWhite[i] = Math.max(0, game.laneFlashWhite[i] - dt * 10);
+        }
+
+        game.comboPop = Math.max(0, game.comboPop - dt * 7.5);
+        game.comboSad = Math.max(0, game.comboSad - dt * 6.2);
+        game.milestoneFlash = Math.max(0, game.milestoneFlash - dt * 4.6);
+        game.missFlash = Math.max(0, game.missFlash - dt * 6.7);
+
+        if (game.screenShake.life > 0) {
+          game.screenShake.life = Math.max(0, game.screenShake.life - dt);
+          game.screenShake.amplitude *= Math.exp(-dt * 22);
+        } else {
+          game.screenShake.amplitude = 0;
+        }
+      }
+
+      function updatePlaying(dt) {
+        scheduleAudioAhead();
+
+        runtime.songTimePrev = runtime.songTimeCurr;
+        const songTime = getSongTimeSec();
+        runtime.songTimeCurr = songTime;
+
+        if (songTime >= 0) {
+          const beatIndex = Math.floor(songTime / BEAT_SEC);
+          if (beatIndex !== game.lastBeatIndex) {
+            game.lastBeatIndex = beatIndex;
+            game.beatPulse = beatIndex % 4 === 0 ? 1.3 : 1.0;
+          }
+          game.beatPulse = Math.max(0, game.beatPulse - dt * 2.6);
+          processMissedNotes(songTime);
+        } else {
+          game.lastBeatIndex = -1;
+          game.beatPulse = Math.max(0, game.beatPulse - dt * 3.2);
+        }
+
+        if (game.health <= 0) {
+          endGame(false);
+          return;
+        }
+
+        if (songTime > (game.totalBeats * BEAT_SEC) + 0.9 && game.judgedCount >= game.chart.length) {
+          endGame(true);
+          return;
+        }
+
+        updateVisualEffects(dt);
+        updateParticles(dt);
+        updatePopups(dt);
+        updateStars(dt, songTime);
+      }
+
+      function updateNonPlaying(dt) {
+        runtime.songTimePrev = runtime.songTimeCurr;
+        runtime.songTimeCurr = runtime.elapsedSec * 0.6;
+        game.beatPulse = 0.4 + 0.35 * Math.sin(runtime.elapsedSec * 2.2);
+        updateVisualEffects(dt);
+        updateParticles(dt);
+        updatePopups(dt);
+        updateStars(dt, 0);
+      }
+
+      function update(dt) {
+        if (game.screen === 'playing') {
+          updatePlaying(dt);
+        } else {
+          updateNonPlaying(dt);
+        }
+      }
+
+      // =========================
+      // Rendering - Background
+      // =========================
+      function renderBackground(songTime) {
+        const horizonY = height * 0.36;
+        const songProgress = clamp(songTime / Math.max(0.001, game.totalBeats * BEAT_SEC), 0, 1);
+        const density = game.screen === 'playing' ? densityCurveAtProgress(songProgress) : 0.52;
+        const chorusBoost = game.screen === 'playing' && density > 0.86
+          ? (density - 0.86) / 0.14
+          : 0;
+        const pulse = game.screen === 'playing'
+          ? (0.2 + game.beatPulse * (0.45 + chorusBoost * 0.35))
+          : (0.2 + 0.25 * Math.sin(runtime.elapsedSec * 1.8));
+
+        ctx.fillStyle = PALETTE.black;
+        ctx.fillRect(0, 0, width, height);
+
+        // Deep glow
+        const glow = ctx.createRadialGradient(width * 0.5, horizonY, 30, width * 0.5, horizonY, height * 1.1);
+        glow.addColorStop(0, 'rgba(149,49,242,0.30)');
+        glow.addColorStop(0.35, 'rgba(40,9,175,0.24)');
+        glow.addColorStop(1, 'rgba(10,10,15,1)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        // Stars
+        for (let i = 0; i < game.stars.length; i += 1) {
+          const star = game.stars[i];
+          const twinkle = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(star.twinkle));
+          const alpha = (0.22 + star.z * 0.6) * twinkle;
+          const color = i % 3 === 0 ? PALETTE.pink : i % 3 === 1 ? PALETTE.violet : PALETTE.magenta;
+          ctx.fillStyle = color;
+          ctx.globalAlpha = alpha;
+          const size = 0.6 + star.z * 1.8;
+          ctx.fillRect(star.x, star.y, size, size);
+        }
+        ctx.globalAlpha = 1;
+
+        // Neon sun
+        const sunRadius = Math.min(width, height) * (0.145 + pulse * 0.028 + chorusBoost * 0.035);
+        const sunY = horizonY + 6;
+
+        const sunGradient = ctx.createRadialGradient(width * 0.5, sunY, sunRadius * 0.1, width * 0.5, sunY, sunRadius);
+        sunGradient.addColorStop(0, PALETTE.pink);
+        sunGradient.addColorStop(0.36, PALETTE.magenta);
+        sunGradient.addColorStop(0.68, PALETTE.red);
+        sunGradient.addColorStop(1, PALETTE.violet);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, width, horizonY + 20);
+        ctx.clip();
+
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = sunGradient;
+        ctx.beginPath();
+        ctx.arc(width * 0.5, sunY, sunRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.82;
+        ctx.strokeStyle = PALETTE.pink;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 24;
+        ctx.shadowColor = PALETTE.pink;
+        ctx.beginPath();
+        ctx.arc(width * 0.5, sunY, sunRadius * 1.02, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.globalAlpha = 0.62;
+        ctx.strokeStyle = PALETTE.black;
+        for (let i = 1; i < 12; i += 1) {
+          const y = sunY - sunRadius + (i / 12) * sunRadius * 2;
+          const wobble = Math.sin(runtime.elapsedSec * 2.5 + i * 0.6) * 4;
+          ctx.beginPath();
+          ctx.moveTo(width * 0.5 - sunRadius, y + wobble);
+          ctx.lineTo(width * 0.5 + sunRadius, y - wobble);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+        ctx.globalAlpha = 1;
+
+        // Perspective floor grid
+        const floorTop = horizonY + 4;
+        const floorBottom = height + 30;
+        const centerX = width * 0.5;
+        const comboSpeedBoost = game.screen === 'playing' ? clamp(game.combo / 180, 0, 1) * 0.18 : 0;
+        const travel = Math.max(songTime, 0) * (game.screen === 'playing' ? (1.8 + comboSpeedBoost) : 0.55);
+
+        // Horizontal grid lines
+        for (let i = 1; i <= 26; i += 1) {
+          const z = ((i / 26) + travel * 0.18) % 1;
+          const depth = z * z;
+          const y = floorTop + depth * (floorBottom - floorTop);
+          const alpha = 0.08 + (1 - z) * 0.34 + pulse * 0.08;
+
+          ctx.strokeStyle = i % 2 === 0 ? PALETTE.violet : PALETTE.indigo;
+          ctx.globalAlpha = alpha;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(layout.playAreaX - 140, y);
+          ctx.lineTo(layout.playAreaX + layout.playAreaWidth + 140, y);
+          ctx.stroke();
+        }
+
+        // Vertical perspective lines
+        for (let i = -14; i <= 14; i += 1) {
+          const t = i / 14;
+          const xTop = centerX + t * 20;
+          const xBottom = centerX + t * (layout.playAreaWidth * 0.8 + 210);
+
+          ctx.strokeStyle = i % 2 === 0 ? PALETTE.indigo : PALETTE.violet;
+          ctx.globalAlpha = 0.12 + pulse * 0.08;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(xTop, floorTop);
+          ctx.lineTo(xBottom, floorBottom);
+          ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+      }
+
+      // =========================
+      // Rendering - Gameplay Layer
+      // =========================
+      function noteYForTime(noteTimeSec, songTimeSec, approachSec) {
+        const delta = noteTimeSec - songTimeSec;
+        const progress = 1 - (delta / approachSec);
+        return layout.laneTop + progress * (layout.hitY - layout.laneTop);
+      }
+
+      function renderLanes(songTime) {
+        const approach = game.currentDifficulty.approachSec;
+        const goodWindowSec = timingWindowsForCurrentDifficulty().good / 1000;
+        const noteHeight = Math.max(14, height * 0.024);
+
+        // Touch lane overlays for mobile support (bottom 40%).
+        for (let lane = 0; lane < 4; lane += 1) {
+          const tx = width * lane * 0.25;
+          const tw = width * 0.25;
+          const active = getLanePressed(lane);
+          ctx.fillStyle = LANE_COLORS[lane];
+          ctx.globalAlpha = active ? 0.16 : 0.07;
+          ctx.fillRect(tx, layout.touchTopY, tw, height - layout.touchTopY);
+
+          ctx.globalAlpha = active ? 0.8 : 0.42;
+          ctx.strokeStyle = LANE_COLORS[lane];
+          ctx.lineWidth = 1;
+          ctx.strokeRect(tx + 0.5, layout.touchTopY + 0.5, tw - 1, height - layout.touchTopY - 1);
+        }
+        ctx.globalAlpha = 1;
+
+        // Lane columns
+        for (let lane = 0; lane < 4; lane += 1) {
+          const laneX = layout.playAreaX + lane * layout.laneOuterWidth + layout.lanePadding;
+          const pressed = getLanePressed(lane);
+          const flash = game.laneFlash[lane];
+          const whiteFlash = game.laneFlashWhite[lane];
+
+          const baseAlpha = 0.12 + flash * 0.18 + (pressed ? 0.14 : 0);
+          ctx.fillStyle = LANE_COLORS[lane];
+          ctx.globalAlpha = baseAlpha;
+          drawRoundedRect(ctx, laneX, layout.laneTop, layout.laneInnerWidth, layout.hitY - layout.laneTop + 28, 8);
+          ctx.fill();
+
+          if (whiteFlash > 0) {
+            ctx.fillStyle = '#ffffff';
+            ctx.globalAlpha = 0.36 * whiteFlash;
+            drawRoundedRect(ctx, laneX, layout.laneTop, layout.laneInnerWidth, layout.hitY - layout.laneTop + 28, 8);
+            ctx.fill();
+          }
+
+          ctx.globalAlpha = 0.55 + flash * 0.35;
+          ctx.strokeStyle = whiteFlash > 0.02 ? '#ffffff' : LANE_COLORS[lane];
+          ctx.lineWidth = pressed ? 2.6 : 1.4;
+          drawRoundedRect(ctx, laneX, layout.laneTop, layout.laneInnerWidth, layout.hitY - layout.laneTop + 28, 8);
+          ctx.stroke();
+
+          // Key labels at the bottom.
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = PALETTE.pink;
+          ctx.font = `700 ${Math.max(15, Math.floor(width * 0.02))}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(LANE_LABELS[lane], layout.laneCenters[lane], layout.hitY + 42);
+        }
+
+        ctx.globalAlpha = 1;
+
+        // Hit zone line
+        const hitGlow = 0.35 + game.beatPulse * 0.25;
+        const zoneGradient = ctx.createLinearGradient(layout.playAreaX, layout.hitY, layout.playAreaX + layout.playAreaWidth, layout.hitY);
+        zoneGradient.addColorStop(0, PALETTE.violet);
+        zoneGradient.addColorStop(0.35, PALETTE.pink);
+        zoneGradient.addColorStop(0.65, PALETTE.magenta);
+        zoneGradient.addColorStop(1, PALETTE.red);
+
+        ctx.globalAlpha = hitGlow;
+        ctx.strokeStyle = zoneGradient;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(layout.playAreaX, layout.hitY);
+        ctx.lineTo(layout.playAreaX + layout.playAreaWidth, layout.hitY);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        const upcomingByLane = [[], [], [], []];
+        const visibleNotes = [];
+
+        for (let i = 0; i < game.chart.length; i += 1) {
+          const note = game.chart[i];
+          if (note.judged && note.hit) continue;
+
+          const delta = note.time - songTime;
+          if (delta > approach || delta < -0.22) continue;
+
+          const lane = note.lane;
+          const laneX = layout.playAreaX + lane * layout.laneOuterWidth + layout.lanePadding;
+          const y = noteYForTime(note.time, songTime, approach);
+          const widthPad = 8;
+          const nx = laneX + widthPad;
+          const nw = layout.laneInnerWidth - widthPad * 2;
+          const ny = y - noteHeight * 0.5;
+          const near = clamp(1 - Math.abs(delta) / goodWindowSec, 0, 1);
+          const color = LANE_COLORS[lane];
+
+          visibleNotes.push({
+            note,
+            delta,
+            lane,
+            nx,
+            ny,
+            nw,
+            near,
+            color
+          });
+
+          if (!note.miss && delta >= 0) {
+            upcomingByLane[lane].push(y);
+          }
+        }
+
+        // Approach indicators: link upcoming notes in the same lane.
+        for (let lane = 0; lane < 4; lane += 1) {
+          const ys = upcomingByLane[lane];
+          if (ys.length < 2) continue;
+          ctx.globalAlpha = 0.16;
+          ctx.strokeStyle = LANE_COLORS[lane];
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.moveTo(layout.laneCenters[lane], ys[0]);
+          for (let i = 1; i < ys.length; i += 1) {
+            ctx.lineTo(layout.laneCenters[lane], ys[i]);
+          }
+          ctx.stroke();
+        }
+
+        // Notes with subtle bloom: blurred pass first, sharp pass second.
+        for (let i = 0; i < visibleNotes.length; i += 1) {
+          const data = visibleNotes[i];
+          const { note, delta, nx, ny, nw, near, color } = data;
+
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 0.16 + near * 0.14;
+          ctx.shadowBlur = 14;
+          ctx.shadowColor = color;
+          drawRoundedRect(ctx, nx - 2, ny - 2, nw + 4, noteHeight + 4, 7);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 0.58 + near * 0.28 + (note.miss ? 0.12 : 0);
+          drawRoundedRect(ctx, nx, ny, nw, noteHeight, 6);
+          ctx.fill();
+
+          if (!note.miss && delta >= 0) {
+            ctx.globalAlpha = 0.15 + near * 0.11;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(nx + nw * 0.5, ny);
+            ctx.lineTo(nx + nw * 0.5, ny - 18 - near * 18);
+            ctx.stroke();
+          }
+
+          ctx.globalAlpha = 0.86 + near * 0.08;
+          ctx.strokeStyle = PALETTE.black;
+          ctx.lineWidth = 1;
+          drawRoundedRect(ctx, nx, ny, nw, noteHeight, 6);
+          ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+      }
+
+      function renderParticlesAndPopups() {
+        for (let i = 0; i < game.particles.length; i += 1) {
+          const p = game.particles[i];
+          const alpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * (0.6 + alpha * 0.9), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        for (let i = 0; i < game.popups.length; i += 1) {
+          const popup = game.popups[i];
+          const alpha = clamp(popup.life / popup.maxLife, 0, 1);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(popup.x, popup.y);
+          ctx.scale(popup.scale, popup.scale);
+          ctx.fillStyle = popup.color;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = `700 ${Math.floor(18 * (0.9 + alpha * 0.25))}px monospace`;
+          ctx.fillText(popup.text, 0, 0);
+          ctx.restore();
+        }
+
+        ctx.globalAlpha = 1;
+      }
+
+      function renderHUD(songTime) {
+        const acc = currentAccuracy();
+        const grade = gradeFromAccuracy(acc);
+        const mult = comboMultiplier(game.combo);
+
+        const margin = Math.max(12, width * 0.015);
+
+        // Score
+        ctx.fillStyle = PALETTE.pink;
+        ctx.globalAlpha = 0.98;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.font = `700 ${Math.max(18, Math.floor(width * 0.024))}px monospace`;
+        ctx.fillText(`SCORE ${formatNumber(game.score)}`, margin, margin);
+
+        // Accuracy and grade
+        ctx.textAlign = 'right';
+        ctx.font = `700 ${Math.max(17, Math.floor(width * 0.021))}px monospace`;
+        ctx.fillStyle = PALETTE.magenta;
+        ctx.fillText(`ACC ${acc.toFixed(1)}%`, width - margin, margin);
+        ctx.fillStyle = PALETTE.violet;
+        ctx.fillText(`GRADE ${grade}`, width - margin, margin + 26);
+
+        // Health bar
+        const hpW = Math.min(width * 0.28, 250);
+        const hpH = 15;
+        const hpX = (width - hpW) * 0.5;
+        const hpY = margin + 4;
+
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = PALETTE.indigo;
+        drawRoundedRect(ctx, hpX, hpY, hpW, hpH, 8);
+        ctx.fill();
+
+        const fill = clamp(game.health / 100, 0, 1);
+        const healthGradient = ctx.createLinearGradient(hpX, hpY, hpX + hpW, hpY);
+        healthGradient.addColorStop(0, PALETTE.pink);
+        healthGradient.addColorStop(0.65, PALETTE.magenta);
+        healthGradient.addColorStop(1, PALETTE.red);
+
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = healthGradient;
+        drawRoundedRect(ctx, hpX, hpY, hpW * fill, hpH, 8);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = PALETTE.violet;
+        ctx.lineWidth = 1;
+        drawRoundedRect(ctx, hpX, hpY, hpW, hpH, 8);
+        ctx.stroke();
+
+        // Song progress
+        const progress = clamp(songTime / (game.totalBeats * BEAT_SEC), 0, 1);
+        const pbW = Math.min(width * 0.54, 500);
+        const pbH = 8;
+        const pbX = (width - pbW) * 0.5;
+        const pbY = hpY + hpH + 10;
+
+        ctx.globalAlpha = 0.26;
+        ctx.fillStyle = PALETTE.indigo;
+        drawRoundedRect(ctx, pbX, pbY, pbW, pbH, 4);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.86;
+        ctx.fillStyle = PALETTE.violet;
+        drawRoundedRect(ctx, pbX, pbY, pbW * progress, pbH, 4);
+        ctx.fill();
+
+        // Combo center stack with bounce/shrink reactions.
+        const pop = 1 + game.comboPop * 0.2 - game.comboSad * 0.16;
+        ctx.save();
+        ctx.translate(width * 0.5, height * 0.15);
+        ctx.scale(pop, pop);
+
+        if (game.milestoneFlash > 0) {
+          ctx.globalAlpha = 0.22 * game.milestoneFlash;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(0, 4, Math.max(22, Math.floor(width * 0.038)), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = PALETTE.pink;
+        ctx.globalAlpha = 0.95;
+        ctx.font = `700 ${Math.max(24, Math.floor(width * 0.04))}px monospace`;
+        ctx.fillText(`${game.combo}`, 0, 0);
+
+        ctx.font = `700 ${Math.max(14, Math.floor(width * 0.02))}px monospace`;
+        ctx.fillStyle = PALETTE.magenta;
+        ctx.fillText(`COMBO  x${mult}`, 0, 24);
+        ctx.restore();
+
+        // Tutorial hint in first 8 beats.
+        if (songTime >= 0 && songTime < TUTORIAL_BEATS * BEAT_SEC) {
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = `700 ${Math.max(15, Math.floor(width * 0.018))}px monospace`;
+          ctx.fillStyle = PALETTE.violet;
+          ctx.globalAlpha = 0.95;
+          ctx.fillText('TUTORIAL: FOLLOW THE BEAT ON D F J K', width * 0.5, layout.laneTop + 16);
+        }
+
+        ctx.globalAlpha = 1;
+      }
+
+      function renderCountdownOverlay(songTime) {
+        if (songTime >= 0 || songTime < -COUNTDOWN_SEC) return;
+
+        const elapsed = songTime + COUNTDOWN_SEC;
+        const beatPosition = clamp(elapsed / BEAT_SEC, 0, COUNTDOWN_BEATS - 0.000001);
+        const beatIndex = clamp(Math.floor(beatPosition), 0, COUNTDOWN_BEATS - 1);
+        const label = COUNTDOWN_LABELS[beatIndex];
+        const phaseProgress = beatPosition - beatIndex;
+
+        const pulse = 1 - clamp(phaseProgress, 0, 1);
+        const scale = label === 'GO!' ? (0.94 + pulse * 0.32) : (0.9 + pulse * 0.4);
+        const alpha = 0.42 + pulse * 0.56;
+
+        const panelW = Math.min(width * 0.92, 760);
+        const panelH = Math.max(150, Math.floor(height * 0.24));
+        const panelX = (width - panelW) * 0.5;
+        const panelY = height * 0.41 - panelH * 0.5;
+
+        ctx.save();
+        ctx.globalAlpha = 0.24;
+        const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
+        panelGradient.addColorStop(0, 'rgba(10,10,15,0.9)');
+        panelGradient.addColorStop(1, 'rgba(40,9,175,0.56)');
+        ctx.fillStyle = panelGradient;
+        drawRoundedRect(ctx, panelX, panelY, panelW, panelH, 16);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = PALETTE.violet;
+        ctx.lineWidth = 2;
+        drawRoundedRect(ctx, panelX, panelY, panelW, panelH, 16);
+        ctx.stroke();
+
+        const centerX = width * 0.5;
+        const centerY = panelY + panelH * 0.5;
+        const textSize = label === 'GO!'
+          ? Math.max(48, Math.floor(width * 0.12))
+          : Math.max(64, Math.floor(width * 0.17));
+
+        ctx.translate(centerX, centerY);
+        ctx.scale(scale, scale);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.shadowBlur = 34;
+        ctx.shadowColor = PALETTE.pink;
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `900 ${textSize + 10}px monospace`;
+        ctx.fillText(label, 0, -3);
+
+        const textGradient = ctx.createLinearGradient(0, -textSize * 0.65, 0, textSize * 0.65);
+        textGradient.addColorStop(0, PALETTE.pink);
+        textGradient.addColorStop(0.5, '#ffffff');
+        textGradient.addColorStop(1, PALETTE.magenta);
+        ctx.fillStyle = textGradient;
+        ctx.globalAlpha = alpha;
+        ctx.font = `900 ${textSize}px monospace`;
+        ctx.fillText(label, 0, -4);
+
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = PALETTE.violet;
+        ctx.font = `700 ${Math.max(16, Math.floor(width * 0.026))}px monospace`;
+        ctx.fillText('GET READY', 0, textSize * 0.72);
+        ctx.restore();
+      }
+
+      // =========================
+      // Rendering - Menus
+      // =========================
+      function renderStartScreen() {
+        const titleY = height * 0.22;
+
+        ctx.fillStyle = PALETTE.black;
+        ctx.globalAlpha = 0.36;
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalAlpha = 1;
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = PALETTE.pink;
+        ctx.font = `900 ${Math.max(32, Math.floor(width * 0.072))}px monospace`;
+        ctx.fillText('ANALOGOUS HARMONY', width * 0.5, titleY);
+
+        if (game.startStage === 'splash') {
+          layout.difficultyButtons = [];
+
+          ctx.fillStyle = PALETTE.magenta;
+          ctx.font = `700 ${Math.max(14, Math.floor(width * 0.022))}px monospace`;
+          ctx.fillText('PRESS SPACE OR TAP', width * 0.5, titleY + 52);
+
+          ctx.fillStyle = PALETTE.violet;
+          ctx.font = `600 ${Math.max(12, Math.floor(width * 0.017))}px monospace`;
+          ctx.fillText('THEN SELECT A DIFFICULTY TO PLAY', width * 0.5, titleY + 82);
+
+          return;
+        }
+
+        ctx.fillStyle = PALETTE.magenta;
+        ctx.font = `700 ${Math.max(14, Math.floor(width * 0.022))}px monospace`;
+        ctx.fillText('SELECT DIFFICULTY', width * 0.5, titleY + 52);
+
+        ctx.fillStyle = PALETTE.violet;
+        ctx.font = `600 ${Math.max(12, Math.floor(width * 0.017))}px monospace`;
+        ctx.fillText('LEFT/RIGHT OR 1/2/3 TO CHOOSE, SPACE/ENTER TO PLAY', width * 0.5, titleY + 82);
+
+        // Difficulty buttons
+        layout.difficultyButtons = [];
+        const buttonW = Math.min(165, width * 0.26);
+        const buttonH = 44;
+        const gap = Math.max(10, width * 0.02);
+        const totalW = buttonW * 3 + gap * 2;
+        const startX = (width - totalW) * 0.5;
+        const y = height * 0.42;
+
+        for (let i = 0; i < DIFFICULTIES.length; i += 1) {
+          const x = startX + i * (buttonW + gap);
+          const selected = i === game.selectedDifficulty;
+
+          layout.difficultyButtons.push({ x, y, w: buttonW, h: buttonH });
+
+          ctx.globalAlpha = selected ? 0.28 : 0.16;
+          ctx.fillStyle = selected ? PALETTE.pink : PALETTE.indigo;
+          drawRoundedRect(ctx, x, y, buttonW, buttonH, 10);
+          ctx.fill();
+
+          ctx.globalAlpha = selected ? 0.98 : 0.7;
+          ctx.strokeStyle = selected ? PALETTE.magenta : PALETTE.violet;
+          ctx.lineWidth = selected ? 2.6 : 1.2;
+          drawRoundedRect(ctx, x, y, buttonW, buttonH, 10);
+          ctx.stroke();
+
+          ctx.globalAlpha = selected ? 0.98 : 0.8;
+          ctx.fillStyle = selected ? PALETTE.pink : PALETTE.violet;
+          ctx.font = `700 ${Math.max(16, Math.floor(width * 0.022))}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(DIFFICULTIES[i].name, x + buttonW * 0.5, y + buttonH * 0.5);
+        }
+
+        // Difficulty info and high score
+        const selectedName = DIFFICULTIES[game.selectedDifficulty].name;
+        const hs = game.highScores[selectedName];
+        const hsText = hs
+          ? `BEST ${selectedName.toUpperCase()}: ${formatNumber(hs.score)}  |  ACC ${hs.accuracy.toFixed(1)}%  |  GRADE ${hs.grade}`
+          : `BEST ${selectedName.toUpperCase()}: 0`;
+
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = PALETTE.magenta;
+        ctx.font = `600 ${Math.max(13, Math.floor(width * 0.017))}px monospace`;
+        ctx.fillText(hsText, width * 0.5, y + 78);
+
+        ctx.fillStyle = PALETTE.violet;
+        ctx.font = `600 ${Math.max(12, Math.floor(width * 0.015))}px monospace`;
+        ctx.fillText('MOBILE: TAP A DIFFICULTY, THEN TAP OUTSIDE BUTTONS TO START', width * 0.5, y + 108);
+
+        ctx.globalAlpha = 1;
+      }
+
+      function renderGameOverScreen() {
+        const acc = currentAccuracy();
+        const grade = gradeFromAccuracy(acc);
+        const selectedName = game.currentDifficulty.name;
+        const high = game.highScores[selectedName];
+
+        ctx.fillStyle = PALETTE.black;
+        ctx.globalAlpha = 0.56;
+        ctx.fillRect(0, 0, width, height);
+        const panelW = Math.min(width * 0.88, 760);
+        const panelH = Math.min(height * 0.86, 680);
+        const panelX = (width - panelW) * 0.5;
+        const panelY = (height - panelH) * 0.5;
+        const panelRadius = Math.max(12, Math.floor(panelW * 0.03));
+
+        ctx.globalAlpha = 0.72;
+        ctx.fillStyle = PALETTE.black;
+        drawRoundedRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.92;
+        ctx.strokeStyle = PALETTE.indigo;
+        ctx.lineWidth = Math.max(1.4, panelW * 0.004);
+        drawRoundedRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const rows = [
+          { id: 'title', weight: 1.2 },
+          { id: 'score', weight: 1.45 },
+          { id: 'combo', weight: 0.95 },
+          { id: 'accuracy', weight: 0.95 },
+          { id: 'gradeLabel', weight: 0.72 },
+          { id: 'grade', weight: 1.7 },
+          { id: 'breakdownTitle', weight: 0.85 },
+          { id: 'perfect', weight: 0.82 },
+          { id: 'great', weight: 0.82 },
+          { id: 'good', weight: 0.82 },
+          { id: 'miss', weight: 0.82 }
+        ];
+        if (high) rows.push({ id: 'best', weight: 0.78 });
+        rows.push({ id: 'restart', weight: 0.9 });
+
+        const contentTop = panelY + panelH * 0.09;
+        const contentBottom = panelY + panelH * 0.91;
+        const contentHeight = contentBottom - contentTop;
+
+        let totalWeight = 0;
+        for (let i = 0; i < rows.length; i += 1) {
+          totalWeight += rows[i].weight;
+        }
+
+        const rowHeights = {};
+        const rowY = {};
+        const unit = contentHeight / totalWeight;
+        let cursorY = contentTop;
+        for (let i = 0; i < rows.length; i += 1) {
+          const row = rows[i];
+          const h = row.weight * unit;
+          rowHeights[row.id] = h;
+          rowY[row.id] = cursorY + h * 0.5;
+          cursorY += h;
+        }
+
+        function fontForRow(rowId, scale, minPx, maxPx) {
+          return clamp(Math.floor(rowHeights[rowId] * scale), minPx, maxPx);
+        }
+
+        const titleSize = fontForRow('title', 0.62, 18, Math.floor(panelW * 0.1));
+        const scoreSize = fontForRow('score', 0.72, 24, Math.floor(panelW * 0.13));
+        const statSize = fontForRow('combo', 0.58, 12, Math.floor(panelW * 0.06));
+        const gradeLabelSize = fontForRow('gradeLabel', 0.6, 11, Math.floor(panelW * 0.05));
+        const gradeSize = fontForRow('grade', 0.78, 28, Math.floor(panelW * 0.22));
+        const breakdownTitleSize = fontForRow('breakdownTitle', 0.58, 11, Math.floor(panelW * 0.05));
+        const breakdownSize = fontForRow('perfect', 0.58, 11, Math.floor(panelW * 0.055));
+        const bestSize = high ? fontForRow('best', 0.52, 10, Math.floor(panelW * 0.04)) : 10;
+        const restartSize = fontForRow('restart', 0.58, 11, Math.floor(panelW * 0.05));
+
+        const gradeColor = grade.startsWith('S')
+          ? PALETTE.pink
+          : grade === 'A'
+            ? PALETTE.magenta
+            : grade === 'B'
+              ? PALETTE.violet
+              : grade === 'C'
+                ? PALETTE.indigo
+                : PALETTE.red;
+
+        ctx.fillStyle = game.completed ? PALETTE.pink : PALETTE.red;
+        ctx.font = `900 ${titleSize}px monospace`;
+        ctx.fillText(game.completed ? 'TRACK COMPLETE' : 'GAME OVER', width * 0.5, rowY.title);
+
+        ctx.fillStyle = PALETTE.magenta;
+        ctx.font = `900 ${scoreSize}px monospace`;
+        ctx.fillText(`SCORE ${formatNumber(game.score)}`, width * 0.5, rowY.score);
+
+        ctx.fillStyle = PALETTE.violet;
+        ctx.font = `700 ${statSize}px monospace`;
+        ctx.fillText(`MAX COMBO ${game.maxCombo}`, width * 0.5, rowY.combo);
+        ctx.fillText(`ACCURACY ${acc.toFixed(2)}%`, width * 0.5, rowY.accuracy);
+
+        ctx.fillStyle = PALETTE.indigo;
+        ctx.font = `700 ${gradeLabelSize}px monospace`;
+        ctx.fillText('GRADE', width * 0.5, rowY.gradeLabel);
+
+        ctx.fillStyle = gradeColor;
+        ctx.font = `900 ${gradeSize}px monospace`;
+        ctx.fillText(grade, width * 0.5, rowY.grade);
+
+        ctx.fillStyle = PALETTE.pink;
+        ctx.font = `700 ${breakdownTitleSize}px monospace`;
+        ctx.fillText('BREAKDOWN', width * 0.5, rowY.breakdownTitle);
+
+        ctx.fillStyle = PALETTE.magenta;
+        ctx.font = `700 ${breakdownSize}px monospace`;
+        ctx.fillText(`PERFECT ${game.judgments.perfect}`, width * 0.5, rowY.perfect);
+        ctx.fillText(`GREAT ${game.judgments.great}`, width * 0.5, rowY.great);
+        ctx.fillText(`GOOD ${game.judgments.good}`, width * 0.5, rowY.good);
+        ctx.fillText(`MISS ${game.judgments.miss}`, width * 0.5, rowY.miss);
+
+        if (high && rowY.best !== undefined) {
+          ctx.fillStyle = PALETTE.violet;
+          ctx.font = `600 ${bestSize}px monospace`;
+          ctx.fillText(
+            `BEST ${selectedName.toUpperCase()} ${formatNumber(high.score)}  |  ${high.accuracy.toFixed(1)}%  |  ${high.grade}`,
+            width * 0.5,
+            rowY.best
+          );
+        }
+
+        ctx.fillStyle = PALETTE.pink;
+        ctx.font = `700 ${restartSize}px monospace`;
+        ctx.fillText('PRESS SPACE TO RESTART', width * 0.5, rowY.restart);
+      }
+
+      // =========================
+      // Main Render
+      // =========================
+      function render() {
+        const alpha = clamp(runtime.accumulator / FIXED_STEP_SEC, 0, 1);
+        const songTime = lerp(runtime.songTimePrev, runtime.songTimeCurr, alpha);
+
+        ctx.save();
+
+        // Miss shake
+        if (game.screenShake.life > 0 && game.screenShake.amplitude > 0.01) {
+          const shakeNorm = clamp(game.screenShake.life / game.screenShake.maxLife, 0, 1);
+          const shake = game.screenShake.amplitude * shakeNorm;
+          const sx = (Math.random() - 0.5) * shake;
+          const sy = (Math.random() - 0.5) * shake;
+          ctx.translate(sx, sy);
+        }
+
+        renderBackground(songTime);
+
+        if (game.screen === 'playing' || game.screen === 'gameover') {
+          renderLanes(songTime);
+          renderParticlesAndPopups();
+          renderHUD(songTime);
+          if (game.screen === 'playing') {
+            renderCountdownOverlay(songTime);
+          }
+        }
+
+        if (game.screen === 'start') {
+          renderStartScreen();
+        } else if (game.screen === 'gameover') {
+          renderGameOverScreen();
+        }
+
+        // Miss vignette flash
+        if (game.missFlash > 0) {
+          const vignetteAlpha = clamp(game.missFlash * 0.28, 0, 0.28);
+          const grad = ctx.createRadialGradient(width * 0.5, height * 0.5, Math.min(width, height) * 0.22, width * 0.5, height * 0.5, Math.max(width, height) * 0.7);
+          grad.addColorStop(0, 'rgba(0,0,0,0)');
+          grad.addColorStop(1, `rgba(197,15,73,${vignetteAlpha.toFixed(3)})`);
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        ctx.restore();
+
+        if (game.frameFlash > 0) {
+          ctx.globalAlpha = clamp(game.frameFlash, 0, 0.12);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.globalAlpha = 1;
+          game.frameFlash = 0;
+        }
+      }
+
+      // =========================
+      // Main Loop
+      // =========================
+      function frame(now) {
+        const dt = clamp((now - runtime.lastFrame) / 1000, 0, 0.25);
+        runtime.lastFrame = now;
+        runtime.accumulator += dt;
+
+        let steps = 0;
+        while (runtime.accumulator >= FIXED_STEP_SEC && steps < MAX_SIM_STEPS) {
+          runtime.elapsedSec += FIXED_STEP_SEC;
+          update(FIXED_STEP_SEC);
+          runtime.accumulator -= FIXED_STEP_SEC;
+          steps += 1;
+        }
+
+        if (steps >= MAX_SIM_STEPS) {
+          runtime.accumulator = 0;
+        }
+
+        render();
+
+        window.requestAnimationFrame(frame);
+      }
+
+      // =========================
+      // Boot
+      // =========================
+      function init() {
+        game.highScores = loadHighScores();
+        initObjectPools();
+        clearTransientEffects();
+        resize();
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('keydown', handleKeyDown, { passive: false });
+        window.addEventListener('keyup', handleKeyUp, { passive: true });
+        window.addEventListener('blur', () => {
+          game.lanePressedKeyboard = [false, false, false, false];
+        });
+
+        canvas.addEventListener('pointerdown', handlePointerDown, { passive: false });
+        canvas.addEventListener('pointermove', handlePointerMove, { passive: true });
+        canvas.addEventListener('pointerup', handlePointerUp, { passive: true });
+        canvas.addEventListener('pointercancel', handlePointerUp, { passive: true });
+
+        window.requestAnimationFrame(frame);
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
