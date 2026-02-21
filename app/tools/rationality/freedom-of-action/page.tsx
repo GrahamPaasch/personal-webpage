@@ -1,0 +1,677 @@
+'use client';
+
+const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Freedom of Action</title>
+<style>
+  :root {
+    --bg: #0a0d14;
+    --surface: #121826;
+    --surface2: #1b2438;
+    --border: #2b3650;
+    --accent: #4aa8ff;
+    --accent-dim: #2f7dd0;
+    --accent-glow: rgba(74, 168, 255, 0.16);
+    --text: #e8eefb;
+    --text-dim: #9fb0cd;
+    --real: #58c27d;
+    --assumed: #f2c14e;
+    --emotional: #f48c8c;
+    --danger: #e06c75;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: radial-gradient(circle at 20% 0%, #121a2a 0%, var(--bg) 48%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 1.7rem; margin-bottom: 6px; }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 22px;
+    line-height: 1.45;
+  }
+  .progress-bar { display: flex; gap: 4px; margin-bottom: 18px; }
+  .progress-dot {
+    height: 4px;
+    flex: 1;
+    border-radius: 2px;
+    background: var(--surface2);
+    transition: background 0.25s;
+  }
+  .progress-dot.done { background: var(--accent); }
+  .progress-dot.current { background: var(--accent); opacity: 0.55; }
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.28s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .step-title { font-size: 1.12rem; font-weight: 620; margin-bottom: 5px; }
+  .step-desc {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  textarea,
+  input[type="text"],
+  select,
+  input[type="range"] {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.94rem;
+  }
+  textarea,
+  input[type="text"],
+  select {
+    padding: 10px 12px;
+    resize: vertical;
+  }
+  textarea { min-height: 88px; }
+  select { min-height: 42px; }
+  textarea:focus,
+  input[type="text"]:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    padding: 10px 18px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dim); transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn-danger {
+    background: rgba(224, 108, 117, 0.1);
+    border-color: rgba(224, 108, 117, 0.35);
+    color: var(--danger);
+  }
+  .list-stack { display: flex; flex-direction: column; gap: 10px; }
+  .list-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .constraint-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .icon-btn {
+    border: 1px solid rgba(224, 108, 117, 0.35);
+    background: rgba(224, 108, 117, 0.12);
+    color: var(--danger);
+    border-radius: 8px;
+    padding: 9px 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .icon-btn:hover { filter: brightness(1.1); }
+  .add-row { margin-top: 10px; }
+  .gauge-wrap { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+  .gauge-wrap input[type="range"] { padding: 0; }
+  .gauge-value {
+    min-width: 34px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .hint {
+    margin-top: 10px;
+    padding: 11px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    line-height: 1.45;
+    font-size: 0.84rem;
+  }
+  .summary-section { margin-bottom: 16px; }
+  .summary-title {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 7px;
+    font-weight: 700;
+  }
+  .summary-list { display: flex; flex-direction: column; gap: 8px; }
+  .summary-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.45;
+    font-size: 0.9rem;
+  }
+  .tag {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  .tag-real { background: rgba(88, 194, 125, 0.16); color: var(--real); }
+  .tag-assumed { background: rgba(242, 193, 78, 0.16); color: var(--assumed); }
+  .tag-emotional { background: rgba(244, 140, 140, 0.16); color: var(--emotional); }
+  .summary-note { color: var(--text-dim); font-size: 0.88rem; font-style: italic; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 680px) {
+    .constraint-grid { grid-template-columns: 1fr; }
+    .split { grid-template-columns: 1fr; }
+    .icon-btn { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Freedom of Action</h1>
+  <p class="subtitle">Find where your options are narrower than they need to be, separate real limits from assumed ones, and choose your next move on purpose.</p>
+
+  <div class="progress-bar" id="progress-bar"></div>
+
+  <div class="step active" id="step-1">
+    <div class="card">
+      <div class="step-title">1. Describe the situation where you feel stuck</div>
+      <div class="step-desc">Name the concrete context, what decision is in front of you, and what "stuck" feels like right now.</div>
+      <label for="situation-input">Situation</label>
+      <textarea id="situation-input" placeholder="e.g. I feel trapped between staying in my role and risking a move into work that aligns more with my values."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goToStep(2)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-2">
+    <div class="card">
+      <div class="step-title">2. Identify the default frame / assumed path</div>
+      <div class="step-desc">What story is currently running in your head about "how this has to go"?</div>
+      <label for="frame-input">Default frame</label>
+      <textarea id="frame-input" placeholder="e.g. I have to either keep this exact job forever or make one huge leap immediately."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(1)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(3)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-3">
+    <div class="card">
+      <div class="step-title">3. List constraints (tag as real / assumed / emotional)</div>
+      <div class="step-desc">Break out every factor limiting your choices. Tag each one so you can stop treating all constraints as equally fixed.</div>
+      <div class="list-stack" id="constraints-list"></div>
+      <div class="add-row">
+        <button class="btn btn-secondary" onclick="addConstraint()">+ Add constraint</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(2)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(4)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-4">
+    <div class="card">
+      <div class="step-title">4. Generate alternative options</div>
+      <div class="step-desc">List options beyond the default path. Include small moves, hybrids, and reversible experiments.</div>
+      <div class="list-stack" id="options-list"></div>
+      <div class="add-row">
+        <button class="btn btn-secondary" onclick="addOption()">+ Add option</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(3)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(5)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-5">
+    <div class="card">
+      <div class="step-title">5. Detect overbidding with a slider</div>
+      <div class="step-desc">How much are you demanding an idealized outcome instead of a workable next step?</div>
+      <label for="overbid-slider">Overbidding level (0 = no overbidding, 10 = extreme overbidding)</label>
+      <div class="gauge-wrap">
+        <input type="range" id="overbid-slider" min="0" max="10" value="5" oninput="updateOverbid(this.value)">
+        <span class="gauge-value" id="overbid-value">5</span>
+      </div>
+      <div class="hint" id="overbid-message"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(4)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(6)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-6">
+    <div class="card">
+      <div class="step-title">6. Identify the real need</div>
+      <div class="step-desc">Under your strategy and preferences, what core need are you actually trying to protect or satisfy?</div>
+      <label for="real-need-input">Real need</label>
+      <textarea id="real-need-input" placeholder="e.g. I need stability and enough autonomy to keep building meaningful work over time."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(5)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(7)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-7">
+    <div class="card">
+      <div class="step-title">7. Make a fair bid</div>
+      <div class="step-desc">Ask for what the real need requires, without over-claiming or demanding impossible guarantees.</div>
+      <label for="fair-bid-input">Your fair bid</label>
+      <textarea id="fair-bid-input" placeholder="e.g. I want to negotiate a 90-day transition plan with clear milestones and one protected day per week for portfolio work."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(6)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(8)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-8">
+    <div class="card">
+      <div class="step-title">8. Choose an action and explain why</div>
+      <div class="step-desc">Pick one concrete action now, and name the values it serves so your decision is legible to yourself.</div>
+      <label for="action-input">Chosen action</label>
+      <input type="text" id="action-input" placeholder="e.g. Schedule a conversation with my manager this week to propose the transition plan.">
+      <div class="split" style="margin-top: 12px;">
+        <div>
+          <label for="values-input">Values this aligns with</label>
+          <input type="text" id="values-input" placeholder="e.g. Integrity, growth, responsibility">
+        </div>
+        <div>
+          <label for="action-why-input">Why this action</label>
+          <input type="text" id="action-why-input" placeholder="e.g. It lowers uncertainty without burning bridges.">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(7)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(9)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-9">
+    <div class="card">
+      <div class="step-title">9. Design a next experiment</div>
+      <div class="step-desc">Make the next step testable: what will you do, by when, and what evidence will count as signal?</div>
+      <label for="experiment-input">Next experiment</label>
+      <textarea id="experiment-input" placeholder="e.g. Run two informational calls this week and compare energy/fit signals to my current role."></textarea>
+      <div class="split" style="margin-top: 12px;">
+        <div>
+          <label for="success-signal-input">Signal to watch</label>
+          <input type="text" id="success-signal-input" placeholder="e.g. Clarity score improves from 3/10 to 6/10">
+        </div>
+        <div>
+          <label for="experiment-time-input">When you will run it</label>
+          <input type="text" id="experiment-time-input" placeholder="e.g. By Friday 3pm">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(8)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(10)">View summary</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-10">
+    <div class="card">
+      <div class="step-title">10. Summary</div>
+      <div id="summary-content"></div>
+      <div class="hint" id="summary-hint"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(9)">&larr; Back</button>
+        <button class="btn btn-danger" onclick="resetAll()">Start over</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var totalSteps = 10;
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function buildProgress(current) {
+    var bar = document.getElementById('progress-bar');
+    bar.innerHTML = '';
+    for (var i = 1; i <= totalSteps; i++) {
+      var dot = document.createElement('div');
+      dot.className = 'progress-dot' + (i < current ? ' done' : (i === current ? ' current' : ''));
+      bar.appendChild(dot);
+    }
+  }
+
+  function showStep(stepNumber) {
+    var el = document.getElementById('step-' + stepNumber);
+    if (el) {
+      el.classList.add('active');
+    }
+  }
+
+  function goToStep(stepNumber) {
+    if (stepNumber === 10) {
+      buildSummary();
+    }
+    buildProgress(stepNumber);
+    var current = document.querySelector('.step.active');
+    if (current) {
+      current.classList.remove('active');
+    }
+    showStep(stepNumber);
+  }
+
+  function addConstraint(text, type) {
+    var list = document.getElementById('constraints-list');
+    var item = document.createElement('div');
+    item.className = 'list-item constraint-item';
+
+    var grid = document.createElement('div');
+    grid.className = 'constraint-grid';
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Constraint (what limits me?)';
+    input.value = text || '';
+
+    var select = document.createElement('select');
+    var options = [
+      { value: 'real', label: 'Real' },
+      { value: 'assumed', label: 'Assumed' },
+      { value: 'emotional', label: 'Emotional' }
+    ];
+
+    for (var i = 0; i < options.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = options[i].value;
+      opt.textContent = options[i].label;
+      if ((type || 'real') === options[i].value) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    }
+
+    var remove = document.createElement('button');
+    remove.className = 'icon-btn';
+    remove.textContent = 'Remove';
+    remove.type = 'button';
+    remove.onclick = function () { item.remove(); };
+
+    grid.appendChild(input);
+    grid.appendChild(select);
+    grid.appendChild(remove);
+    item.appendChild(grid);
+    list.appendChild(item);
+  }
+
+  function getConstraints() {
+    var rows = document.querySelectorAll('#constraints-list .constraint-item');
+    var results = [];
+    for (var i = 0; i < rows.length; i++) {
+      var input = rows[i].querySelector('input');
+      var select = rows[i].querySelector('select');
+      var text = input ? input.value.trim() : '';
+      var type = select ? select.value : 'real';
+      if (text) {
+        results.push({ text: text, type: type });
+      }
+    }
+    return results;
+  }
+
+  function addOption(text) {
+    var list = document.getElementById('options-list');
+    var item = document.createElement('div');
+    item.className = 'list-item';
+
+    var row = document.createElement('div');
+    row.className = 'constraint-grid';
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Alternative option';
+    input.value = text || '';
+
+    var spacer = document.createElement('div');
+    spacer.style.display = 'none';
+
+    var remove = document.createElement('button');
+    remove.className = 'icon-btn';
+    remove.textContent = 'Remove';
+    remove.type = 'button';
+    remove.onclick = function () { item.remove(); };
+
+    row.appendChild(input);
+    row.appendChild(spacer);
+    row.appendChild(remove);
+    item.appendChild(row);
+    list.appendChild(item);
+  }
+
+  function getOptions() {
+    var inputs = document.querySelectorAll('#options-list input');
+    var results = [];
+    for (var i = 0; i < inputs.length; i++) {
+      var val = inputs[i].value.trim();
+      if (val) results.push(val);
+    }
+    return results;
+  }
+
+  function overbidMessageFor(value) {
+    var n = Number(value);
+    if (n <= 3) return 'Low overbidding: your ask is likely close to what you actually need.';
+    if (n <= 6) return 'Moderate overbidding: check whether part of your ask is comfort or status rather than need.';
+    if (n <= 8) return 'High overbidding: separate the core need from the ideal strategy before choosing.';
+    return 'Very high overbidding: pause and restate the need in a smaller, fairer, testable form.';
+  }
+
+  function updateOverbid(value) {
+    var n = Number(value);
+    document.getElementById('overbid-value').textContent = String(n);
+    document.getElementById('overbid-message').textContent = overbidMessageFor(n);
+  }
+
+  function summaryLine(content, fallback) {
+    if (content && content.trim()) {
+      return '<p>' + escapeHtml(content.trim()) + '</p>';
+    }
+    return '<p class="summary-note">' + escapeHtml(fallback) + '</p>';
+  }
+
+  function buildSummary() {
+    var situation = document.getElementById('situation-input').value;
+    var frame = document.getElementById('frame-input').value;
+    var overbid = Number(document.getElementById('overbid-slider').value || '0');
+    var realNeed = document.getElementById('real-need-input').value;
+    var fairBid = document.getElementById('fair-bid-input').value;
+    var action = document.getElementById('action-input').value;
+    var actionWhy = document.getElementById('action-why-input').value;
+    var values = document.getElementById('values-input').value;
+    var experiment = document.getElementById('experiment-input').value;
+    var signal = document.getElementById('success-signal-input').value;
+    var when = document.getElementById('experiment-time-input').value;
+    var constraints = getConstraints();
+    var options = getOptions();
+
+    var html = '';
+
+    html += '<div class="summary-section"><div class="summary-title">Situation</div>';
+    html += summaryLine(situation, 'No situation entered yet.');
+    html += '</div>';
+
+    html += '<div class="summary-section"><div class="summary-title">Default Frame</div>';
+    html += summaryLine(frame, 'No default frame entered yet.');
+    html += '</div>';
+
+    html += '<div class="summary-section"><div class="summary-title">Constraints</div>';
+    if (constraints.length === 0) {
+      html += '<p class="summary-note">No constraints listed.</p>';
+    } else {
+      html += '<div class="summary-list">';
+      for (var i = 0; i < constraints.length; i++) {
+        var c = constraints[i];
+        html += '<div class="summary-item"><span class="tag tag-' + escapeHtml(c.type) + '">' + escapeHtml(c.type) + '</span><span>' + escapeHtml(c.text) + '</span></div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="summary-section"><div class="summary-title">Alternative Options</div>';
+    if (options.length === 0) {
+      html += '<p class="summary-note">No alternatives listed.</p>';
+    } else {
+      html += '<div class="summary-list">';
+      for (var j = 0; j < options.length; j++) {
+        html += '<div class="summary-item"><span>&bull;</span><span>' + escapeHtml(options[j]) + '</span></div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="summary-section"><div class="summary-title">Overbidding Check</div>';
+    html += '<p><strong>' + String(overbid) + '/10</strong> - ' + escapeHtml(overbidMessageFor(overbid)) + '</p>';
+    html += '</div>';
+
+    html += '<div class="summary-section"><div class="summary-title">Real Need</div>';
+    html += summaryLine(realNeed, 'No real need identified yet.');
+    html += '</div>';
+
+    html += '<div class="summary-section"><div class="summary-title">Fair Bid</div>';
+    html += summaryLine(fairBid, 'No fair bid written yet.');
+    html += '</div>';
+
+    html += '<div class="summary-section"><div class="summary-title">Chosen Action</div>';
+    html += summaryLine(action, 'No action chosen yet.');
+    if (values && values.trim()) {
+      html += '<p><strong>Values:</strong> ' + escapeHtml(values.trim()) + '</p>';
+    }
+    if (actionWhy && actionWhy.trim()) {
+      html += '<p><strong>Why:</strong> ' + escapeHtml(actionWhy.trim()) + '</p>';
+    }
+    html += '</div>';
+
+    html += '<div class="summary-section"><div class="summary-title">Next Experiment</div>';
+    html += summaryLine(experiment, 'No experiment designed yet.');
+    if (signal && signal.trim()) {
+      html += '<p><strong>Signal:</strong> ' + escapeHtml(signal.trim()) + '</p>';
+    }
+    if (when && when.trim()) {
+      html += '<p><strong>When:</strong> ' + escapeHtml(when.trim()) + '</p>';
+    }
+    html += '</div>';
+
+    document.getElementById('summary-content').innerHTML = html;
+    document.getElementById('summary-hint').innerHTML = 'Use this summary to separate hard constraints from changeable ones, then commit to the smallest action that serves your values.';
+  }
+
+  function resetAll() {
+    if (!confirm('Start over? This clears your entries.')) return;
+
+    document.getElementById('situation-input').value = '';
+    document.getElementById('frame-input').value = '';
+    document.getElementById('real-need-input').value = '';
+    document.getElementById('fair-bid-input').value = '';
+    document.getElementById('action-input').value = '';
+    document.getElementById('action-why-input').value = '';
+    document.getElementById('values-input').value = '';
+    document.getElementById('experiment-input').value = '';
+    document.getElementById('success-signal-input').value = '';
+    document.getElementById('experiment-time-input').value = '';
+
+    document.getElementById('constraints-list').innerHTML = '';
+    addConstraint('', 'real');
+    addConstraint('', 'assumed');
+    addConstraint('', 'emotional');
+
+    document.getElementById('options-list').innerHTML = '';
+    addOption('');
+    addOption('');
+    addOption('');
+
+    document.getElementById('overbid-slider').value = '5';
+    updateOverbid(5);
+
+    goToStep(1);
+  }
+
+  buildProgress(1);
+  addConstraint('', 'real');
+  addConstraint('', 'assumed');
+  addConstraint('', 'emotional');
+  addOption('');
+  addOption('');
+  addOption('');
+  updateOverbid(5);
+</script>
+</body>
+</html>
+`;
+
+export default function FreedomOfActionPage() {
+  return (
+    <div style={{ width: '100%', minHeight: 'calc(100vh - 120px)' }}>
+      <iframe
+        srcDoc={htmlContent}
+        style={{ width: '100%', height: 'calc(100vh - 120px)', border: 'none', borderRadius: 8 }}
+        title="Freedom of Action"
+        sandbox="allow-scripts allow-same-origin"
+      />
+    </div>
+  );
+}
