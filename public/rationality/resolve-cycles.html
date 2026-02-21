@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resolve Cycles</title>
+<style>
+  :root {
+    --bg: #0e0b07;
+    --bg-2: #161008;
+    --surface: #1b150d;
+    --surface-2: #261d12;
+    --surface-3: #302414;
+    --border: #4a371f;
+    --accent: #d2a35d;
+    --accent-2: #f0c985;
+    --accent-soft: rgba(210, 163, 93, 0.18);
+    --text: #f6eedc;
+    --text-dim: #c8b89d;
+    --muted: #8f7e63;
+    --success: #88bc84;
+    --danger: #d07262;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    min-height: 100vh;
+    padding: 22px;
+    color: var(--text);
+    font-family: "Avenir Next", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background:
+      radial-gradient(circle at 12% 6%, rgba(210,163,93,0.17), transparent 34%),
+      radial-gradient(circle at 88% 2%, rgba(117,83,41,0.23), transparent 33%),
+      linear-gradient(165deg, var(--bg) 0%, var(--bg-2) 70%, #120d07 100%);
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 1.92rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.98rem;
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+
+  .progress-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+
+  .progress-dot {
+    flex: 1;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.25s ease;
+  }
+
+  .progress-dot.done {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-color: rgba(240, 201, 133, 0.45);
+  }
+
+  .progress-dot.current {
+    background: linear-gradient(90deg, rgba(210,163,93,0.7), rgba(240,201,133,0.9));
+    border-color: rgba(240, 201, 133, 0.75);
+    box-shadow: 0 0 0 2px rgba(210,163,93,0.2);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .card {
+    background: linear-gradient(170deg, rgba(34,26,16,0.9), rgba(27,21,13,0.96));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.28);
+  }
+
+  .step {
+    display: none;
+  }
+
+  .step.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .step-title {
+    font-size: 1.14rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: 0.01em;
+  }
+
+  .step-desc {
+    color: var(--text-dim);
+    line-height: 1.5;
+    font-size: 0.93rem;
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  textarea,
+  input[type="text"] {
+    width: 100%;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 12px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  textarea {
+    min-height: 110px;
+    resize: vertical;
+    line-height: 1.45;
+  }
+
+  textarea:focus,
+  input[type="text"]:focus,
+  input[type="range"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(210,163,93,0.2);
+  }
+
+  .value-statement {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .value-prefix {
+    color: var(--accent-2);
+    font-weight: 700;
+    padding: 0 2px;
+    white-space: nowrap;
+  }
+
+  .value-hints {
+    margin-top: 10px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .value-hint {
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    border: 1px solid rgba(210,163,93,0.36);
+    border-radius: 999px;
+    padding: 3px 10px;
+    background: rgba(210,163,93,0.08);
+    letter-spacing: 0.02em;
+  }
+
+  .resonance-block {
+    border: 1px solid rgba(210,163,93,0.35);
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 8px;
+    background: linear-gradient(160deg, rgba(210,163,93,0.11), rgba(33,26,16,0.45));
+  }
+
+  .resonance-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .resonance-value {
+    min-width: 56px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-2);
+    background: rgba(210,163,93,0.16);
+    border: 1px solid rgba(210,163,93,0.36);
+    border-radius: 9px;
+    padding: 6px 8px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 9px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: linear-gradient(90deg,
+      var(--accent-2) 0%,
+      var(--accent) var(--slider-fill, 55%),
+      var(--surface-2) var(--slider-fill, 55%),
+      var(--surface-2) 100%);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff9e7, var(--accent-2));
+    border: 2px solid #3f2d15;
+    box-shadow: 0 0 0 3px rgba(210,163,93,0.2);
+    cursor: pointer;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff9e7, var(--accent-2));
+    border: 2px solid #3f2d15;
+    box-shadow: 0 0 0 3px rgba(210,163,93,0.2);
+    cursor: pointer;
+  }
+
+  .recognition {
+    border: 1px solid rgba(240,201,133,0.45);
+    background: linear-gradient(160deg, rgba(210,163,93,0.15), rgba(36,27,16,0.55));
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  .recognition-title {
+    font-size: 0.84rem;
+    color: var(--accent-2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .recognition-copy {
+    color: var(--text-dim);
+    line-height: 1.5;
+    font-size: 0.9rem;
+  }
+
+  .shift-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .shift-option {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-dim);
+    padding: 9px 10px;
+    font-size: 0.86rem;
+    transition: all 0.2s ease;
+  }
+
+  .shift-option input {
+    accent-color: var(--accent);
+  }
+
+  .shift-option.selected {
+    border-color: rgba(240,201,133,0.78);
+    color: var(--text);
+    background: rgba(210,163,93,0.15);
+    box-shadow: inset 0 0 0 1px rgba(240,201,133,0.2);
+  }
+
+  .btn-row {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary {
+    background: linear-gradient(120deg, var(--accent), var(--accent-2));
+    color: #2d1f0d;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+  }
+
+  .btn-secondary {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: rgba(240,201,133,0.7);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover {
+    color: var(--text);
+    border-color: rgba(240,201,133,0.6);
+  }
+
+  .btn-danger {
+    background: rgba(208,114,98,0.12);
+    color: #f2a294;
+    border: 1px solid rgba(208,114,98,0.38);
+  }
+
+  .ledger {
+    position: sticky;
+    top: 20px;
+  }
+
+  .ledger-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .ledger-sub {
+    color: var(--text-dim);
+    font-size: 0.86rem;
+    line-height: 1.45;
+    margin-bottom: 12px;
+  }
+
+  .pair-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 66vh;
+    overflow: auto;
+    padding-right: 3px;
+  }
+
+  .pair-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    padding: 10px;
+  }
+
+  .pair-item.current {
+    border-color: rgba(240,201,133,0.68);
+    box-shadow: inset 0 0 0 1px rgba(240,201,133,0.25);
+  }
+
+  .pair-kicker {
+    font-size: 0.73rem;
+    color: var(--accent-2);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 5px;
+  }
+
+  .pair-frustration,
+  .pair-value {
+    font-size: 0.84rem;
+    line-height: 1.42;
+    color: var(--text);
+  }
+
+  .pair-value {
+    margin-top: 6px;
+    color: var(--text-dim);
+  }
+
+  .empty {
+    color: var(--muted);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 0.86rem;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .review-grid {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .review-item {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .review-label {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .review-value {
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .summary-wrap {
+    display: grid;
+    gap: 14px;
+  }
+
+  .summary-section {
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-2);
+    padding: 12px;
+  }
+
+  .summary-title {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  .summary-note {
+    color: var(--text-dim);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+
+  .pattern-line {
+    font-size: 0.96rem;
+    line-height: 1.5;
+  }
+
+  .integration-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .integration-item {
+    border-radius: 9px;
+    border: 1px solid rgba(240,201,133,0.33);
+    padding: 9px 10px;
+    background: rgba(210,163,93,0.08);
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .integration-item strong {
+    color: var(--accent-2);
+  }
+
+  .copy-status {
+    min-height: 18px;
+    margin-top: 8px;
+    font-size: 0.84rem;
+    color: var(--success);
+  }
+
+  @media (max-width: 980px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+
+    .ledger {
+      position: static;
+      top: auto;
+    }
+
+    .pair-list {
+      max-height: none;
+    }
+  }
+
+  @media (max-width: 620px) {
+    body {
+      padding: 16px;
+    }
+
+    .card {
+      padding: 16px;
+      border-radius: 12px;
+    }
+
+    .shift-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .value-statement {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Resolve Cycles</h1>
+  <p class="subtitle">A 5-minute CFAR-inspired exercise for finding the value hidden inside frustration.</p>
+
+  <div class="progress-bar" id="progress-bar"></div>
+
+  <div class="layout">
+    <div class="main">
+      <div class="step active" id="step-1">
+        <div class="card">
+          <div class="step-title">1. Capture Frustration</div>
+          <div class="step-desc">Name something that has been bugging you lately - a situation, a person's behavior, something that keeps annoying you.</div>
+          <label for="frustration-input">Name something that's been bugging you lately - a situation, a person's behavior, something that keeps annoying you.</label>
+          <textarea id="frustration-input" placeholder="Example: My teammate keeps changing priorities at the last minute."></textarea>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="goToStep(2)">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step-2">
+        <div class="card">
+          <div class="step-title">2. Feel the Charge</div>
+          <div class="step-desc">Sit with it for a moment. Where do you feel it in your body? What is the quality of the irritation?</div>
+          <label for="charge-input">Sit with it for a moment. Where do you feel it in your body? What is the quality of the irritation?</label>
+          <textarea id="charge-input" placeholder="Example: Tight jaw, heat in my chest, a restless urgent feeling."></textarea>
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goToStep(1)">&larr; Back</button>
+            <button class="btn btn-primary" onclick="goToStep(3)">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step-3">
+        <div class="card">
+          <div class="step-title">3. Extract the Value</div>
+          <div class="step-desc">Underneath this frustration, what do you actually care about? The thing that is bothering you points at something you value. What is it?</div>
+          <label for="value-extract-input">Underneath this frustration, what do you actually care about?</label>
+          <textarea id="value-extract-input" placeholder="Example: I care about keeping commitments and doing careful work."></textarea>
+          <div class="value-hints" aria-label="Common value patterns">
+            <span class="value-hint">autonomy</span>
+            <span class="value-hint">competence</span>
+            <span class="value-hint">authenticity</span>
+            <span class="value-hint">connection</span>
+            <span class="value-hint">growth</span>
+            <span class="value-hint">impact</span>
+            <span class="value-hint">craftsmanship</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goToStep(2)">&larr; Back</button>
+            <button class="btn btn-primary" onclick="goToStep(4)">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step-4">
+        <div class="card">
+          <div class="step-title">4. State the Value</div>
+          <div class="step-desc">Say it simply: I care about ___. Then check whether it resonates in your body.</div>
+          <label for="value-statement-input">Say it simply: I care about ___.</label>
+          <div class="value-statement">
+            <div class="value-prefix">I care about</div>
+            <input id="value-statement-input" type="text" placeholder="clarity, mutual respect, and craftsmanship">
+          </div>
+
+          <div class="resonance-block">
+            <label for="resonance-input">Does that feel true? Rate how much this resonates.</label>
+            <div class="resonance-row">
+              <input id="resonance-input" type="range" min="1" max="10" value="6" oninput="updateResonanceVisual()">
+              <div class="resonance-value"><span id="resonance-value">6</span>/10</div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goToStep(3)">&larr; Back</button>
+            <button class="btn btn-primary" onclick="goToStep(5)">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step-5">
+        <div class="card">
+          <div class="step-title">5. Check the Shift</div>
+          <div class="step-desc">Return to the original frustration and notice whether naming the value changes the felt sense.</div>
+
+          <div class="recognition">
+            <div class="recognition-title">Moment of recognition</div>
+            <div class="recognition-copy">Now think about the original frustration again. Has something shifted? Does it feel different now that you have named what you care about?</div>
+          </div>
+
+          <label for="shift-notes-input">What changed, if anything?</label>
+          <textarea id="shift-notes-input" placeholder="Example: Less blame, more clarity. I feel sad but also steadier."></textarea>
+
+          <label>Has the emotional charge changed?</label>
+          <div class="shift-grid">
+            <label class="shift-option"><input type="radio" name="charge-shift" value="dissolved" onchange="updateShiftSelectionStyles()"> dissolved</label>
+            <label class="shift-option"><input type="radio" name="charge-shift" value="softened" onchange="updateShiftSelectionStyles()" checked> softened</label>
+            <label class="shift-option"><input type="radio" name="charge-shift" value="still present but understood" onchange="updateShiftSelectionStyles()"> still present but understood</label>
+            <label class="shift-option"><input type="radio" name="charge-shift" value="unchanged" onchange="updateShiftSelectionStyles()"> unchanged</label>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goToStep(4)">&larr; Back</button>
+            <button class="btn btn-primary" onclick="goToStep(6)">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step-6">
+        <div class="card">
+          <div class="step-title">6. Repeat or Finish</div>
+          <div class="step-desc">You can extract another value from a new frustration, or continue to summary.</div>
+
+          <div class="review-grid" id="current-review"></div>
+
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goToStep(5)">&larr; Back</button>
+            <button class="btn btn-primary" onclick="addAnotherCycle()">+ Add another frustration</button>
+            <button class="btn btn-ghost" onclick="proceedToSummary()">Proceed to summary</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="summary">
+        <div class="card">
+          <div class="step-title">7. Summary</div>
+          <div class="step-desc" id="summary-count"></div>
+
+          <div class="summary-wrap">
+            <div class="summary-section">
+              <div class="summary-title">Frustration to value pairs</div>
+              <div id="summary-pairs"></div>
+            </div>
+
+            <div class="summary-section">
+              <div class="summary-title">Pattern recognition</div>
+              <div class="pattern-line" id="summary-patterns"></div>
+            </div>
+
+            <div class="summary-section">
+              <div class="summary-title">Self-compassion</div>
+              <div class="summary-note">Values are facts about yourself, not things to judge.</div>
+            </div>
+
+            <div class="summary-section">
+              <div class="summary-title">Integration suggestions</div>
+              <div class="integration-list">
+                <div class="integration-item"><strong>Focusing:</strong> Stay with the strongest value and ask what it wants you to notice more deeply.</div>
+                <div class="integration-item"><strong>Internal Double Crux:</strong> Use this when two values conflict and you feel internally split.</div>
+                <div class="integration-item"><strong>Goal Factoring:</strong> Align your goals with the values you just named so effort feels cleaner.</div>
+                <div class="integration-item"><strong>Hamming Questions:</strong> Given these values, ask what your real bottleneck is right now.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goToStep(6)">&larr; Back</button>
+            <button class="btn btn-primary" onclick="copySummary()">Copy summary</button>
+            <button class="btn btn-ghost" onclick="exportSummary()">Export .txt</button>
+            <button class="btn btn-danger" onclick="resetAll()">Start over</button>
+          </div>
+          <div class="copy-status" id="copy-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="card ledger">
+      <div class="ledger-title">Accumulated pairs</div>
+      <div class="ledger-sub">Each loop turns irritation into a clearer statement of what matters to you.</div>
+      <div class="pair-list" id="pairs-list"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  const totalSteps = 6;
+  let pairs = [];
+  let currentPairIndex = null;
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function normalizeValueText(rawValue) {
+    const trimmed = (rawValue || '').trim();
+    if (!trimmed) return '';
+    return trimmed.replace(/^i care about\s+/i, '').trim();
+  }
+
+  function formatValueStatement(pair) {
+    const normalized = normalizeValueText(pair.valueStatement || pair.extractedValue || '');
+    return normalized ? ('I care about ' + normalized + '.') : '(Value not yet named)';
+  }
+
+  function selectedChargeShift() {
+    const selected = document.querySelector('input[name="charge-shift"]:checked');
+    return selected ? selected.value : '';
+  }
+
+  function setChargeShift(value) {
+    const target = document.querySelector('input[name="charge-shift"][value="' + value + '"]');
+    if (target) target.checked = true;
+    updateShiftSelectionStyles();
+  }
+
+  function pairFromInputs() {
+    return {
+      frustration: byId('frustration-input').value.trim(),
+      charge: byId('charge-input').value.trim(),
+      extractedValue: byId('value-extract-input').value.trim(),
+      valueStatement: byId('value-statement-input').value.trim(),
+      resonance: parseInt(byId('resonance-input').value, 10) || 1,
+      shiftNotes: byId('shift-notes-input').value.trim(),
+      chargeShift: selectedChargeShift()
+    };
+  }
+
+  function hasCoreContent(pair) {
+    return Boolean(pair.frustration || pair.extractedValue || pair.valueStatement);
+  }
+
+  function clearInputsForNewCycle() {
+    byId('frustration-input').value = '';
+    byId('charge-input').value = '';
+    byId('value-extract-input').value = '';
+    byId('value-statement-input').value = '';
+    byId('resonance-input').value = '6';
+    byId('shift-notes-input').value = '';
+    setChargeShift('softened');
+    updateResonanceVisual();
+  }
+
+  function updateProgress(step) {
+    const bar = byId('progress-bar');
+    bar.innerHTML = '';
+    for (let i = 1; i <= totalSteps; i++) {
+      const dot = document.createElement('div');
+      let cls = 'progress-dot';
+      if (i < step) cls += ' done';
+      if (i === step) cls += ' current';
+      dot.className = cls;
+      bar.appendChild(dot);
+    }
+  }
+
+  function showStep(stepId) {
+    const targetId = typeof stepId === 'number' ? ('step-' + stepId) : stepId;
+    const steps = document.querySelectorAll('.step');
+    steps.forEach(function (step) {
+      step.classList.remove('active');
+    });
+    const target = byId(targetId);
+    if (target) target.classList.add('active');
+
+    const numeric = typeof stepId === 'number' ? stepId : totalSteps;
+    updateProgress(numeric);
+
+    if (stepId === 6) updateCurrentReview();
+    if (stepId === 'summary') buildSummary();
+  }
+
+  function goToStep(step) {
+    showStep(step);
+  }
+
+  function updateShiftSelectionStyles() {
+    document.querySelectorAll('.shift-option').forEach(function (el) {
+      const input = el.querySelector('input');
+      if (!input) return;
+      if (input.checked) el.classList.add('selected');
+      else el.classList.remove('selected');
+    });
+    syncCommittedPair();
+  }
+
+  function commitCurrentPair() {
+    const pair = pairFromInputs();
+
+    if (!pair.frustration) {
+      alert('Capture a frustration first.');
+      showStep(1);
+      return false;
+    }
+
+    if (!normalizeValueText(pair.valueStatement || pair.extractedValue)) {
+      alert('Name what you care about before continuing.');
+      showStep(3);
+      return false;
+    }
+
+    if (currentPairIndex === null) {
+      pairs.push(pair);
+      currentPairIndex = pairs.length - 1;
+    } else {
+      pairs[currentPairIndex] = pair;
+    }
+
+    updatePairsLedger();
+    updateCurrentReview();
+    return true;
+  }
+
+  function updatePairsLedger() {
+    const list = byId('pairs-list');
+
+    if (pairs.length === 0) {
+      list.innerHTML = '<div class="empty">No saved pairs yet. Complete a cycle and choose <strong>Add another frustration</strong> or <strong>Proceed to summary</strong>.</div>';
+      return;
+    }
+
+    list.innerHTML = pairs.map(function (pair, idx) {
+      const currentClass = idx === currentPairIndex ? ' current' : '';
+      return [
+        '<div class="pair-item' + currentClass + '">',
+        '<div class="pair-kicker">Pair ' + (idx + 1) + '</div>',
+        '<div class="pair-frustration"><strong>Frustration:</strong> ' + escapeHtml(pair.frustration || '(not captured)') + '</div>',
+        '<div class="pair-value"><strong>Value:</strong> ' + escapeHtml(formatValueStatement(pair)) + '</div>',
+        '</div>'
+      ].join('');
+    }).join('');
+  }
+
+  function updateCurrentReview() {
+    const container = byId('current-review');
+    const pair = pairFromInputs();
+
+    if (!hasCoreContent(pair)) {
+      container.innerHTML = '<div class="empty">No cycle captured yet. Complete the prompts first.</div>';
+      return;
+    }
+
+    container.innerHTML = [
+      '<div class="review-item"><div class="review-label">Frustration</div><div class="review-value">' + escapeHtml(pair.frustration || '(not captured)') + '</div></div>',
+      '<div class="review-item"><div class="review-label">Named value</div><div class="review-value">' + escapeHtml(formatValueStatement(pair)) + '</div></div>',
+      '<div class="review-item"><div class="review-label">Resonance</div><div class="review-value">' + escapeHtml(String(pair.resonance || '?')) + '/10</div></div>',
+      '<div class="review-item"><div class="review-label">Charge shift</div><div class="review-value">' + escapeHtml(pair.chargeShift || '(not selected)') + '</div></div>'
+    ].join('');
+  }
+
+  function addAnotherCycle() {
+    if (!commitCurrentPair()) return;
+    clearInputsForNewCycle();
+    currentPairIndex = null;
+    updatePairsLedger();
+    showStep(1);
+  }
+
+  function proceedToSummary() {
+    if (!commitCurrentPair()) return;
+    buildSummary();
+    showStep('summary');
+  }
+
+  function themeScoresFromPairs() {
+    const themes = {
+      autonomy: ['autonomy', 'independence', 'agency', 'control', 'freedom', 'choice'],
+      competence: ['competence', 'mastery', 'skill', 'capable', 'effective', 'excellence'],
+      authenticity: ['authenticity', 'honesty', 'integrity', 'truth', 'genuine', 'real'],
+      connection: ['connection', 'belonging', 'relationship', 'care', 'closeness', 'community', 'love'],
+      growth: ['growth', 'learning', 'progress', 'improvement', 'development'],
+      impact: ['impact', 'contribution', 'difference', 'influence', 'service'],
+      craftsmanship: ['craftsmanship', 'quality', 'craft', 'precision', 'thorough', 'elegance']
+    };
+
+    const scores = {};
+    Object.keys(themes).forEach(function (theme) {
+      scores[theme] = 0;
+    });
+
+    pairs.forEach(function (pair) {
+      const text = [pair.valueStatement, pair.extractedValue].join(' ').toLowerCase();
+      Object.keys(themes).forEach(function (theme) {
+        const keywords = themes[theme];
+        if (keywords.some(function (keyword) { return text.indexOf(keyword) !== -1; })) {
+          scores[theme] += 1;
+        }
+      });
+    });
+
+    return Object.keys(scores)
+      .filter(function (theme) { return scores[theme] > 0; })
+      .map(function (theme) { return [theme, scores[theme]]; })
+      .sort(function (a, b) { return b[1] - a[1]; });
+  }
+
+  function buildPatternSentence() {
+    const ranked = themeScoresFromPairs();
+    if (ranked.length === 0) {
+      return 'Your values cluster around: emerging personal standards that are still clarifying.';
+    }
+
+    const labels = ranked.slice(0, 4).map(function (entry) {
+      return entry[0] + ' (' + entry[1] + ')';
+    });
+
+    return 'Your values cluster around: ' + labels.join(', ') + '.';
+  }
+
+  function buildSummary() {
+    byId('summary-count').textContent = 'You identified ' + pairs.length + (pairs.length === 1 ? ' frustration-value pair.' : ' frustration-value pairs.');
+
+    if (pairs.length === 0) {
+      byId('summary-pairs').innerHTML = '<div class="empty">No pairs yet. Complete one cycle to generate your summary.</div>';
+      byId('summary-patterns').textContent = 'Your values cluster around: not enough data yet.';
+      return;
+    }
+
+    byId('summary-pairs').innerHTML = pairs.map(function (pair, idx) {
+      return [
+        '<div class="pair-item">',
+        '<div class="pair-kicker">Pair ' + (idx + 1) + '</div>',
+        '<div class="pair-frustration"><strong>Frustration:</strong> ' + escapeHtml(pair.frustration || '(not captured)') + '</div>',
+        '<div class="pair-value"><strong>Value:</strong> ' + escapeHtml(formatValueStatement(pair)) + '</div>',
+        '<div class="pair-value"><strong>Resonance:</strong> ' + escapeHtml(String(pair.resonance || '?')) + '/10 | <strong>Charge:</strong> ' + escapeHtml(pair.chargeShift || '(not selected)') + '</div>',
+        '</div>'
+      ].join('');
+    }).join('');
+
+    byId('summary-patterns').textContent = buildPatternSentence();
+  }
+
+  function summaryText() {
+    const lines = [];
+    lines.push('Resolve Cycles Summary');
+    lines.push('');
+
+    if (pairs.length === 0) {
+      lines.push('No frustration-value pairs captured yet.');
+      return lines.join('\n');
+    }
+
+    pairs.forEach(function (pair, idx) {
+      lines.push('Pair ' + (idx + 1));
+      lines.push('Frustration: ' + (pair.frustration || '(not captured)'));
+      lines.push('Value: ' + formatValueStatement(pair));
+      lines.push('Resonance: ' + (pair.resonance || '?') + '/10');
+      lines.push('Charge shift: ' + (pair.chargeShift || '(not selected)'));
+      if (pair.shiftNotes) lines.push('Shift notes: ' + pair.shiftNotes);
+      lines.push('');
+    });
+
+    lines.push(buildPatternSentence());
+    lines.push('');
+    lines.push('Self-compassion: Values are facts about yourself, not things to judge.');
+    lines.push('');
+    lines.push('Integration suggestions:');
+    lines.push('- Focusing for deeper access');
+    lines.push('- Internal Double Crux when values conflict');
+    lines.push('- Goal Factoring to align goals');
+    lines.push('- Hamming Questions given these values');
+
+    return lines.join('\n');
+  }
+
+  async function copySummary() {
+    const text = summaryText();
+    const status = byId('copy-status');
+
+    try {
+      await navigator.clipboard.writeText(text);
+      status.textContent = 'Summary copied to clipboard.';
+      return;
+    } catch (err) {
+      try {
+        const area = document.createElement('textarea');
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand('copy');
+        document.body.removeChild(area);
+        status.textContent = 'Summary copied to clipboard.';
+      } catch (fallbackErr) {
+        status.textContent = 'Copy failed. Use Export .txt instead.';
+      }
+    }
+  }
+
+  function exportSummary() {
+    const text = summaryText();
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'resolve-cycles-summary.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    byId('copy-status').textContent = 'Summary exported as resolve-cycles-summary.txt.';
+  }
+
+  function resetAll() {
+    if (!confirm('Start over? This clears all saved pairs.')) return;
+
+    pairs = [];
+    currentPairIndex = null;
+    clearInputsForNewCycle();
+    updatePairsLedger();
+    byId('summary-pairs').innerHTML = '';
+    byId('summary-patterns').textContent = '';
+    byId('summary-count').textContent = '';
+    byId('copy-status').textContent = '';
+    showStep(1);
+  }
+
+  function updateResonanceVisual() {
+    const slider = byId('resonance-input');
+    const value = parseInt(slider.value, 10) || 1;
+    byId('resonance-value').textContent = String(value);
+
+    const min = parseInt(slider.min, 10);
+    const max = parseInt(slider.max, 10);
+    const pct = ((value - min) / (max - min)) * 100;
+    slider.style.setProperty('--slider-fill', pct + '%');
+
+    syncCommittedPair();
+  }
+
+  function syncCommittedPair() {
+    if (currentPairIndex === null) return;
+    pairs[currentPairIndex] = pairFromInputs();
+    updatePairsLedger();
+    if (byId('step-6').classList.contains('active')) updateCurrentReview();
+    if (byId('summary').classList.contains('active')) buildSummary();
+  }
+
+  function attachLiveListeners() {
+    ['frustration-input', 'charge-input', 'value-extract-input', 'value-statement-input', 'shift-notes-input'].forEach(function (id) {
+      byId(id).addEventListener('input', syncCommittedPair);
+    });
+
+    document.querySelectorAll('input[name="charge-shift"]').forEach(function (radio) {
+      radio.addEventListener('change', syncCommittedPair);
+    });
+  }
+
+  setChargeShift('softened');
+  updateResonanceVisual();
+  updatePairsLedger();
+  updateCurrentReview();
+  updateProgress(1);
+  attachLiveListeners();
+</script>
+</body>
+</html>
