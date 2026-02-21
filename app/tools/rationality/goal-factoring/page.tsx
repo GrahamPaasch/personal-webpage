@@ -1,0 +1,759 @@
+'use client';
+
+const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goal Factoring</title>
+<style>
+  :root {
+    --bg: #0a0d14;
+    --surface: #121826;
+    --surface2: #1b2438;
+    --border: #2b3650;
+    --accent: #4aa8ff;
+    --accent-dim: #2f7dd0;
+    --accent-glow: rgba(74, 168, 255, 0.16);
+    --text: #e8eefb;
+    --text-dim: #9fb0cd;
+    --pursue: #58c27d;
+    --avoid: #f2c14e;
+    --identity: #f48c8c;
+    --danger: #e06c75;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: radial-gradient(circle at 20% 0%, #121a2a 0%, var(--bg) 48%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.7rem; margin-bottom: 6px; }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 22px;
+    line-height: 1.45;
+  }
+  .progress-bar { display: flex; gap: 4px; margin-bottom: 18px; }
+  .progress-dot {
+    height: 4px;
+    flex: 1;
+    border-radius: 2px;
+    background: var(--surface2);
+    transition: background 0.25s;
+  }
+  .progress-dot.done { background: var(--accent); }
+  .progress-dot.current { background: var(--accent); opacity: 0.55; }
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.28s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .step-title { font-size: 1.12rem; font-weight: 620; margin-bottom: 5px; }
+  .step-desc {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  textarea,
+  input[type="text"],
+  select,
+  input[type="range"] {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.94rem;
+  }
+  textarea,
+  input[type="text"],
+  select {
+    padding: 10px 12px;
+    resize: vertical;
+  }
+  textarea { min-height: 88px; }
+  select { min-height: 42px; }
+  textarea:focus,
+  input[type="text"]:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    padding: 10px 18px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dim); transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn-danger {
+    background: rgba(224, 108, 117, 0.1);
+    border-color: rgba(224, 108, 117, 0.35);
+    color: var(--danger);
+  }
+  .icon-btn {
+    border: 1px solid rgba(224, 108, 117, 0.35);
+    background: rgba(224, 108, 117, 0.12);
+    color: var(--danger);
+    border-radius: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .icon-btn:hover { filter: brightness(1.1); }
+  .list-stack { display: flex; flex-direction: column; gap: 10px; }
+  .goal-row,
+  .rating-card,
+  .alt-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .goal-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .alt-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 150px auto;
+    gap: 8px;
+    align-items: start;
+  }
+  .rating-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .rating-title { font-size: 0.95rem; font-weight: 600; line-height: 1.4; }
+  .gauge-wrap { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .gauge-wrap input[type="range"] { padding: 0; }
+  .gauge-value {
+    min-width: 34px;
+    text-align: center;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .tag {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .tag-pursue { background: rgba(88, 194, 125, 0.16); color: var(--pursue); }
+  .tag-avoid { background: rgba(242, 193, 78, 0.16); color: var(--avoid); }
+  .tag-identity { background: rgba(244, 140, 140, 0.16); color: var(--identity); }
+  .hint {
+    margin-top: 10px;
+    padding: 11px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    line-height: 1.45;
+    font-size: 0.84rem;
+  }
+  .empty-state {
+    font-size: 0.86rem;
+    color: var(--text-dim);
+    padding: 10px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+  }
+  .choice-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .choice-row .btn.selected {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .summary-section { margin-bottom: 16px; }
+  .summary-title {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 7px;
+    font-weight: 700;
+  }
+  .summary-list { display: flex; flex-direction: column; gap: 8px; }
+  .summary-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.45;
+    font-size: 0.9rem;
+  }
+  .summary-note { color: var(--text-dim); font-size: 0.88rem; font-style: italic; }
+  .add-row { margin-top: 10px; }
+  @media (max-width: 720px) {
+    .goal-grid,
+    .alt-grid {
+      grid-template-columns: 1fr;
+    }
+    .icon-btn { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Goal Factoring</h1>
+  <p class="subtitle">Decompose what you are doing into the goals it serves, then design a better strategy that gets you what you actually want.</p>
+
+  <div class="progress-bar" id="progress-bar"></div>
+
+  <div class="step active" id="step-1">
+    <div class="card">
+      <div class="step-title">1. Name the action or habit to examine</div>
+      <div class="step-desc">Pick one concrete pattern, not your whole life. This works best when the action is specific and current.</div>
+      <label for="action-input">Action / habit</label>
+      <textarea id="action-input" placeholder="e.g. Checking Slack every few minutes, taking on too many projects, avoiding direct feedback."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goToStep(2)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-2">
+    <div class="card">
+      <div class="step-title">2. Extract underlying goals</div>
+      <div class="step-desc">List what this action is trying to do for you. Tag each goal as <strong>pursue</strong>, <strong>avoid</strong>, or <strong>identity</strong>.</div>
+      <div class="list-stack" id="goals-list"></div>
+      <div class="add-row">
+        <button class="btn btn-secondary" onclick="addGoal()">+ Add goal</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(1)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(3)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-3">
+    <div class="card">
+      <div class="step-title">3. Rate how well the current action serves each goal</div>
+      <div class="step-desc">Use 0 to mean it does not help at all, and 10 to mean it serves the goal extremely well.</div>
+      <div class="list-stack" id="ratings-list"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(2)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(4)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-4">
+    <div class="card">
+      <div class="step-title">4. Brainstorm alternative strategies</div>
+      <div class="step-desc">Generate options that serve the same goals with fewer downsides. Quantity first, quality second.</div>
+      <div class="list-stack" id="alternatives-list"></div>
+      <div class="add-row">
+        <button class="btn btn-secondary" onclick="addAlternative()">+ Add alternative</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(3)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(5)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-5">
+    <div class="card">
+      <div class="step-title">5. Design your new plan</div>
+      <div class="step-desc">Pick one strategy or hybrid. Define exactly what you will do, when, and how you will handle friction.</div>
+      <label for="plan-choice">Chosen strategy</label>
+      <textarea id="plan-choice" placeholder="What are you replacing the old action with?"></textarea>
+      <label for="plan-trigger" style="margin-top:10px">Trigger / context</label>
+      <input type="text" id="plan-trigger" placeholder="When this happens...">
+      <label for="plan-first-step" style="margin-top:10px">First concrete step</label>
+      <input type="text" id="plan-first-step" placeholder="The first behavior in under 2 minutes...">
+      <label for="plan-obstacle" style="margin-top:10px">Fallback for predictable obstacle</label>
+      <input type="text" id="plan-obstacle" placeholder="If I get stuck, I will...">
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(4)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(6)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-6">
+    <div class="card">
+      <div class="step-title">6. Replacement test</div>
+      <div class="step-desc">Imagine your new plan is available right now. Which statement feels most true?</div>
+      <div class="choice-row" id="replacement-choices">
+        <button class="btn btn-secondary" onclick="setReplacementChoice('replace', this)">I would replace it</button>
+        <button class="btn btn-secondary" onclick="setReplacementChoice('partial', this)">I would partly replace it</button>
+        <button class="btn btn-secondary" onclick="setReplacementChoice('keep', this)">I would still keep the old action</button>
+      </div>
+      <label style="margin-top:12px">Confidence in your new plan (0-10)</label>
+      <div class="gauge-wrap">
+        <input type="range" id="replacement-confidence" min="0" max="10" value="5" oninput="document.getElementById('replacement-confidence-val').textContent=this.value">
+        <span class="gauge-value" id="replacement-confidence-val">5</span>
+      </div>
+      <label for="replacement-notes">What concerns remain?</label>
+      <textarea id="replacement-notes" placeholder="Any unresolved fears, conflicts, or edge cases..."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(5)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="showSummary()">See summary</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-7">
+    <div class="card">
+      <div class="step-title">7. Summary and insights</div>
+      <div id="summary-content"></div>
+      <div class="hint" id="summary-hint"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(6)">&larr; Back</button>
+        <button class="btn btn-danger" onclick="resetAll()">Start over</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var totalSteps = 7;
+  var goalCounter = 0;
+  var ratingsByGoalId = {};
+  var replacementChoice = '';
+
+  function buildProgress(current) {
+    var bar = document.getElementById('progress-bar');
+    bar.innerHTML = '';
+    for (var i = 1; i <= totalSteps; i++) {
+      var dot = document.createElement('div');
+      dot.className = 'progress-dot' + (i < current ? ' done' : i === current ? ' current' : '');
+      bar.appendChild(dot);
+    }
+  }
+
+  function goToStep(n) {
+    if (n === 3) {
+      buildRatings();
+    }
+    buildProgress(n);
+    var steps = document.querySelectorAll('.step');
+    steps.forEach(function(step) {
+      step.classList.remove('active');
+    });
+    var target = document.getElementById('step-' + n);
+    if (target) {
+      target.classList.add('active');
+    }
+  }
+
+  function typeLabel(type) {
+    if (type === 'pursue') return 'Pursue';
+    if (type === 'avoid') return 'Avoid';
+    return 'Identity';
+  }
+
+  function addGoal(text, type) {
+    goalCounter += 1;
+    var list = document.getElementById('goals-list');
+    var row = document.createElement('div');
+    row.className = 'goal-row';
+    row.setAttribute('data-goal-id', String(goalCounter));
+
+    var grid = document.createElement('div');
+    grid.className = 'goal-grid';
+
+    var textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.className = 'goal-text';
+    textInput.placeholder = 'Goal this action is serving...';
+    if (text) textInput.value = text;
+
+    var select = document.createElement('select');
+    select.className = 'goal-type';
+    select.innerHTML = '<option value="pursue">Pursue</option><option value="avoid">Avoid</option><option value="identity">Identity</option>';
+    select.value = type || 'pursue';
+
+    var remove = document.createElement('button');
+    remove.className = 'icon-btn';
+    remove.textContent = 'Remove';
+    remove.onclick = function() {
+      row.remove();
+    };
+
+    grid.appendChild(textInput);
+    grid.appendChild(select);
+    grid.appendChild(remove);
+    row.appendChild(grid);
+    list.appendChild(row);
+  }
+
+  function getGoals() {
+    var rows = Array.from(document.querySelectorAll('#goals-list .goal-row'));
+    return rows
+      .map(function(row) {
+        return {
+          id: row.getAttribute('data-goal-id'),
+          text: row.querySelector('.goal-text').value.trim(),
+          type: row.querySelector('.goal-type').value
+        };
+      })
+      .filter(function(goal) {
+        return goal.text.length > 0;
+      });
+  }
+
+  function buildRatings() {
+    var goals = getGoals();
+    var container = document.getElementById('ratings-list');
+    container.innerHTML = '';
+
+    if (goals.length === 0) {
+      container.innerHTML = '<div class="empty-state">Add at least one goal in Step 2 to rate how well the current action serves it.</div>';
+      return;
+    }
+
+    goals.forEach(function(goal) {
+      var value = ratingsByGoalId[goal.id];
+      if (typeof value !== 'number') {
+        value = 5;
+        ratingsByGoalId[goal.id] = 5;
+      }
+
+      var card = document.createElement('div');
+      card.className = 'rating-card';
+
+      var head = document.createElement('div');
+      head.className = 'rating-head';
+
+      var title = document.createElement('div');
+      title.className = 'rating-title';
+      title.textContent = goal.text;
+
+      var tag = document.createElement('span');
+      tag.className = 'tag tag-' + goal.type;
+      tag.textContent = typeLabel(goal.type);
+
+      head.appendChild(title);
+      head.appendChild(tag);
+
+      var label = document.createElement('label');
+      label.textContent = 'How well does the current action serve this goal?';
+
+      var gauge = document.createElement('div');
+      gauge.className = 'gauge-wrap';
+
+      var range = document.createElement('input');
+      range.type = 'range';
+      range.min = '0';
+      range.max = '10';
+      range.value = String(value);
+
+      var val = document.createElement('span');
+      val.className = 'gauge-value';
+      val.textContent = String(value);
+
+      range.oninput = function() {
+        ratingsByGoalId[goal.id] = parseInt(range.value, 10);
+        val.textContent = range.value;
+      };
+
+      gauge.appendChild(range);
+      gauge.appendChild(val);
+
+      card.appendChild(head);
+      card.appendChild(label);
+      card.appendChild(gauge);
+      container.appendChild(card);
+    });
+  }
+
+  function addAlternative(text, goals, tradeoff) {
+    var list = document.getElementById('alternatives-list');
+    var item = document.createElement('div');
+    item.className = 'alt-item';
+
+    var grid = document.createElement('div');
+    grid.className = 'alt-grid';
+
+    var textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.className = 'alt-text';
+    textInput.placeholder = 'Alternative strategy';
+    if (text) textInput.value = text;
+
+    var goalsInput = document.createElement('input');
+    goalsInput.type = 'text';
+    goalsInput.className = 'alt-goals';
+    goalsInput.placeholder = 'Goals this serves';
+    if (goals) goalsInput.value = goals;
+
+    var tradeoffInput = document.createElement('input');
+    tradeoffInput.type = 'text';
+    tradeoffInput.className = 'alt-tradeoff';
+    tradeoffInput.placeholder = 'Main tradeoff';
+    if (tradeoff) tradeoffInput.value = tradeoff;
+
+    var remove = document.createElement('button');
+    remove.className = 'icon-btn';
+    remove.textContent = 'Remove';
+    remove.onclick = function() {
+      item.remove();
+    };
+
+    grid.appendChild(textInput);
+    grid.appendChild(goalsInput);
+    grid.appendChild(tradeoffInput);
+    grid.appendChild(remove);
+    item.appendChild(grid);
+    list.appendChild(item);
+  }
+
+  function getAlternatives() {
+    var rows = Array.from(document.querySelectorAll('#alternatives-list .alt-item'));
+    return rows
+      .map(function(row) {
+        return {
+          text: row.querySelector('.alt-text').value.trim(),
+          goals: row.querySelector('.alt-goals').value.trim(),
+          tradeoff: row.querySelector('.alt-tradeoff').value.trim()
+        };
+      })
+      .filter(function(alt) {
+        return alt.text.length > 0;
+      });
+  }
+
+  function setReplacementChoice(choice, btn) {
+    replacementChoice = choice;
+    var container = document.getElementById('replacement-choices');
+    container.querySelectorAll('.btn').forEach(function(button) {
+      button.classList.remove('selected');
+    });
+    btn.classList.add('selected');
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function serveLabel(score) {
+    if (score >= 8) return 'strong';
+    if (score >= 5) return 'mixed';
+    return 'weak';
+  }
+
+  function replacementLabel(choice) {
+    if (choice === 'replace') return 'Would replace old action';
+    if (choice === 'partial') return 'Would partly replace old action';
+    if (choice === 'keep') return 'Would keep old action';
+    return 'Not selected';
+  }
+
+  function showSummary() {
+    var action = document.getElementById('action-input').value.trim();
+    var goals = getGoals();
+    var alternatives = getAlternatives();
+    var planChoice = document.getElementById('plan-choice').value.trim();
+    var planTrigger = document.getElementById('plan-trigger').value.trim();
+    var planFirst = document.getElementById('plan-first-step').value.trim();
+    var planObstacle = document.getElementById('plan-obstacle').value.trim();
+    var confidence = parseInt(document.getElementById('replacement-confidence').value, 10);
+    var notes = document.getElementById('replacement-notes').value.trim();
+
+    var html = '';
+    html += '<div class="summary-section">';
+    html += '<div class="summary-title">Action examined</div>';
+    html += '<div>' + (action ? escapeHtml(action) : '(not specified)') + '</div>';
+    html += '</div>';
+
+    html += '<div class="summary-section">';
+    html += '<div class="summary-title">Underlying goals + current fit</div>';
+
+    if (goals.length === 0) {
+      html += '<div class="summary-note">No goals listed.</div>';
+    } else {
+      html += '<div class="summary-list">';
+      goals.forEach(function(goal) {
+        var score = ratingsByGoalId[goal.id];
+        var safeScore = typeof score === 'number' ? score : 0;
+        html += '<div class="summary-item">';
+        html += '<span class="tag tag-' + goal.type + '">' + escapeHtml(typeLabel(goal.type)) + '</span>';
+        html += '<div><strong>' + escapeHtml(goal.text) + '</strong> - ' + safeScore + '/10 (' + serveLabel(safeScore) + ')</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="summary-section">';
+    html += '<div class="summary-title">Alternative strategies</div>';
+    if (alternatives.length === 0) {
+      html += '<div class="summary-note">No alternatives captured.</div>';
+    } else {
+      html += '<div class="summary-list">';
+      alternatives.forEach(function(alt, index) {
+        html += '<div class="summary-item">';
+        html += '<span class="tag">Alt ' + (index + 1) + '</span>';
+        html += '<div><strong>' + escapeHtml(alt.text) + '</strong>';
+        if (alt.goals) {
+          html += '<br><span class="summary-note">Serves: ' + escapeHtml(alt.goals) + '</span>';
+        }
+        if (alt.tradeoff) {
+          html += '<br><span class="summary-note">Tradeoff: ' + escapeHtml(alt.tradeoff) + '</span>';
+        }
+        html += '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="summary-section">';
+    html += '<div class="summary-title">New plan</div>';
+    html += '<div class="summary-list">';
+    html += '<div class="summary-item"><div><strong>Strategy:</strong> ' + (planChoice ? escapeHtml(planChoice) : '(not specified)') + '</div></div>';
+    html += '<div class="summary-item"><div><strong>Trigger:</strong> ' + (planTrigger ? escapeHtml(planTrigger) : '(not specified)') + '</div></div>';
+    html += '<div class="summary-item"><div><strong>First step:</strong> ' + (planFirst ? escapeHtml(planFirst) : '(not specified)') + '</div></div>';
+    html += '<div class="summary-item"><div><strong>Fallback:</strong> ' + (planObstacle ? escapeHtml(planObstacle) : '(not specified)') + '</div></div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="summary-section">';
+    html += '<div class="summary-title">Replacement test</div>';
+    html += '<div class="summary-list">';
+    html += '<div class="summary-item"><div><strong>Decision:</strong> ' + escapeHtml(replacementLabel(replacementChoice)) + '</div></div>';
+    html += '<div class="summary-item"><div><strong>Confidence:</strong> ' + confidence + '/10</div></div>';
+    if (notes) {
+      html += '<div class="summary-item"><div><strong>Remaining concerns:</strong> ' + escapeHtml(notes) + '</div></div>';
+    }
+    html += '</div>';
+    html += '</div>';
+
+    document.getElementById('summary-content').innerHTML = html;
+
+    var weakGoals = goals.filter(function(goal) {
+      var score = ratingsByGoalId[goal.id];
+      return typeof score === 'number' && score <= 4;
+    });
+
+    var insight = '';
+    if (replacementChoice === 'replace' && confidence >= 7) {
+      insight = 'You found a plausible upgrade path. Execute the first step soon to validate it in real conditions.';
+    } else if (replacementChoice === 'partial') {
+      insight = 'Your current action still serves some goals. Consider a hybrid plan that keeps the strongest pieces and replaces the weakest ones.';
+    } else if (replacementChoice === 'keep') {
+      insight = 'The old action may still be functional. Focus on the weakly served goals first, then rerun this exercise with narrower alternatives.';
+    } else {
+      insight = 'Clarify your replacement test decision before execution. A binary decision usually reveals what still feels unresolved.';
+    }
+
+    if (weakGoals.length > 0) {
+      var weakText = weakGoals.map(function(goal) { return '"' + goal.text + '"'; }).join(', ');
+      insight += ' Weak goals to target next: ' + weakText + '.';
+    }
+
+    document.getElementById('summary-hint').textContent = insight;
+    goToStep(7);
+  }
+
+  function resetAll() {
+    if (!confirm('Start over? This will clear everything.')) return;
+
+    ratingsByGoalId = {};
+    replacementChoice = '';
+    goalCounter = 0;
+
+    document.getElementById('action-input').value = '';
+    document.getElementById('goals-list').innerHTML = '';
+    document.getElementById('ratings-list').innerHTML = '';
+    document.getElementById('alternatives-list').innerHTML = '';
+
+    document.getElementById('plan-choice').value = '';
+    document.getElementById('plan-trigger').value = '';
+    document.getElementById('plan-first-step').value = '';
+    document.getElementById('plan-obstacle').value = '';
+
+    document.getElementById('replacement-confidence').value = '5';
+    document.getElementById('replacement-confidence-val').textContent = '5';
+    document.getElementById('replacement-notes').value = '';
+    document.getElementById('replacement-choices').querySelectorAll('.btn').forEach(function(button) {
+      button.classList.remove('selected');
+    });
+
+    seedDefaults();
+    goToStep(1);
+  }
+
+  function seedDefaults() {
+    addGoal('', 'pursue');
+    addGoal('', 'avoid');
+    addGoal('', 'identity');
+    addAlternative('', '', '');
+    addAlternative('', '', '');
+  }
+
+  buildProgress(1);
+  seedDefaults();
+</script>
+</body>
+</html>
+`;
+
+export default function GoalFactoringPage() {
+  return (
+    <div style={{ width: '100%', minHeight: 'calc(100vh - 120px)' }}>
+      <iframe
+        srcDoc={htmlContent}
+        style={{ width: '100%', height: 'calc(100vh - 120px)', border: 'none', borderRadius: 8 }}
+        title="Goal Factoring"
+        sandbox="allow-scripts allow-same-origin"
+      />
+    </div>
+  );
+}
