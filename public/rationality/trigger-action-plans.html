@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trigger-Action Plans (TAPs)</title>
+<style>
+  :root {
+    --bg: #0b0906;
+    --surface: #151009;
+    --surface2: #21180e;
+    --border: #3b2a16;
+    --accent: #ffbf4d;
+    --accent-strong: #f3a500;
+    --accent-soft: rgba(255, 191, 77, 0.16);
+    --text: #f6eddd;
+    --text-dim: #b9aa90;
+    --success: #93d08b;
+    --warning: #ff9b6d;
+    --danger: #ef7770;
+    --radius: 12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at top right, rgba(255, 191, 77, 0.07), transparent 35%), var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    color: var(--accent);
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  .status {
+    min-height: 22px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .status.show { opacity: 1; }
+  .status.warn { color: var(--warning); }
+  .status.ok { color: var(--success); }
+
+  .progress {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .progress-dot {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface2);
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+
+  .progress-dot.done { background: var(--accent-strong); }
+  .progress-dot.current {
+    background: var(--accent);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 0 3px rgba(255, 191, 77, 0.2);
+  }
+
+  .card {
+    background: linear-gradient(180deg, rgba(255, 191, 77, 0.04), transparent 28%), var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+
+  .overview-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .pill {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid rgba(255, 191, 77, 0.38);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .tap-overview-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .tap-mini {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .tap-mini strong { color: var(--text); }
+  .tap-mini .arrow { color: var(--accent); padding: 0 6px; font-weight: 700; }
+  .tap-mini.draft { border-style: dashed; }
+
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.24s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-title {
+    font-size: 1.15rem;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .step-desc {
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  .hint-box {
+    background: rgba(255, 191, 77, 0.08);
+    border: 1px solid rgba(255, 191, 77, 0.25);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+
+  .hint-box .good { color: var(--success); }
+  .hint-box .bad { color: var(--warning); }
+
+  label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  textarea,
+  input[type="text"],
+  input[type="date"],
+  input[type="range"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.94rem;
+  }
+
+  textarea {
+    min-height: 90px;
+    resize: vertical;
+    line-height: 1.45;
+  }
+
+  textarea:focus,
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255, 191, 77, 0.14);
+  }
+
+  .warning-box {
+    margin-top: 8px;
+    background: rgba(255, 155, 109, 0.12);
+    color: var(--warning);
+    border: 1px solid rgba(255, 155, 109, 0.3);
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    display: none;
+  }
+
+  .tap-preview {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    align-items: center;
+    margin: 12px 0;
+  }
+
+  .preview-node {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    min-height: 86px;
+  }
+
+  .preview-node .tag {
+    color: var(--text-dim);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .preview-node .value {
+    color: var(--text);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .preview-arrow {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(255, 191, 77, 0.35), rgba(255, 191, 77, 0.1));
+    border: 1px solid rgba(255, 191, 77, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.9rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .yes-no {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .check-grid {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .check-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 0.88rem;
+    color: var(--text-dim);
+  }
+
+  .check-item input {
+    margin-top: 3px;
+    accent-color: var(--accent);
+  }
+
+  .woop-grid {
+    display: grid;
+    gap: 10px;
+  }
+
+  .rehearsal-wrap {
+    display: grid;
+    gap: 14px;
+    text-align: center;
+  }
+
+  .ring {
+    width: 186px;
+    height: 186px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: conic-gradient(var(--accent) 0deg, var(--surface2) 0deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+  }
+
+  .ring-inner {
+    width: 138px;
+    height: 138px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .ring-count {
+    font-size: 2rem;
+    color: var(--accent);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .ring-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .rep-prompt {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    min-height: 22px;
+  }
+
+  .vividness-block { display: none; }
+
+  .vividness-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .vividness-value {
+    color: var(--accent);
+    font-size: 1.5rem;
+    font-weight: 700;
+    width: 34px;
+    text-align: center;
+  }
+
+  .radio-group {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .radio-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--text-dim);
+    font-size: 0.88rem;
+  }
+
+  .radio-item input { accent-color: var(--accent); }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 0.88rem;
+    font-weight: 650;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+  }
+
+  .btn:hover { transform: translateY(-1px); }
+
+  .btn-primary {
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    color: #1e1306;
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px dashed var(--border);
+  }
+
+  .btn-danger {
+    background: rgba(239, 119, 112, 0.12);
+    color: var(--danger);
+    border: 1px solid rgba(239, 119, 112, 0.35);
+  }
+
+  .btn.selected {
+    border: 1px solid rgba(255, 191, 77, 0.55);
+    box-shadow: inset 0 0 0 1px rgba(255, 191, 77, 0.3);
+    color: var(--accent);
+    background: rgba(255, 191, 77, 0.12);
+  }
+
+  .current-review {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    color: var(--text-dim);
+    line-height: 1.55;
+  }
+
+  .current-review strong { color: var(--text); }
+  .current-review .arrow { color: var(--accent); padding: 0 6px; font-weight: 700; }
+
+  .summary-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .summary-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .summary-card h3 {
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .flow-line {
+    background: rgba(255, 191, 77, 0.09);
+    border: 1px solid rgba(255, 191, 77, 0.3);
+    border-radius: 10px;
+    padding: 9px 10px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .flow-line .label { color: var(--text-dim); text-transform: uppercase; font-size: 0.72rem; margin-right: 4px; letter-spacing: 0.05em; }
+  .flow-line .arrow { color: var(--accent); font-weight: 700; padding: 0 8px; }
+
+  .metric {
+    font-size: 0.84rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    line-height: 1.45;
+  }
+
+  .suggest-title {
+    margin-top: 8px;
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+  }
+
+  .suggest-list {
+    padding-left: 18px;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .summary-empty {
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 720px) {
+    body { padding: 14px; }
+    .tap-preview { grid-template-columns: 1fr; }
+    .preview-arrow {
+      width: 100%;
+      height: 42px;
+      border-radius: 8px;
+      font-size: 1.4rem;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Trigger-Action Plans (TAPs)</h1>
+  <p class="subtitle">Build reliable if-then behavior loops: tiny action, concrete cue, repeated rehearsal.</p>
+
+  <div id="status" class="status" aria-live="polite"></div>
+  <div class="progress" id="progress"></div>
+
+  <div class="card">
+    <div class="overview-head">
+      <span>Accumulated TAPs</span>
+      <span id="saved-count" class="pill">0 saved</span>
+    </div>
+    <div id="tap-overview-list" class="tap-overview-list"></div>
+  </div>
+
+  <section class="step active" id="step-1">
+    <div class="card">
+      <div class="step-title">1. Identify the behavior</div>
+      <p class="step-desc">What do you want to do more reliably?</p>
+      <label for="behavior">Behavior</label>
+      <textarea id="behavior" placeholder="Example: Start writing my report each morning."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="nextFromStep1()">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-2">
+    <div class="card">
+      <div class="step-title">2. Design the trigger</div>
+      <p class="step-desc">Make it sensory-specific. What will you see, hear, or feel right before you want to act?</p>
+      <div class="hint-box">
+        <div class="good"><strong>Good trigger:</strong> "When I close my laptop after lunch."</div>
+        <div class="good"><strong>Good trigger:</strong> "When I feel my phone buzz with my 8:00 PM reminder."</div>
+        <div class="bad"><strong>Bad trigger:</strong> "When I have time."</div>
+        <div class="bad"><strong>Bad trigger:</strong> "When I feel motivated."</div>
+      </div>
+      <label for="trigger">Trigger cue</label>
+      <textarea id="trigger" placeholder="What exact cue happens in the environment or your body?"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(1)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFromStep2()">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-3">
+    <div class="card">
+      <div class="step-title">3. Design the action</div>
+      <p class="step-desc">Make it tiny and immediate (about 5 seconds). What is the smallest physical action that starts the behavior?</p>
+      <label for="action">Starter action</label>
+      <textarea id="action" oninput="updateActionWarning()" placeholder="Example: Open the doc and type one sentence."></textarea>
+      <div id="action-warning" class="warning-box"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(2)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFromStep3()">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-4">
+    <div class="card">
+      <div class="step-title">4. TAP preview</div>
+      <p class="step-desc">Does this feel concrete enough? Could you explain it to a 10-year-old?</p>
+      <div class="tap-preview">
+        <div class="preview-node">
+          <span class="tag">When</span>
+          <div class="value" id="preview-trigger">(trigger not set yet)</div>
+        </div>
+        <div class="preview-arrow">&rarr;</div>
+        <div class="preview-node">
+          <span class="tag">Then</span>
+          <div class="value" id="preview-action">(action not set yet)</div>
+        </div>
+      </div>
+      <div class="yes-no">
+        <button id="preview-yes" class="btn btn-secondary" onclick="setPreviewAnswer('yes')">Yes, concrete enough</button>
+        <button id="preview-no" class="btn btn-secondary" onclick="setPreviewAnswer('no')">No, make it clearer</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(3)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFromStep4()">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-5">
+    <div class="card">
+      <div class="step-title">5. Failure modes check</div>
+      <p class="step-desc">Mark any failure mode that applies. If one applies, write a quick fix.</p>
+      <div class="check-grid">
+        <label class="check-item"><input type="checkbox" id="fm-vague"> Trigger is still vague.</label>
+        <label class="check-item"><input type="checkbox" id="fm-ambitious"> Action is still too ambitious.</label>
+        <label class="check-item"><input type="checkbox" id="fm-judgment"> Plan requires judgment in the moment.</label>
+      </div>
+      <label for="failure-fixes">Fixes if needed</label>
+      <textarea id="failure-fixes" placeholder="Example: Replace 'when I have time' with 'when I sit at my desk at 9:00'."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(4)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFromStep5()">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-6">
+    <div class="card">
+      <div class="step-title">6. WOOP integration (optional)</div>
+      <p class="step-desc">Wish, Outcome, Obstacle, Plan. The Plan is your TAP.</p>
+      <div class="woop-grid">
+        <div>
+          <label for="woop-wish">Wish</label>
+          <textarea id="woop-wish" placeholder="What do you want?"></textarea>
+        </div>
+        <div>
+          <label for="woop-outcome">Outcome visualization</label>
+          <textarea id="woop-outcome" placeholder="What positive outcome do you imagine?"></textarea>
+        </div>
+        <div>
+          <label for="woop-obstacle">Obstacle</label>
+          <textarea id="woop-obstacle" placeholder="What inner obstacle usually blocks you?"></textarea>
+        </div>
+        <div>
+          <label for="woop-plan">Plan (TAP)</label>
+          <textarea id="woop-plan" placeholder="When [trigger], then [action]."></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(5)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goStep(7)">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-7">
+    <div class="card">
+      <div class="step-title">7. Tech assist (optional)</div>
+      <p class="step-desc">Pick lightweight support tools, then add notes if helpful.</p>
+      <div class="check-grid">
+        <label class="check-item"><input type="checkbox" id="tech-location"> Location reminder</label>
+        <label class="check-item"><input type="checkbox" id="tech-time"> Time reminder</label>
+        <label class="check-item"><input type="checkbox" id="tech-environment"> Environment design (sticky note, object placement)</label>
+        <label class="check-item"><input type="checkbox" id="tech-accountability"> Accountability partner</label>
+      </div>
+      <label for="tech-notes">Tech assist notes</label>
+      <textarea id="tech-notes" placeholder="Example: 8:05 PM reminder named 'When sink is clear -> floss one tooth'."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(6)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goStep(8)">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-8">
+    <div class="card">
+      <div class="step-title">8. Rehearsal</div>
+      <p class="step-desc">Run five mental reps. Each rep: notice trigger, then execute the tiny action. Press Done after each rep.</p>
+      <div class="rehearsal-wrap">
+        <div class="ring" id="rehearsal-ring">
+          <div class="ring-inner">
+            <div class="ring-count" id="rep-count">0</div>
+            <div class="ring-label">of 5 reps</div>
+          </div>
+        </div>
+        <div class="rep-prompt" id="rep-prompt">Rep 1: See the trigger clearly.</div>
+        <div class="btn-row" style="justify-content:center">
+          <button class="btn btn-primary" onclick="completeRehearsalRep()">Done</button>
+          <button class="btn btn-ghost" onclick="resetRehearsal()">Reset reps</button>
+        </div>
+      </div>
+      <div class="vividness-block" id="vividness-block">
+        <label for="vividness" style="margin-top:14px">How vivid was it? (1-10)</label>
+        <div class="vividness-row">
+          <input id="vividness" type="range" min="1" max="10" value="5" oninput="updateVividnessValue()">
+          <div id="vividness-value" class="vividness-value">5</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(7)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFromStep8()">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-9">
+    <div class="card">
+      <div class="step-title">9. Maintenance plan</div>
+      <p class="step-desc">Decide your re-rehearsal cadence and set a review date.</p>
+      <div class="radio-group">
+        <label class="radio-item"><input type="radio" name="cadence" value="daily" checked> Daily</label>
+        <label class="radio-item"><input type="radio" name="cadence" value="few-days"> Every few days</label>
+        <label class="radio-item"><input type="radio" name="cadence" value="weekly"> Weekly</label>
+      </div>
+      <label for="review-date">Review date</label>
+      <input type="date" id="review-date">
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(8)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goStep(10)">Next &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-10">
+    <div class="card">
+      <div class="step-title">10. Repeat or finish</div>
+      <p class="step-desc">Save this TAP and either create another one or continue to summary.</p>
+      <div class="current-review" id="current-review"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(9)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="addAnotherTap()">Add another TAP</button>
+        <button class="btn btn-primary" onclick="finishToSummary()">Go to summary</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="step-11">
+    <div class="card">
+      <div class="step-title">11. Summary</div>
+      <p class="step-desc">Review all TAPs, rehearsal scores, tech assists, and maintenance schedule.</p>
+      <div id="summary-content" class="summary-grid"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="copySummary()">Copy summary</button>
+        <button class="btn btn-secondary" onclick="exportSummary()">Export summary</button>
+        <button class="btn btn-danger" onclick="startOver()">Start over</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  var totalSteps = 11;
+  var currentStep = 1;
+  var taps = [];
+  var draft = createEmptyTap();
+  var previewAnswer = '';
+  var statusTimer = null;
+
+  var repPrompts = [
+    'Rep 1: See the trigger clearly.',
+    'Rep 2: Feel your body start the tiny action.',
+    'Rep 3: Notice the movement happens immediately.',
+    'Rep 4: Keep it smooth and automatic.',
+    'Rep 5: Lock in confidence and ease.'
+  ];
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function createEmptyTap() {
+    return {
+      behavior: '',
+      trigger: '',
+      action: '',
+      previewConcrete: '',
+      failureModes: {
+        vagueTrigger: false,
+        ambitiousAction: false,
+        requiresJudgment: false
+      },
+      failureFixes: '',
+      woop: {
+        wish: '',
+        outcome: '',
+        obstacle: '',
+        plan: ''
+      },
+      techAssist: {
+        location: false,
+        time: false,
+        environment: false,
+        accountability: false,
+        notes: ''
+      },
+      rehearsalCount: 0,
+      vividness: 5,
+      maintenanceCadence: 'daily',
+      reviewDate: ''
+    };
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function setStatus(text, tone) {
+    var el = byId('status');
+    if (statusTimer) {
+      clearTimeout(statusTimer);
+      statusTimer = null;
+    }
+
+    if (!text) {
+      el.textContent = '';
+      el.className = 'status';
+      return;
+    }
+
+    el.textContent = text;
+    el.className = 'status show' + (tone ? ' ' + tone : '');
+    statusTimer = setTimeout(function () {
+      el.className = 'status';
+    }, 2600);
+  }
+
+  function buildProgress(step) {
+    var progress = byId('progress');
+    progress.innerHTML = '';
+    for (var i = 1; i <= totalSteps; i += 1) {
+      var dot = document.createElement('div');
+      dot.className = 'progress-dot';
+      if (i < step) {
+        dot.className += ' done';
+      } else if (i === step) {
+        dot.className += ' current';
+      }
+      progress.appendChild(dot);
+    }
+  }
+
+  function goStep(step) {
+    if (step < 1 || step > totalSteps) {
+      return;
+    }
+
+    readInputsToDraft();
+
+    var current = document.querySelector('.step.active');
+    if (current) {
+      current.classList.remove('active');
+    }
+
+    var next = byId('step-' + step);
+    if (next) {
+      next.classList.add('active');
+    }
+
+    currentStep = step;
+    buildProgress(step);
+
+    if (step === 4) {
+      refreshPreview();
+    }
+
+    if (step === 8) {
+      updateRehearsalUI();
+    }
+
+    if (step === 10) {
+      refreshCurrentReview();
+    }
+
+    if (step === 11) {
+      renderSummary();
+    }
+
+    updateOverview();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function readInputsToDraft() {
+    draft.behavior = byId('behavior').value.trim();
+    draft.trigger = byId('trigger').value.trim();
+    draft.action = byId('action').value.trim();
+    draft.previewConcrete = previewAnswer;
+
+    draft.failureModes.vagueTrigger = byId('fm-vague').checked;
+    draft.failureModes.ambitiousAction = byId('fm-ambitious').checked;
+    draft.failureModes.requiresJudgment = byId('fm-judgment').checked;
+    draft.failureFixes = byId('failure-fixes').value.trim();
+
+    draft.woop.wish = byId('woop-wish').value.trim();
+    draft.woop.outcome = byId('woop-outcome').value.trim();
+    draft.woop.obstacle = byId('woop-obstacle').value.trim();
+    draft.woop.plan = byId('woop-plan').value.trim();
+
+    draft.techAssist.location = byId('tech-location').checked;
+    draft.techAssist.time = byId('tech-time').checked;
+    draft.techAssist.environment = byId('tech-environment').checked;
+    draft.techAssist.accountability = byId('tech-accountability').checked;
+    draft.techAssist.notes = byId('tech-notes').value.trim();
+
+    draft.vividness = parseInt(byId('vividness').value, 10);
+    draft.maintenanceCadence = getSelectedCadence();
+    draft.reviewDate = byId('review-date').value;
+
+    if (!draft.woop.plan && draft.trigger && draft.action) {
+      draft.woop.plan = 'When ' + draft.trigger + ', then ' + draft.action;
+    }
+  }
+
+  function writeDraftToInputs() {
+    byId('behavior').value = draft.behavior;
+    byId('trigger').value = draft.trigger;
+    byId('action').value = draft.action;
+
+    byId('fm-vague').checked = draft.failureModes.vagueTrigger;
+    byId('fm-ambitious').checked = draft.failureModes.ambitiousAction;
+    byId('fm-judgment').checked = draft.failureModes.requiresJudgment;
+    byId('failure-fixes').value = draft.failureFixes;
+
+    byId('woop-wish').value = draft.woop.wish;
+    byId('woop-outcome').value = draft.woop.outcome;
+    byId('woop-obstacle').value = draft.woop.obstacle;
+    byId('woop-plan').value = draft.woop.plan;
+
+    byId('tech-location').checked = draft.techAssist.location;
+    byId('tech-time').checked = draft.techAssist.time;
+    byId('tech-environment').checked = draft.techAssist.environment;
+    byId('tech-accountability').checked = draft.techAssist.accountability;
+    byId('tech-notes').value = draft.techAssist.notes;
+
+    byId('vividness').value = String(draft.vividness);
+    updateVividnessValue();
+
+    setCadence(draft.maintenanceCadence);
+    byId('review-date').value = draft.reviewDate;
+
+    setPreviewAnswer(draft.previewConcrete || '', true);
+    updateActionWarning();
+    updateRehearsalUI();
+  }
+
+  function nextFromStep1() {
+    readInputsToDraft();
+    if (!draft.behavior) {
+      setStatus('Add the target behavior first.', 'warn');
+      return;
+    }
+    goStep(2);
+  }
+
+  function nextFromStep2() {
+    readInputsToDraft();
+    if (!draft.trigger) {
+      setStatus('Add a sensory trigger cue before continuing.', 'warn');
+      return;
+    }
+    goStep(3);
+  }
+
+  function nextFromStep3() {
+    readInputsToDraft();
+    if (!draft.action) {
+      setStatus('Add a tiny starter action before continuing.', 'warn');
+      return;
+    }
+    goStep(4);
+  }
+
+  function refreshPreview() {
+    readInputsToDraft();
+    byId('preview-trigger').textContent = draft.trigger || '(trigger not set yet)';
+    byId('preview-action').textContent = draft.action || '(action not set yet)';
+    setPreviewAnswer(previewAnswer, true);
+  }
+
+  function setPreviewAnswer(answer, silent) {
+    previewAnswer = answer;
+    byId('preview-yes').classList.toggle('selected', answer === 'yes');
+    byId('preview-no').classList.toggle('selected', answer === 'no');
+    if (!silent && answer) {
+      setStatus(answer === 'yes' ? 'Great. Your TAP is concrete.' : 'Good catch. Tighten it and re-test.', answer === 'yes' ? 'ok' : 'warn');
+    }
+  }
+
+  function nextFromStep4() {
+    readInputsToDraft();
+    if (!previewAnswer) {
+      setStatus('Choose Yes or No first.', 'warn');
+      return;
+    }
+
+    if (previewAnswer === 'no') {
+      setStatus('Looping back so you can sharpen trigger and action.', 'warn');
+      goStep(2);
+      return;
+    }
+
+    goStep(5);
+  }
+
+  function nextFromStep5() {
+    readInputsToDraft();
+    var hasFailure = draft.failureModes.vagueTrigger || draft.failureModes.ambitiousAction || draft.failureModes.requiresJudgment;
+    if (hasFailure && !draft.failureFixes) {
+      setStatus('Add a quick fix note for the selected failure mode(s).', 'warn');
+      return;
+    }
+    goStep(6);
+  }
+
+  function actionLooksAmbitious(actionText) {
+    if (!actionText) {
+      return false;
+    }
+
+    var lower = actionText.toLowerCase();
+    var wordCount = actionText.trim().split(/\s+/).length;
+    var markers = [
+      'finish',
+      'complete',
+      'entire',
+      'whole',
+      'hour',
+      'hours',
+      '30 minute',
+      '20 minute',
+      '10 minute',
+      'deep work',
+      'full workout',
+      'clean the house',
+      'write the',
+      'read the chapter'
+    ];
+
+    if (wordCount > 12) {
+      return true;
+    }
+
+    for (var i = 0; i < markers.length; i += 1) {
+      if (lower.indexOf(markers[i]) !== -1) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function updateActionWarning() {
+    var text = byId('action').value.trim();
+    var box = byId('action-warning');
+    if (actionLooksAmbitious(text)) {
+      box.textContent = 'This action sounds bigger than a 5-second starter. Shrink it until it is almost impossible to fail.';
+      box.style.display = 'block';
+    } else {
+      box.style.display = 'none';
+      box.textContent = '';
+    }
+  }
+
+  function completeRehearsalRep() {
+    readInputsToDraft();
+    if (draft.rehearsalCount >= 5) {
+      setStatus('All 5 reps are already complete. Tune vividness now.', 'ok');
+      return;
+    }
+
+    draft.rehearsalCount += 1;
+    updateRehearsalUI();
+
+    if (draft.rehearsalCount === 5) {
+      setStatus('Five reps complete. Rate vividness before moving on.', 'ok');
+    }
+  }
+
+  function resetRehearsal() {
+    draft.rehearsalCount = 0;
+    updateRehearsalUI();
+    setStatus('Rehearsal counter reset.', 'warn');
+  }
+
+  function updateRehearsalUI() {
+    var reps = draft.rehearsalCount;
+    var degrees = Math.round((reps / 5) * 360);
+
+    byId('rehearsal-ring').style.background = 'conic-gradient(var(--accent) ' + degrees + 'deg, var(--surface2) ' + degrees + 'deg)';
+    byId('rep-count').textContent = String(reps);
+
+    var promptIndex = reps;
+    if (promptIndex > 4) {
+      promptIndex = 4;
+    }
+    byId('rep-prompt').textContent = repPrompts[promptIndex];
+
+    byId('vividness-block').style.display = reps >= 5 ? 'block' : 'none';
+    updateVividnessValue();
+  }
+
+  function updateVividnessValue() {
+    byId('vividness-value').textContent = byId('vividness').value;
+  }
+
+  function nextFromStep8() {
+    readInputsToDraft();
+    if (draft.rehearsalCount < 5) {
+      setStatus('Complete all 5 rehearsal reps first.', 'warn');
+      return;
+    }
+    goStep(9);
+  }
+
+  function getSelectedCadence() {
+    var selected = document.querySelector('input[name="cadence"]:checked');
+    return selected ? selected.value : 'daily';
+  }
+
+  function setCadence(value) {
+    var options = document.querySelectorAll('input[name="cadence"]');
+    options.forEach(function (option) {
+      option.checked = option.value === value;
+    });
+  }
+
+  function refreshCurrentReview() {
+    readInputsToDraft();
+
+    var failList = [];
+    if (draft.failureModes.vagueTrigger) {
+      failList.push('vague trigger');
+    }
+    if (draft.failureModes.ambitiousAction) {
+      failList.push('ambitious action');
+    }
+    if (draft.failureModes.requiresJudgment) {
+      failList.push('requires judgment');
+    }
+
+    var assists = joinTechAssists(draft.techAssist);
+    var cadenceLabel = formatCadence(draft.maintenanceCadence);
+
+    var html = '';
+    html += '<div><strong>Behavior:</strong> ' + escapeHtml(draft.behavior || '(not set)') + '</div>';
+    html += '<div style="margin-top:6px"><span style="color:var(--text-dim)">When</span> ' + escapeHtml(draft.trigger || '(trigger missing)') + '<span class="arrow">&rarr;</span><span style="color:var(--text-dim)">Then</span> ' + escapeHtml(draft.action || '(action missing)') + '</div>';
+    html += '<div style="margin-top:6px"><strong>Rehearsal:</strong> ' + draft.rehearsalCount + '/5 reps, vividness ' + draft.vividness + '/10</div>';
+    html += '<div style="margin-top:6px"><strong>Failure modes:</strong> ' + (failList.length ? escapeHtml(failList.join(', ')) : 'none selected') + '</div>';
+    html += '<div style="margin-top:6px"><strong>Tech assists:</strong> ' + escapeHtml(assists) + '</div>';
+    html += '<div style="margin-top:6px"><strong>Maintenance:</strong> ' + cadenceLabel + (draft.reviewDate ? ', review ' + escapeHtml(draft.reviewDate) : ', review date not set') + '</div>';
+
+    byId('current-review').innerHTML = html;
+  }
+
+  function draftHasAnyContent() {
+    return Boolean(
+      draft.behavior ||
+      draft.trigger ||
+      draft.action ||
+      draft.woop.wish ||
+      draft.woop.outcome ||
+      draft.woop.obstacle ||
+      draft.techAssist.notes
+    );
+  }
+
+  function updateOverview() {
+    readInputsToDraft();
+    var list = byId('tap-overview-list');
+    list.innerHTML = '';
+
+    if (taps.length === 0 && !draftHasAnyContent()) {
+      list.innerHTML = '<div class="tap-mini">No saved TAPs yet. Build your first one now.</div>';
+    } else {
+      taps.forEach(function (tap, index) {
+        var item = document.createElement('div');
+        item.className = 'tap-mini';
+        item.innerHTML = '<strong>TAP ' + (index + 1) + '</strong><div style="margin-top:4px"><span style="color:var(--text-dim)">When</span> ' + escapeHtml(tap.trigger) + '<span class="arrow">&rarr;</span><span style="color:var(--text-dim)">Then</span> ' + escapeHtml(tap.action) + '</div>';
+        list.appendChild(item);
+      });
+
+      if (draftHasAnyContent()) {
+        var draftItem = document.createElement('div');
+        draftItem.className = 'tap-mini draft';
+        draftItem.innerHTML = '<strong>Current draft</strong><div style="margin-top:4px"><span style="color:var(--text-dim)">When</span> ' + escapeHtml(draft.trigger || '...') + '<span class="arrow">&rarr;</span><span style="color:var(--text-dim)">Then</span> ' + escapeHtml(draft.action || '...') + '</div>';
+        list.appendChild(draftItem);
+      }
+    }
+
+    byId('saved-count').textContent = taps.length + ' saved';
+  }
+
+  function saveDraftTap() {
+    readInputsToDraft();
+
+    if (!draft.behavior || !draft.trigger || !draft.action) {
+      setStatus('Behavior, trigger, and action are required before saving.', 'warn');
+      return false;
+    }
+
+    if (draft.previewConcrete !== 'yes') {
+      setStatus('Confirm the TAP preview is concrete before saving.', 'warn');
+      return false;
+    }
+
+    if (draft.rehearsalCount < 5) {
+      setStatus('Complete all 5 rehearsal reps before saving.', 'warn');
+      return false;
+    }
+
+    if (!draft.woop.plan) {
+      draft.woop.plan = 'When ' + draft.trigger + ', then ' + draft.action;
+    }
+
+    var snapshot = JSON.parse(JSON.stringify(draft));
+    taps.push(snapshot);
+    return true;
+  }
+
+  function clearDraft() {
+    draft = createEmptyTap();
+    previewAnswer = '';
+    writeDraftToInputs();
+  }
+
+  function addAnotherTap() {
+    if (!saveDraftTap()) {
+      return;
+    }
+    clearDraft();
+    updateOverview();
+    goStep(1);
+    setStatus('TAP saved. Ready for another.', 'ok');
+  }
+
+  function finishToSummary() {
+    if (!saveDraftTap()) {
+      return;
+    }
+    updateOverview();
+    goStep(11);
+    setStatus('Summary ready to copy or export.', 'ok');
+  }
+
+  function joinTechAssists(techAssist) {
+    var items = [];
+    if (techAssist.location) {
+      items.push('location reminder');
+    }
+    if (techAssist.time) {
+      items.push('time reminder');
+    }
+    if (techAssist.environment) {
+      items.push('environment design');
+    }
+    if (techAssist.accountability) {
+      items.push('accountability partner');
+    }
+    if (!items.length) {
+      return 'none selected';
+    }
+    return items.join(', ');
+  }
+
+  function formatCadence(value) {
+    if (value === 'few-days') {
+      return 'Every few days';
+    }
+    if (value === 'weekly') {
+      return 'Weekly';
+    }
+    return 'Daily';
+  }
+
+  function buildIntegrationSuggestions(tap) {
+    var suggestions = [];
+
+    if (tap.failureModes.vagueTrigger) {
+      suggestions.push('Rewrite the trigger with a concrete sensory cue (what you see, hear, or feel).');
+    }
+
+    if (tap.failureModes.ambitiousAction) {
+      suggestions.push('Shrink the action to a 5-second movement that starts momentum.');
+    }
+
+    if (tap.failureModes.requiresJudgment) {
+      suggestions.push('Replace in-the-moment judgment with a simple observable condition.');
+    }
+
+    if (!tap.techAssist.location && !tap.techAssist.time && !tap.techAssist.environment && !tap.techAssist.accountability) {
+      suggestions.push('Add one external cue so the trigger is easier to notice at the right moment.');
+    }
+
+    if (!tap.reviewDate) {
+      suggestions.push('Set a review date to keep this TAP alive beyond week one.');
+    }
+
+    if (tap.vividness <= 5) {
+      suggestions.push('Run another rehearsal set and increase vividness before relying on this under stress.');
+    }
+
+    if (!suggestions.length) {
+      suggestions.push('This TAP is tight. Keep re-rehearsing on your cadence until automatic.');
+    }
+
+    return suggestions;
+  }
+
+  function renderSummary() {
+    var container = byId('summary-content');
+
+    if (!taps.length) {
+      container.innerHTML = '<div class="summary-empty">No TAPs saved yet. Use Step 10 to save at least one TAP.</div>';
+      return;
+    }
+
+    var html = '';
+    taps.forEach(function (tap, index) {
+      var suggestions = buildIntegrationSuggestions(tap);
+      var failureModes = [];
+
+      if (tap.failureModes.vagueTrigger) {
+        failureModes.push('vague trigger');
+      }
+      if (tap.failureModes.ambitiousAction) {
+        failureModes.push('ambitious action');
+      }
+      if (tap.failureModes.requiresJudgment) {
+        failureModes.push('requires judgment');
+      }
+
+      html += '<div class="summary-card">';
+      html += '<h3>TAP ' + (index + 1) + ': ' + escapeHtml(tap.behavior || 'Untitled behavior') + '</h3>';
+      html += '<div class="flow-line"><span class="label">When</span> ' + escapeHtml(tap.trigger) + '<span class="arrow">&rarr;</span><span class="label">Then</span> ' + escapeHtml(tap.action) + '</div>';
+      html += '<div class="metric"><strong>Rehearsal:</strong> ' + tap.rehearsalCount + '/5 reps, vividness ' + tap.vividness + '/10</div>';
+      html += '<div class="metric"><strong>Tech assists:</strong> ' + escapeHtml(joinTechAssists(tap.techAssist)) + '</div>';
+      html += '<div class="metric"><strong>Maintenance:</strong> ' + formatCadence(tap.maintenanceCadence) + (tap.reviewDate ? ', review ' + escapeHtml(tap.reviewDate) : ', review date not set') + '</div>';
+      html += '<div class="metric"><strong>Failure modes:</strong> ' + (failureModes.length ? escapeHtml(failureModes.join(', ')) : 'none') + '</div>';
+
+      if (tap.techAssist.notes) {
+        html += '<div class="metric"><strong>Tech notes:</strong> ' + escapeHtml(tap.techAssist.notes) + '</div>';
+      }
+
+      if (tap.woop.wish || tap.woop.outcome || tap.woop.obstacle || tap.woop.plan) {
+        html += '<div class="metric"><strong>WOOP:</strong> ';
+        if (tap.woop.wish) {
+          html += 'Wish: ' + escapeHtml(tap.woop.wish) + ' '; 
+        }
+        if (tap.woop.outcome) {
+          html += 'Outcome: ' + escapeHtml(tap.woop.outcome) + ' ';
+        }
+        if (tap.woop.obstacle) {
+          html += 'Obstacle: ' + escapeHtml(tap.woop.obstacle) + ' ';
+        }
+        if (tap.woop.plan) {
+          html += 'Plan: ' + escapeHtml(tap.woop.plan);
+        }
+        html += '</div>';
+      }
+
+      html += '<div class="suggest-title">Integration suggestions</div>';
+      html += '<ul class="suggest-list">';
+      suggestions.forEach(function (suggestion) {
+        html += '<li>' + escapeHtml(suggestion) + '</li>';
+      });
+      html += '</ul>';
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  function buildSummaryText() {
+    if (!taps.length) {
+      return 'No TAPs saved yet.';
+    }
+
+    var lines = [];
+    lines.push('Trigger-Action Plans Summary');
+    lines.push('Generated: ' + new Date().toLocaleString());
+    lines.push('');
+
+    taps.forEach(function (tap, index) {
+      var suggestions = buildIntegrationSuggestions(tap);
+      var failureModes = [];
+
+      if (tap.failureModes.vagueTrigger) {
+        failureModes.push('vague trigger');
+      }
+      if (tap.failureModes.ambitiousAction) {
+        failureModes.push('ambitious action');
+      }
+      if (tap.failureModes.requiresJudgment) {
+        failureModes.push('requires judgment');
+      }
+
+      lines.push('TAP ' + (index + 1) + ': ' + (tap.behavior || 'Untitled behavior'));
+      lines.push('When ' + tap.trigger + ' -> Then ' + tap.action);
+      lines.push('Rehearsal: ' + tap.rehearsalCount + '/5 reps, vividness ' + tap.vividness + '/10');
+      lines.push('Tech assists: ' + joinTechAssists(tap.techAssist));
+      lines.push('Maintenance: ' + formatCadence(tap.maintenanceCadence) + (tap.reviewDate ? ', review ' + tap.reviewDate : ', review date not set'));
+      lines.push('Failure modes: ' + (failureModes.length ? failureModes.join(', ') : 'none'));
+
+      if (tap.techAssist.notes) {
+        lines.push('Tech notes: ' + tap.techAssist.notes);
+      }
+
+      if (tap.woop.wish || tap.woop.outcome || tap.woop.obstacle || tap.woop.plan) {
+        lines.push('WOOP:');
+        if (tap.woop.wish) {
+          lines.push('- Wish: ' + tap.woop.wish);
+        }
+        if (tap.woop.outcome) {
+          lines.push('- Outcome: ' + tap.woop.outcome);
+        }
+        if (tap.woop.obstacle) {
+          lines.push('- Obstacle: ' + tap.woop.obstacle);
+        }
+        if (tap.woop.plan) {
+          lines.push('- Plan: ' + tap.woop.plan);
+        }
+      }
+
+      lines.push('Integration suggestions:');
+      suggestions.forEach(function (suggestion) {
+        lines.push('- ' + suggestion);
+      });
+
+      lines.push('');
+    });
+
+    return lines.join('\n');
+  }
+
+  function copySummary() {
+    var text = buildSummaryText();
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () {
+        setStatus('Summary copied to clipboard.', 'ok');
+      }).catch(function () {
+        fallbackCopy(text);
+      });
+      return;
+    }
+
+    fallbackCopy(text);
+  }
+
+  function fallbackCopy(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'absolute';
+    area.style.left = '-9999px';
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    document.body.removeChild(area);
+    setStatus('Summary copied to clipboard.', 'ok');
+  }
+
+  function exportSummary() {
+    var text = buildSummaryText();
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'trigger-action-plans-summary.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
+    setStatus('Summary exported.', 'ok');
+  }
+
+  function startOver() {
+    var confirmed = confirm('Start over and clear all TAPs?');
+    if (!confirmed) {
+      return;
+    }
+
+    taps = [];
+    clearDraft();
+    buildProgress(1);
+    updateOverview();
+    goStep(1);
+    setStatus('All TAPs cleared.', 'warn');
+  }
+
+  function init() {
+    buildProgress(1);
+    writeDraftToInputs();
+    updateOverview();
+    updateActionWarning();
+    refreshPreview();
+    updateRehearsalUI();
+    refreshCurrentReview();
+  }
+
+  init();
+</script>
+</body>
+</html>
