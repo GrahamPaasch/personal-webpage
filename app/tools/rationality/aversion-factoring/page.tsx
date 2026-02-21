@@ -1,9 +1,5 @@
 'use client';
 
-export const metadata = {
-  title: 'Aversion Factoring | Rationality Toolkit',
-};
-
 const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
