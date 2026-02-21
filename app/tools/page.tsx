@@ -127,6 +127,9 @@ export default function ToolsIndexPage() {
           <a className="button" href="#network">
             Network tools
           </a>
+          <a className="button" href="#rationality">
+            Rationality tools
+          </a>
           <Link className="button" href="/naf-discovery">
             NAF Discovery Tool
           </Link>
@@ -163,6 +166,21 @@ export default function ToolsIndexPage() {
       {networkTools.map((tool) => (
         <ToolCard key={tool.href} {...tool} />
       ))}
+
+      <div id="rationality" className="card toolbox-anchor">
+        <div className="prompt-header" style={{ marginBottom: 10 }}>
+          <h2 style={{ margin: 0 }}>Rationality Toolkit</h2>
+          <span className="prompt-header-badge">CFAR</span>
+        </div>
+        <p className="muted">
+          Thirteen interactive tools inspired by CFAR applied rationality techniques. Structured exercises for clearer thinking and better decisions.
+        </p>
+        <div className="cta-row" style={{ marginTop: 14 }}>
+          <Link className="button primary" href="/tools/rationality">
+            Open Rationality Toolkit
+          </Link>
+        </div>
+      </div>
     </section>
   );
 }

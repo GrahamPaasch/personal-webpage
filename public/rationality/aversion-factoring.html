@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aversion Factoring</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #14141f;
+    --surface2: #1e1e2e;
+    --border: #2a2a3a;
+    --accent: #7c6fe0;
+    --accent-dim: #5a4fb8;
+    --accent-glow: rgba(124,111,224,0.15);
+    --text: #e8e6f0;
+    --text-dim: #8a889a;
+    --danger: #e06c75;
+    --success: #98c379;
+    --warning: #e5c07b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height:100vh; padding:20px; }
+  .container { max-width:640px; margin:0 auto; }
+  h1 { font-size:1.6rem; margin-bottom:4px; }
+  .subtitle { color:var(--text-dim); font-size:0.9rem; margin-bottom:24px; }
+  .step { display:none; }
+  .step.active { display:block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
+  label { display:block; font-size:0.85rem; color:var(--text-dim); margin-bottom:6px; font-weight:500; }
+  textarea, input[type=text], input[type=range] { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-size:0.95rem; resize:vertical; }
+  textarea:focus, input[type=text]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+  textarea { min-height:80px; }
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:10px 20px; border-radius:8px; border:none; font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .btn-primary { background:var(--accent); color:white; }
+  .btn-primary:hover { background:var(--accent-dim); transform:translateY(-1px); }
+  .btn-secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn-secondary:hover { border-color:var(--accent); }
+  .btn-danger { background:rgba(224,108,117,0.1); color:var(--danger); border:1px solid rgba(224,108,117,0.3); }
+  .btn-row { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .progress-bar { display:flex; gap:4px; margin-bottom:20px; }
+  .progress-dot { height:4px; flex:1; border-radius:2px; background:var(--surface2); transition:background 0.3s; }
+  .progress-dot.done { background:var(--accent); }
+  .progress-dot.current { background:var(--accent); opacity:0.5; }
+  .sub-aversion-item { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:8px; }
+  .sub-aversion-item input { margin-bottom:0; }
+  .remove-btn { background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.8rem; float:right; }
+  .button-test { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .button-test .btn { font-size:0.8rem; padding:6px 14px; }
+  .button-test .btn.selected { border-color:var(--accent); background:var(--accent-glow); }
+  .solution-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:10px; }
+  .solution-card h4 { font-size:0.9rem; margin-bottom:8px; }
+  .solution-type-btns { display:flex; gap:6px; flex-wrap:wrap; }
+  .solution-type-btns .btn { font-size:0.75rem; padding:4px 12px; }
+  .solution-type-btns .btn.selected { border-color:var(--success); background:rgba(152,195,121,0.1); color:var(--success); }
+  .gauge-container { display:flex; align-items:center; gap:12px; margin:12px 0; }
+  .gauge-container input[type=range] { flex:1; padding:0; }
+  .gauge-value { font-size:1.4rem; font-weight:700; color:var(--accent); min-width:32px; text-align:center; }
+  .summary-section { margin-bottom:16px; }
+  .summary-section-title { font-size:0.8rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px; }
+  .summary-item { display:flex; align-items:center; gap:8px; padding:6px 0; }
+  .summary-tag { font-size:0.7rem; padding:2px 8px; border-radius:4px; font-weight:600; }
+  .tag-reframe { background:rgba(124,111,224,0.15); color:var(--accent); }
+  .tag-mitigate { background:rgba(229,192,123,0.15); color:var(--warning); }
+  .tag-accept { background:rgba(152,195,121,0.15); color:var(--success); }
+  .tag-blocker { background:rgba(224,108,117,0.15); color:var(--danger); }
+  .hint { font-size:0.85rem; color:var(--text-dim); background:var(--surface2); border-radius:8px; padding:12px; margin-top:12px; line-height:1.5; }
+  .step-title { font-size:1.1rem; font-weight:600; margin-bottom:4px; }
+  .step-desc { font-size:0.85rem; color:var(--text-dim); margin-bottom:16px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Aversion Factoring</h1>
+  <p class="subtitle">Break down what you're avoiding into concrete sub-aversions, then solve each one.</p>
+  <div class="progress-bar" id="progress-bar"></div>
+  <!-- Step 1 -->
+  <div class="step active" id="step-1">
+    <div class="card">
+      <div class="step-title">1. Name the aversion</div>
+      <div class="step-desc">What are you avoiding or procrastinating on? Be specific.</div>
+      <label for="aversion-text">I'm avoiding...</label>
+      <textarea id="aversion-text" placeholder="e.g. Filing my taxes, having a difficult conversation with my manager..."></textarea>
+      <div class="btn-row"><button class="btn btn-primary" onclick="goToStep(2)">Next &rarr;</button></div>
+    </div>
+  </div>
+  <!-- Step 2 -->
+  <div class="step" id="step-2">
+    <div class="card">
+      <div class="step-title">2. Decompose into sub-aversions</div>
+      <div class="step-desc">What specifically feels bad about this? List each distinct thing that makes you flinch. Aim for 3-7.</div>
+      <div id="sub-aversions-list"></div>
+      <button class="btn btn-secondary" onclick="addSubAversion()" style="margin-top:8px">+ Add sub-aversion</button>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(1)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(3)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+  <!-- Step 3 -->
+  <div class="step" id="step-3">
+    <div class="card">
+      <div class="step-title">3. Button test each sub-aversion</div>
+      <div class="step-desc">For each sub-aversion: if you could press a magic button and this specific thing wasn't a problem, would you still avoid the task?</div>
+      <div id="button-test-list"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(2)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(4)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+  <!-- Step 4 -->
+  <div class="step" id="step-4">
+    <div class="card">
+      <div class="step-title">4. Generate solutions for blockers</div>
+      <div class="step-desc">For each sub-aversion you marked as a blocker, brainstorm a concrete fix. Classify each solution.</div>
+      <div id="solutions-list"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(3)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="goToStep(5)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+  <!-- Step 5 -->
+  <div class="step" id="step-5">
+    <div class="card">
+      <div class="step-title">5. Remaining resistance check</div>
+      <div class="step-desc">Imagine doing the thing now, with all your solutions in place. How much aversion remains?</div>
+      <label>Remaining resistance (0 = none, 10 = just as bad)</label>
+      <div class="gauge-container">
+        <input type="range" id="gauge" min="0" max="10" value="5" oninput="document.getElementById('gauge-val').textContent=this.value; gaugeValue=parseInt(this.value)">
+        <span class="gauge-value" id="gauge-val">5</span>
+      </div>
+      <label for="remaining-notes">What's still there? (optional)</label>
+      <textarea id="remaining-notes" placeholder="Any lingering feelings or thoughts..."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(4)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="showSummary()">See summary</button>
+      </div>
+    </div>
+  </div>
+  <!-- Summary -->
+  <div class="step" id="summary">
+    <div class="card">
+      <div class="step-title">Summary</div>
+      <div id="summary-content"></div>
+      <div class="hint" id="summary-hint"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(5)">&larr; Back</button>
+        <button class="btn btn-danger" onclick="resetAll()">Start over</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const totalSteps = 5;
+  let buttonTestResults = {};
+  let solutionTypes = {};
+  let gaugeValue = 5;
+  function buildProgress(current) {
+    const bar = document.getElementById('progress-bar');
+    bar.innerHTML = '';
+    for (let i = 1; i <= totalSteps; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'progress-dot' + (i < current ? ' done' : i === current ? ' current' : '');
+      bar.appendChild(dot);
+    }
+  }
+  function showStep(id) {
+    const el = document.getElementById(typeof id === 'number' ? 'step-' + id : id);
+    if (el) { el.classList.add('active'); setTimeout(() => el.classList.add('visible'), 10); }
+  }
+  function goToStep(n) {
+    if (n === 3) buildButtonTests();
+    if (n === 4) buildSolutions();
+    buildProgress(n);
+    const current = document.querySelector('.step.active');
+    if (current) {
+      current.classList.remove('visible');
+      setTimeout(() => { current.classList.remove('active'); showStep(n); }, 300);
+    } else { showStep(n); }
+  }
+  function addSubAversion() {
+    const list = document.getElementById('sub-aversions-list');
+    const idx = list.children.length;
+    const div = document.createElement('div');
+    div.className = 'sub-aversion-item';
+    div.innerHTML = `<button class="remove-btn" onclick="this.parentElement.remove()">&times;</button><input type="text" placeholder="Sub-aversion ${idx+1}: What specifically feels bad?">`;
+    list.appendChild(div);
+  }
+  function getSubAversions() {
+    return Array.from(document.querySelectorAll('#sub-aversions-list input')).map(i => i.value.trim()).filter(Boolean);
+  }
+  function buildButtonTests() {
+    const subs = getSubAversions();
+    const container = document.getElementById('button-test-list');
+    container.innerHTML = '';
+    subs.forEach((sub, i) => {
+      const div = document.createElement('div');
+      div.className = 'solution-card';
+      const prev = buttonTestResults[sub];
+      div.innerHTML = `<h4>"${sub}"</h4><p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px">If this weren't a problem, would you still avoid the task?</p><div class="button-test"><button class="btn btn-secondary ${prev==='yes'?'selected':''}" onclick="markButtonTest('${sub.replace(/'/g,"\\'") }','yes',this)">Yes, still avoid</button><button class="btn btn-secondary ${prev==='no'?'selected':''}" onclick="markButtonTest('${sub.replace(/'/g,"\\\'")}','no',this)">No, I'd do it</button></div>`;
+      container.appendChild(div);
+    });
+  }
+  function markButtonTest(sub, val, btn) {
+    buttonTestResults[sub] = val;
+    const row = btn.parentElement;
+    row.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+  function buildSolutions() {
+    const blockers = Object.entries(buttonTestResults).filter(([_,v]) => v === 'no').map(([k]) => k);
+    const container = document.getElementById('solutions-list');
+    container.innerHTML = '';
+    if (blockers.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-dim)">No blockers identified. Go back and mark which sub-aversions are actually blocking you.</p>';
+      return;
+    }
+    blockers.forEach(sub => {
+      const div = document.createElement('div');
+      div.className = 'solution-card';
+      const prev = solutionTypes[sub] || '';
+      div.innerHTML = `<h4>Blocker: "${sub}"</h4><label>Your proposed solution:</label><textarea placeholder="How could you address this?" onchange="solutionTexts['${sub.replace(/'/g,"\\\'")}'] = this.value"></textarea><div class="solution-type-btns" style="margin-top:8px"><button class="btn btn-secondary ${prev==='reframe'?'selected':''}" onclick="markSolution('${sub.replace(/'/g,"\\\'")}','reframe',this)">Reframe</button><button class="btn btn-secondary ${prev==='mitigate'?'selected':''}" onclick="markSolution('${sub.replace(/'/g,"\\\'")}','mitigate',this)">Mitigate</button><button class="btn btn-secondary ${prev==='accept'?'selected':''}" onclick="markSolution('${sub.replace(/'/g,"\\\'")}','accept',this)">Accept</button></div>`;
+      container.appendChild(div);
+    });
+  }
+  let solutionTexts = {};
+  function markSolution(sub, type, btn) {
+    solutionTypes[sub] = type;
+    const row = btn.parentElement;
+    row.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+  function showSummary() {
+    const aversion = document.getElementById('aversion-text').value;
+    const subs = getSubAversions();
+    const remaining = document.getElementById('remaining-notes').value;
+    let html = `<div class="summary-section"><div class="summary-section-title">Aversion</div><p>${aversion || '(not specified)'}</p></div>`;
+    const blockers = subs.filter(s => buttonTestResults[s] === 'no');
+    const minor = subs.filter(s => buttonTestResults[s] !== 'no');
+    if (blockers.length > 0) {
+      html += `<div class="summary-section"><div class="summary-section-title">Blockers (with solutions)</div>`;
+      blockers.forEach(sub => {
+        const type = solutionTypes[sub] || 'unclassified';
+        const tagClass = type === 'reframe' ? 'tag-reframe' : type === 'mitigate' ? 'tag-mitigate' : type === 'accept' ? 'tag-accept' : 'tag-blocker';
+        html += `<div class="summary-item"><span class="summary-tag ${tagClass}">${type.toUpperCase()}</span><div class="summary-item-name">${sub}</div></div>`;
+      });
+      html += `</div>`;
+    }
+    if (minor.length > 0) {
+      html += `<div class="summary-section"><div class="summary-section-title">Minor irritants (not blocking)</div>`;
+      minor.forEach(sub => {
+        html += `<div class="summary-item" style="opacity:0.5"><span class="summary-tag" style="background:var(--surface2); color: var(--text-dim);">MINOR</span><div class="summary-item-name">${sub}</div></div>`;
+      });
+      html += `</div>`;
+    }
+    document.getElementById('summary-content').innerHTML = html;
+    const gaugeMsg = gaugeValue <= 3 ? 'Low remaining resistance \u2014 your fixes likely work. Try it now.' : gaugeValue <= 6 ? 'Moderate resistance remains. Consider another round on what still snags.' : 'High resistance remains. There may be a deeper sub-aversion worth finding \u2014 or this aversion may be protective.';
+    document.getElementById('summary-hint').innerHTML = `<strong>Resistance gauge: ${gaugeValue || '?'}/10</strong> \u2014 ${gaugeMsg}${remaining ? `<br><br><em>Remaining notes: "${remaining}"</em>` : ''}`;
+    const current = document.querySelector('.step.active');
+    if (current) { current.classList.remove('visible'); setTimeout(() => { current.classList.remove('active'); showStep('summary'); }, 300); }
+  }
+  function resetAll() {
+    if (!confirm('Start over? This will clear everything.')) return;
+    buttonTestResults = {}; solutionTypes = {}; gaugeValue = 0;
+    document.getElementById('aversion-text').value = '';
+    document.getElementById('sub-aversions-list').innerHTML = '';
+    addSubAversion(); addSubAversion(); addSubAversion();
+    const current = document.querySelector('.step.active');
+    if (current) { current.classList.remove('visible'); setTimeout(() => { current.classList.remove('active'); showStep(1); }, 300); }
+  }
+  buildProgress(1); addSubAversion(); addSubAversion(); addSubAversion();
+</script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+'use client';
+
+const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bucket Errors — Untangle What You're Really Asking</title>
+<style>
+  :root {
+    --bg: #0e0e10;
+    --surface: #1a1a2e;
+    --surface2: #252540;
+    --gold: #e2b714;
+    --gold-dim: #b8960f;
+    --text: #e8e6e3;
+    --text-dim: #9a9a9a;
+    --faded: #6a6a7a;
+    --green: #4caf50;
+    --red: #ef5350;
+    --radius: 12px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; }
+  .container { max-width: 620px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; color: var(--gold); margin-bottom: 4px; }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 24px; }
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .card { background: var(--surface); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; border: 1px solid var(--surface2); }
+  .card h2 { font-size: 1.1rem; color: var(--gold); margin-bottom: 12px; }
+  .card p, .card li { font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; }
+  .card ul { padding-left: 20px; margin: 8px 0; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
+  textarea, input[type="text"] { width: 100%; background: var(--surface2); border: 1px solid var(--faded); border-radius: 8px; padding: 12px; color: var(--text); font-size: 0.9rem; resize: vertical; font-family: inherit; }
+  textarea:focus, input:focus { outline: none; border-color: var(--gold); }
+  textarea { min-height: 80px; }
+  .btn { display: inline-block; padding: 10px 24px; border-radius: 8px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--gold); color: #000; }
+  .btn-primary:hover { background: var(--gold-dim); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--faded); }
+  .btn-secondary:hover { border-color: var(--gold); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .progress-bar { display: flex; gap: 6px; margin-bottom: 20px; }
+  .progress-dot { width: 32px; height: 4px; border-radius: 2px; background: var(--surface2); transition: background 0.3s; }
+  .progress-dot.active { background: var(--gold); }
+  .progress-dot.done { background: var(--green); }
+  .example-box { background: var(--surface2); border-left: 3px solid var(--gold); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.8rem; color: var(--text-dim); }
+  .bucket-pair { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+  .bucket-tag { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .bucket-tag.tangled { background: var(--red); color: #fff; }
+  .bucket-tag.separate { background: var(--green); color: #fff; }
+  #untangle-result { display: none; }
+  #untangle-result.visible { display: block; animation: fadeIn 0.3s ease; }
+  .tip { font-size: 0.75rem; color: var(--faded); margin-top: 8px; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Bucket Errors</h1>
+  <p class="subtitle">Untangle what you're really asking — separate the evidence from the conclusion.</p>
+  <div class="progress-bar" id="progress"></div>
+  <div class="step active" id="step-1">
+    <div class="card">
+      <h2>What is a Bucket Error?</h2>
+      <p>A <strong>bucket error</strong> happens when your brain treats two different questions as if they're the same question — dumping evidence for one into the "bucket" of the other.</p>
+      <ul>
+        <li><strong>Specific fact:</strong> "I made a mistake at work today."</li>
+        <li><strong>Big conclusion:</strong> "I'm bad at my job."</li>
+      </ul>
+      <p style="margin-top:12px">These feel like the same thought, but they're answerable by <em>completely different evidence</em>. Tangling them makes you over-update on single events.</p>
+    </div>
+    <div class="card">
+      <h2>Step 1 — Describe the triggering event</h2>
+      <p>What specific thing happened (or might happen) that's bugging you?</p>
+      <div style="margin-top:12px">
+        <label for="event">The specific event or fact</label>
+        <textarea id="event" placeholder='e.g. "My partner seemed annoyed when I forgot to call."'></textarea>
+      </div>
+      <div class="example-box">
+        <strong>Good specifics:</strong> "I blanked during the presentation" · "She didn't text back for 6 hours" · "I ate fast food three days in a row"
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goStep(2)">Next →</button>
+    </div>
+  </div>
+  <div class="step" id="step-2">
+    <div class="card">
+      <h2>Step 2 — What big question is your brain jumping to?</h2>
+      <p>When that event happened, what larger conclusion did your mind leap toward? This is usually an identity-level or relationship-level question.</p>
+      <div style="margin-top:12px">
+        <label for="bigq">The big question / conclusion</label>
+        <textarea id="bigq" placeholder='e.g. "Am I a bad partner?" or "I\\'ll never be good at public speaking."'></textarea>
+      </div>
+      <div class="example-box">
+        <strong>Common big-question patterns:</strong><br>
+        "Am I [negative identity]?" · "Will [catastrophic outcome] happen?" · "Does [person] actually [feel negative thing] about me?"
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(3)">Next →</button>
+    </div>
+  </div>
+  <div class="step" id="step-3">
+    <div class="card">
+      <h2>Step 3 — Why does your brain connect them?</h2>
+      <p>What's the implicit logic? Why does the specific event feel like evidence for the big conclusion? (It's okay if the logic feels flimsy — write it anyway.)</p>
+      <div style="margin-top:12px">
+        <label for="why">The implicit connection (optional but powerful)</label>
+        <textarea id="why" placeholder='e.g. "If I really cared, I wouldn\\'t forget. Forgetting = not caring = bad partner."'></textarea>
+      </div>
+      <p class="tip">This step often reveals the hidden assumption that makes the bucket error feel so convincing.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="untangle()">Untangle the buckets →</button>
+    </div>
+  </div>
+  <div class="step" id="step-4">
+    <div class="card">
+      <h2>Your Untangled Buckets</h2>
+      <div id="untangle-result-content"></div>
+    </div>
+    <div id="untangle-result" style="display:block">
+      <div class="card">
+        <h2>Now what?</h2>
+        <p>With the buckets separated, you can:</p>
+        <ul>
+          <li><strong>Handle Bucket A</strong> on its own terms — learn from the specific event without it meaning anything bigger.</li>
+          <li><strong>Evaluate Bucket B</strong> honestly — gather <em>actual</em> evidence across many situations before drawing a conclusion.</li>
+          <li><strong>Notice the pattern</strong> — next time your brain tangles them, you'll catch it faster.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(1)">Start over</button>
+    </div>
+  </div>
+</div>
+<script>
+  const totalSteps = 4;
+  let currentStep = 1;
+  function buildProgress(step) {
+    const bar = document.getElementById('progress');
+    bar.innerHTML = '';
+    for (let i = 1; i <= totalSteps; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'progress-dot' + (i === step ? ' active' : '') + (i < step ? ' done' : '');
+      bar.appendChild(dot);
+    }
+  }
+  function goStep(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-' + n).classList.add('active');
+    currentStep = n;
+    buildProgress(n);
+  }
+  function untangle() {
+    const event = document.getElementById('event').value.trim();
+    const bigq = document.getElementById('bigq').value.trim();
+    const why = document.getElementById('why').value.trim();
+    if (!event || !bigq) { alert('Please fill in at least the event and the big question.'); return; }
+    goStep(4);
+    const result = document.getElementById('untangle-result');
+    const content = document.getElementById('untangle-result-content');
+    const specificQ = event.length > 40 ? event.substring(0,40) + '...' : event;
+    content.innerHTML = \`
+      <div class="bucket-pair">
+        <span class="bucket-tag tangled">Your bucket (tangled)</span>
+      </div>
+      <div style="font-size:12px;color:var(--faded);margin:8px 0 16px 0">
+        <em>"\${event}"</em> \\u2192 bundled with \\u2192 <em>"\${bigq}"</em>
+      </div>
+      <div class="bucket-pair">
+        <span class="bucket-tag separate">Bucket A \\u2014 This Specific Fact</span>
+      </div>
+      <div style="font-size:12px;color:var(--faded);margin:8px 0 4px 16px">
+        Only answers: <em>Did this specific thing happen? What can I learn from it?</em>
+      </div>
+      <div style="font-size:11px;color:var(--faded);margin:0 0 16px 16px;font-style:italic">
+        Evidence goes here: <em>"\${specificQ}"</em>
+      </div>
+      <div class="bucket-pair">
+        <span class="bucket-tag separate">Bucket B \\u2014 \${bigq}</span>
+      </div>
+      <div style="font-size:12px;color:var(--faded);margin:8px 0 4px 16px">
+        Requires: much more evidence, from many situations, over time.
+      </div>
+      <div style="font-size:11px;color:var(--faded);margin:0 0 20px 16px;font-style:italic">
+        One data point does <em>not</em> answer this question.
+      </div>
+      \${why ? \`<strong style="font-size:11px">The implicit logic you noticed:</strong><br><div style="font-size:12px;color:var(--faded);margin:8px 0 16px 0;border-left:3px solid var(--gold);padding-left:12px;font-style:italic">"\${why}"</div><strong style="font-size:11px">Ask yourself:</strong> <span style="font-size:12px;color:var(--faded)">Can you find even one case where this fact is true but the big conclusion is false? If yes \\u2014 the connection between the buckets is not as tight as your mind assumes.</span>\` : ''}
+    \`;
+    result.classList.add('visible');
+  }
+  buildProgress(1);
+</script>
+</body>
+</html>
+`;
+
+export default function BucketErrorsPage() {
+  return (
+    <div style={{ width: '100%', minHeight: 'calc(100vh - 120px)' }}>
+      <iframe
+        srcDoc={htmlContent}
+        style={{ width: '100%', height: 'calc(100vh - 120px)', border: 'none', borderRadius: 8 }}
+        title="Bucket Errors"
+        sandbox="allow-scripts allow-same-origin"
+      />
+    </div>
+  );
+}

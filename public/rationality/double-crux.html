@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Double Crux - Find the Belief That Changes Minds</title>
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #121826;
+    --surface-2: #1a2438;
+    --border: #26324a;
+    --text: #e7edf9;
+    --text-dim: #98a6c4;
+    --accent: #4fb0ff;
+    --accent-dim: #2f83d6;
+    --accent-soft: rgba(79, 176, 255, 0.15);
+    --ok: #5ac18e;
+    --warn: #f0c96a;
+    --danger: #ef7474;
+    --radius: 12px;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: radial-gradient(circle at 20% 10%, #16203a 0%, var(--bg) 42%), var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+    line-height: 1.5;
+  }
+
+  .container {
+    width: min(860px, 100%);
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .background-glow {
+    position: fixed;
+    width: 280px;
+    height: 280px;
+    filter: blur(100px);
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.3;
+  }
+
+  .glow-a {
+    top: -80px;
+    left: -80px;
+    background: #2977d2;
+  }
+
+  .glow-b {
+    right: -100px;
+    bottom: -100px;
+    background: #3d9bf7;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+    letter-spacing: 0.2px;
+    color: #d9eaff;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+  }
+
+  .progress {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .dot {
+    height: 5px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    transition: background 0.2s ease;
+  }
+
+  .dot.active {
+    background: var(--accent);
+  }
+
+  .dot.done {
+    background: var(--ok);
+  }
+
+  .step {
+    display: none;
+  }
+
+  .step.active {
+    display: block;
+    animation: fadeIn 0.25s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%), var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 10px 35px rgba(5, 10, 18, 0.35);
+  }
+
+  h2 {
+    font-size: 1.06rem;
+    margin-bottom: 8px;
+    color: #dce9ff;
+  }
+
+  .muted {
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    margin-bottom: 12px;
+  }
+
+  label {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin: 10px 0 6px;
+    font-weight: 600;
+  }
+
+  textarea,
+  input[type="text"] {
+    width: 100%;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid #31405e;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.92rem;
+    font-family: inherit;
+  }
+
+  textarea {
+    min-height: 88px;
+    resize: vertical;
+  }
+
+  input[type="text"] {
+    min-height: 42px;
+  }
+
+  textarea:focus,
+  input[type="text"]:focus,
+  input[type="range"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .range-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .range-wrap {
+    padding: 12px;
+    border: 1px solid #2c3b56;
+    border-radius: 10px;
+    background: rgba(11, 20, 34, 0.45);
+  }
+
+  .range-wrap input[type="range"] {
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  .range-value {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .tip {
+    border-left: 3px solid var(--accent);
+    padding: 10px 12px;
+    background: rgba(31, 73, 118, 0.2);
+    color: #b9d8f8;
+    font-size: 0.84rem;
+    border-radius: 0 8px 8px 0;
+    margin-top: 10px;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 9px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.87rem;
+    font-weight: 600;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-primary {
+    color: #04101e;
+    background: var(--accent);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-dim);
+    color: #eaf4ff;
+  }
+
+  .btn-secondary {
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid #32405d;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent);
+  }
+
+  .btn-danger {
+    color: #ffd5d5;
+    background: rgba(186, 68, 68, 0.3);
+    border: 1px solid rgba(239, 116, 116, 0.45);
+  }
+
+  .test-row {
+    border: 1px solid #32415f;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: rgba(13, 22, 38, 0.62);
+  }
+
+  .test-row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .test-row-title {
+    font-size: 0.82rem;
+    color: #c4d8f5;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+
+  .small-btn {
+    border: 1px solid rgba(239, 116, 116, 0.45);
+    color: #ffcbcb;
+    background: rgba(186, 68, 68, 0.25);
+    border-radius: 7px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+
+  .small-btn:hover {
+    background: rgba(186, 68, 68, 0.35);
+  }
+
+  .summary {
+    display: grid;
+    gap: 10px;
+  }
+
+  .summary-card {
+    border: 1px solid #334564;
+    border-radius: 10px;
+    background: rgba(14, 23, 40, 0.75);
+    padding: 12px;
+  }
+
+  .summary-title {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: #9bb4dc;
+    margin-bottom: 6px;
+  }
+
+  .summary-text {
+    font-size: 0.9rem;
+    color: #e0ecff;
+    white-space: pre-wrap;
+  }
+
+  .list {
+    padding-left: 18px;
+    color: #dbe8fe;
+    font-size: 0.88rem;
+  }
+
+  .list li {
+    margin-bottom: 7px;
+  }
+
+  .script-box {
+    background: rgba(12, 19, 33, 0.72);
+    border: 1px dashed #3e547a;
+    border-radius: 10px;
+    padding: 12px;
+    color: #d3e3fb;
+    font-size: 0.88rem;
+    white-space: pre-wrap;
+  }
+
+  @media (max-width: 760px) {
+    body {
+      padding: 14px;
+    }
+
+    .two-col,
+    .range-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="background-glow glow-a"></div>
+<div class="background-glow glow-b"></div>
+
+<div class="container">
+  <h1>Double Crux</h1>
+  <p class="subtitle">Find the belief that actually changes each side's mind, then test that belief directly.</p>
+
+  <div class="progress" id="progress"></div>
+
+  <section class="step active" id="step-1">
+    <div class="card">
+      <h2>Step 1 - Define the disagreement</h2>
+      <p class="muted">A useful Double Crux starts with one concrete disagreement and a good steelman of both positions.</p>
+
+      <label for="topic">Disagreement in one sentence</label>
+      <textarea id="topic" placeholder="Example: Remote work should remain the default for our team."></textarea>
+
+      <div class="two-col">
+        <div>
+          <label for="my-position">Your current position</label>
+          <textarea id="my-position" placeholder="State your view clearly and concretely."></textarea>
+        </div>
+        <div>
+          <label for="their-position">Other position (steelman)</label>
+          <textarea id="their-position" placeholder="Write the strongest version of the other side."></textarea>
+        </div>
+      </div>
+
+      <div class="range-grid">
+        <div class="range-wrap">
+          <label for="my-confidence">Your confidence right now</label>
+          <input type="range" id="my-confidence" min="0" max="100" value="70">
+          <div class="range-value"><span id="my-confidence-value">70</span>% confident</div>
+        </div>
+        <div class="range-wrap">
+          <label for="their-confidence">Estimated other side confidence</label>
+          <input type="range" id="their-confidence" min="0" max="100" value="65">
+          <div class="range-value"><span id="their-confidence-value">65</span>% confident</div>
+        </div>
+      </div>
+
+      <div class="tip">Target mindset: curiosity over winning. You are looking for "what would make me change my mind," not "how do I beat them."</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="nextFromStep1()">Continue to your crux</button>
+    </div>
+  </section>
+
+  <section class="step" id="step-2">
+    <div class="card">
+      <h2>Step 2 - Your crux</h2>
+      <p class="muted">Your crux is the key belief that props up your position. If this belief falls, your view should shift.</p>
+
+      <label for="my-crux">My crux belief</label>
+      <textarea id="my-crux" placeholder="Example: Team productivity is higher when people work from home at least 3 days/week."></textarea>
+
+      <div class="two-col">
+        <div>
+          <label for="my-if-false">If this is false, I would...</label>
+          <textarea id="my-if-false" placeholder="Describe exactly how your position would change."></textarea>
+        </div>
+        <div>
+          <label for="my-check">Best way to test this crux</label>
+          <textarea id="my-check" placeholder="What evidence or experiment would update you most?"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showStep(1)">Back</button>
+      <button class="btn btn-primary" onclick="nextFromStep2()">Continue to their crux</button>
+    </div>
+  </section>
+
+  <section class="step" id="step-3">
+    <div class="card">
+      <h2>Step 3 - Their crux (best guess)</h2>
+      <p class="muted">Do your best to model what would really change the other side's mind. Ask directly if possible.</p>
+
+      <label for="their-crux">Their likely crux belief</label>
+      <textarea id="their-crux" placeholder="Example: In-office time produces better collaboration and mentoring."></textarea>
+
+      <div class="two-col">
+        <div>
+          <label for="their-if-false">If false, they would...</label>
+          <textarea id="their-if-false" placeholder="How would their position change if their crux failed?"></textarea>
+        </div>
+        <div>
+          <label for="their-check">What evidence would update them</label>
+          <textarea id="their-check" placeholder="What metric, event, or data source matters to them?"></textarea>
+        </div>
+      </div>
+
+      <div class="tip">If you cannot explain the other side well enough that they say "yes, that is my view," you are not at crux yet.</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showStep(2)">Back</button>
+      <button class="btn btn-primary" onclick="nextFromStep3()">Build shared tests</button>
+    </div>
+  </section>
+
+  <section class="step" id="step-4">
+    <div class="card">
+      <h2>Step 4 - Shared tests</h2>
+      <p class="muted">List observations that would update both sides. Good tests are concrete, time-bounded, and measurable.</p>
+
+      <div id="tests-list"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="addTestRow()">Add another test</button>
+      </div>
+
+      <label for="next-conversation">Next conversation checkpoint</label>
+      <textarea id="next-conversation" placeholder="Example: In two weeks, compare delivery speed, defect rate, and manager feedback across remote vs in-office days."></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showStep(3)">Back</button>
+      <button class="btn btn-primary" onclick="buildSummary()">Build summary</button>
+    </div>
+  </section>
+
+  <section class="step" id="step-5">
+    <div class="card">
+      <h2>Step 5 - Double Crux summary</h2>
+      <p class="muted">Use this summary to run the actual discussion. The goal is mutual update, not rhetorical victory.</p>
+      <div id="summary" class="summary"></div>
+    </div>
+
+    <div class="card">
+      <h2>Conversation script preview</h2>
+      <p class="muted">Read this out loud. Edit until it sounds collaborative and specific.</p>
+      <div id="script-preview" class="script-box"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showStep(4)">Back</button>
+      <button class="btn btn-primary" onclick="copySummary()">Copy summary</button>
+      <button class="btn btn-danger" onclick="resetAll()">Start over</button>
+    </div>
+  </section>
+</div>
+
+<script>
+  const totalSteps = 5;
+  let currentStep = 1;
+  let testIdCounter = 0;
+
+  function setup() {
+    bindRange('my-confidence', 'my-confidence-value');
+    bindRange('their-confidence', 'their-confidence-value');
+    buildProgress(1);
+    addTestRow('Observation that would strongly update both of us');
+    addTestRow('A measurable prediction where our views diverge');
+  }
+
+  function buildProgress(step) {
+    const progress = document.getElementById('progress');
+    progress.innerHTML = '';
+
+    for (let i = 1; i <= totalSteps; i += 1) {
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      if (i < step) {
+        dot.classList.add('done');
+      } else if (i === step) {
+        dot.classList.add('active');
+      }
+      progress.appendChild(dot);
+    }
+  }
+
+  function showStep(step) {
+    document.querySelectorAll('.step').forEach((node) => node.classList.remove('active'));
+    const nextStep = document.getElementById('step-' + step);
+    if (!nextStep) {
+      return;
+    }
+
+    nextStep.classList.add('active');
+    currentStep = step;
+    buildProgress(step);
+  }
+
+  function bindRange(inputId, valueId) {
+    const input = document.getElementById(inputId);
+    const value = document.getElementById(valueId);
+
+    const sync = () => {
+      value.textContent = input.value;
+    };
+
+    input.addEventListener('input', sync);
+    sync();
+  }
+
+  function requireValue(id, message) {
+    const field = document.getElementById(id);
+    if (!field || !field.value.trim()) {
+      alert(message);
+      if (field) {
+        field.focus();
+      }
+      return false;
+    }
+    return true;
+  }
+
+  function nextFromStep1() {
+    if (!requireValue('topic', 'Please describe the disagreement first.')) {
+      return;
+    }
+    if (!requireValue('my-position', 'Please add your position.')) {
+      return;
+    }
+    if (!requireValue('their-position', 'Please add the steelman of the other side.')) {
+      return;
+    }
+
+    showStep(2);
+  }
+
+  function nextFromStep2() {
+    if (!requireValue('my-crux', 'Please write your crux belief.')) {
+      return;
+    }
+    showStep(3);
+  }
+
+  function nextFromStep3() {
+    if (!requireValue('their-crux', 'Please write your best guess of their crux belief.')) {
+      return;
+    }
+    showStep(4);
+  }
+
+  function addTestRow(prefillText) {
+    testIdCounter += 1;
+    const id = testIdCounter;
+
+    const row = document.createElement('div');
+    row.className = 'test-row';
+    row.id = 'test-row-' + id;
+
+    row.innerHTML =
+      '<div class="test-row-head">' +
+        '<div class="test-row-title">Shared test #' + id + '</div>' +
+        '<button type="button" class="small-btn" onclick="removeTestRow(' + id + ')">Remove</button>' +
+      '</div>' +
+      '<label for="test-question-' + id + '">Observation or experiment</label>' +
+      '<input type="text" id="test-question-' + id + '" placeholder="What specific evidence will we check?" value="' + escapeHtmlAttr(prefillText || '') + '">' +
+      '<label for="test-update-' + id + '">How each side should update if evidence disagrees</label>' +
+      '<textarea id="test-update-' + id + '" placeholder="Example: If output quality is equal or better remotely, both sides shift toward hybrid."></textarea>';
+
+    document.getElementById('tests-list').appendChild(row);
+  }
+
+  function removeTestRow(id) {
+    const row = document.getElementById('test-row-' + id);
+    if (row) {
+      row.remove();
+    }
+
+    if (document.querySelectorAll('.test-row').length === 0) {
+      addTestRow();
+    }
+  }
+
+  function getTests() {
+    const tests = [];
+    document.querySelectorAll('.test-row').forEach((row) => {
+      const rowId = row.id.replace('test-row-', '');
+      const question = document.getElementById('test-question-' + rowId);
+      const update = document.getElementById('test-update-' + rowId);
+
+      const item = {
+        question: question ? question.value.trim() : '',
+        update: update ? update.value.trim() : '',
+      };
+
+      if (item.question || item.update) {
+        tests.push(item);
+      }
+    });
+    return tests;
+  }
+
+  function buildSummary() {
+    const topic = document.getElementById('topic').value.trim();
+    const myPosition = document.getElementById('my-position').value.trim();
+    const theirPosition = document.getElementById('their-position').value.trim();
+    const myCrux = document.getElementById('my-crux').value.trim();
+    const myIfFalse = document.getElementById('my-if-false').value.trim();
+    const myCheck = document.getElementById('my-check').value.trim();
+    const theirCrux = document.getElementById('their-crux').value.trim();
+    const theirIfFalse = document.getElementById('their-if-false').value.trim();
+    const theirCheck = document.getElementById('their-check').value.trim();
+    const myConfidence = document.getElementById('my-confidence').value;
+    const theirConfidence = document.getElementById('their-confidence').value;
+    const nextConversation = document.getElementById('next-conversation').value.trim();
+    const tests = getTests();
+
+    if (!topic || !myPosition || !theirPosition) {
+      alert('Please complete Step 1 before building a summary.');
+      showStep(1);
+      return;
+    }
+
+    if (!myCrux) {
+      alert('Please complete your crux before building a summary.');
+      showStep(2);
+      return;
+    }
+
+    if (!theirCrux) {
+      alert('Please complete the other side crux before building a summary.');
+      showStep(3);
+      return;
+    }
+
+    if (tests.length === 0) {
+      alert('Please add at least one shared test.');
+      showStep(4);
+      return;
+    }
+
+    const summary = document.getElementById('summary');
+
+    let testsHtml = '<ul class="list">';
+    tests.forEach((test, index) => {
+      testsHtml += '<li><strong>Test ' + (index + 1) + ':</strong> ' + escapeHtml(test.question || '(not specified)');
+      if (test.update) {
+        testsHtml += '<br><span style="color:#a7bfdf">Update rule: ' + escapeHtml(test.update) + '</span>';
+      }
+      testsHtml += '</li>';
+    });
+    testsHtml += '</ul>';
+
+    summary.innerHTML =
+      '<div class="summary-card"><div class="summary-title">Disagreement</div><div class="summary-text">' + escapeHtml(topic) + '</div></div>' +
+      '<div class="summary-card"><div class="summary-title">Positions</div><div class="summary-text"><strong>Me (' + myConfidence + '%):</strong> ' + escapeHtml(myPosition) + '\n\n<strong>Other (' + theirConfidence + '%):</strong> ' + escapeHtml(theirPosition) + '</div></div>' +
+      '<div class="summary-card"><div class="summary-title">My crux</div><div class="summary-text">' + escapeHtml(myCrux) + (myIfFalse ? '\n\nIf false: ' + escapeHtml(myIfFalse) : '') + (myCheck ? '\n\nBest test: ' + escapeHtml(myCheck) : '') + '</div></div>' +
+      '<div class="summary-card"><div class="summary-title">Their crux</div><div class="summary-text">' + escapeHtml(theirCrux) + (theirIfFalse ? '\n\nIf false: ' + escapeHtml(theirIfFalse) : '') + (theirCheck ? '\n\nBest test: ' + escapeHtml(theirCheck) : '') + '</div></div>' +
+      '<div class="summary-card"><div class="summary-title">Shared tests</div>' + testsHtml + '</div>' +
+      (nextConversation ? '<div class="summary-card"><div class="summary-title">Next checkpoint</div><div class="summary-text">' + escapeHtml(nextConversation) + '</div></div>' : '');
+
+    document.getElementById('script-preview').textContent = buildConversationScript({
+      topic,
+      myCrux,
+      theirCrux,
+      nextConversation,
+      tests,
+    });
+
+    showStep(5);
+  }
+
+  function buildConversationScript(data) {
+    let script = '';
+    script += 'I want us to focus on one disagreement: "' + data.topic + '".\n\n';
+    script += 'My crux seems to be: ' + data.myCrux + '.\n';
+    script += 'I think your crux may be: ' + data.theirCrux + '.\n\n';
+    script += 'Can we agree to run these tests and pre-commit to how we update?\n';
+
+    data.tests.forEach((test, index) => {
+      script += (index + 1) + '. ' + (test.question || '(test not specified)') + '\n';
+      if (test.update) {
+        script += '   Update rule: ' + test.update + '\n';
+      }
+    });
+
+    if (data.nextConversation) {
+      script += '\nCheckpoint: ' + data.nextConversation + '\n';
+    }
+
+    script += '\nGoal: both of us should be able to say what evidence would change our minds.';
+    return script;
+  }
+
+  function copySummary() {
+    const summaryText = document.getElementById('summary').innerText.trim();
+    const scriptText = document.getElementById('script-preview').innerText.trim();
+    const combined = summaryText + '\n\nConversation Script\n' + scriptText;
+
+    if (!combined.trim()) {
+      alert('Nothing to copy yet. Build your summary first.');
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(combined)
+        .then(() => alert('Summary copied to clipboard.'))
+        .catch(() => fallbackCopy(combined));
+      return;
+    }
+
+    fallbackCopy(combined);
+  }
+
+  function fallbackCopy(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    try {
+      document.execCommand('copy');
+      alert('Summary copied to clipboard.');
+    } catch (err) {
+      alert('Could not copy automatically. Please copy manually.');
+    }
+    area.remove();
+  }
+
+  function resetAll() {
+    if (!confirm('Start over and clear everything?')) {
+      return;
+    }
+
+    document.querySelectorAll('textarea').forEach((field) => {
+      field.value = '';
+    });
+
+    document.querySelectorAll('input[type="text"]').forEach((field) => {
+      field.value = '';
+    });
+
+    document.getElementById('my-confidence').value = '70';
+    document.getElementById('their-confidence').value = '65';
+    document.getElementById('my-confidence-value').textContent = '70';
+    document.getElementById('their-confidence-value').textContent = '65';
+
+    const testsList = document.getElementById('tests-list');
+    testsList.innerHTML = '';
+    testIdCounter = 0;
+    addTestRow('Observation that would strongly update both of us');
+    addTestRow('A measurable prediction where our views diverge');
+
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('script-preview').textContent = '';
+
+    showStep(1);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escapeHtmlAttr(value) {
+    return escapeHtml(value).replace(/\n/g, ' ');
+  }
+
+  window.addEventListener('DOMContentLoaded', setup);
+</script>
+</body>
+</html>
