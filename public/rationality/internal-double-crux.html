@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Internal Double Crux</title>
+<style>
+  :root {
+    --bg: #120f0d;
+    --surface: #1d1814;
+    --surface-2: #29211b;
+    --border: #3e3027;
+    --text: #f4e8da;
+    --text-dim: #b7a596;
+    --part-a: #ffac73;
+    --part-a-soft: rgba(255, 172, 115, 0.18);
+    --part-b: #7fc7ff;
+    --part-b-soft: rgba(127, 199, 255, 0.18);
+    --integrate: #a6dfa2;
+    --integrate-soft: rgba(166, 223, 162, 0.18);
+    --danger: #ff7a7a;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+    background:
+      radial-gradient(circle at 10% 0%, rgba(255, 172, 115, 0.16) 0%, rgba(255, 172, 115, 0) 40%),
+      radial-gradient(circle at 100% 20%, rgba(127, 199, 255, 0.14) 0%, rgba(127, 199, 255, 0) 42%),
+      linear-gradient(180deg, #17120f 0%, var(--bg) 100%);
+  }
+
+  .container {
+    width: min(900px, 100%);
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+    margin-bottom: 6px;
+    color: #fff3e4;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+    line-height: 1.45;
+  }
+
+  .top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .progress {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    width: min(560px, 100%);
+  }
+
+  .dot {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .dot.done {
+    background: linear-gradient(90deg, var(--part-a), var(--part-b));
+    border-color: transparent;
+  }
+
+  .dot.current {
+    background: linear-gradient(90deg, rgba(255, 172, 115, 0.7), rgba(127, 199, 255, 0.7));
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .step {
+    display: none;
+  }
+
+  .step.active {
+    display: block;
+    animation: fadeIn 0.25s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%), var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 12px 35px rgba(4, 3, 3, 0.35);
+  }
+
+  .step-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #fff1e3;
+  }
+
+  .step-desc {
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .side {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    background: rgba(20, 15, 12, 0.55);
+  }
+
+  .side-a {
+    border-color: rgba(255, 172, 115, 0.4);
+    background: linear-gradient(180deg, rgba(255, 172, 115, 0.1) 0%, rgba(255, 172, 115, 0.03) 100%);
+  }
+
+  .side-b {
+    border-color: rgba(127, 199, 255, 0.4);
+    background: linear-gradient(180deg, rgba(127, 199, 255, 0.1) 0%, rgba(127, 199, 255, 0.03) 100%);
+  }
+
+  .side-heading {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .side-a .side-heading {
+    color: var(--part-a);
+  }
+
+  .side-b .side-heading {
+    color: var(--part-b);
+  }
+
+  label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin: 6px 0;
+    font-weight: 600;
+  }
+
+  textarea,
+  input[type="text"] {
+    width: 100%;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid #4a3a30;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.92rem;
+    font-family: inherit;
+  }
+
+  textarea {
+    min-height: 98px;
+    resize: vertical;
+    line-height: 1.45;
+  }
+
+  input[type="text"] {
+    min-height: 42px;
+  }
+
+  textarea:focus,
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--integrate);
+    box-shadow: 0 0 0 3px var(--integrate-soft);
+  }
+
+  .hint {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border-left: 3px solid var(--integrate);
+    background: rgba(166, 223, 162, 0.08);
+    color: #d8ecd4;
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .btn-row {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 9px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 650;
+    transition: transform 0.1s ease, opacity 0.15s ease, background 0.15s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-primary {
+    color: #1b120c;
+    background: linear-gradient(90deg, var(--part-a), var(--part-b));
+  }
+
+  .btn-secondary {
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid #4a3a30;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--integrate);
+  }
+
+  .btn-danger {
+    color: #ffd6d6;
+    background: rgba(177, 60, 60, 0.28);
+    border: 1px solid rgba(255, 122, 122, 0.45);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.25px;
+    text-transform: uppercase;
+  }
+
+  .pill-a {
+    background: var(--part-a-soft);
+    color: var(--part-a);
+    border: 1px solid rgba(255, 172, 115, 0.35);
+  }
+
+  .pill-b {
+    background: var(--part-b-soft);
+    color: var(--part-b);
+    border: 1px solid rgba(127, 199, 255, 0.35);
+  }
+
+  .summary-grid {
+    display: grid;
+    gap: 10px;
+  }
+
+  .summary-card {
+    border: 1px solid #4a3a30;
+    background: rgba(24, 18, 14, 0.72);
+    border-radius: 11px;
+    padding: 12px;
+  }
+
+  .summary-title {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .summary-text {
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  .integration-card {
+    border-color: rgba(166, 223, 162, 0.4);
+    background: linear-gradient(180deg, rgba(166, 223, 162, 0.13) 0%, rgba(166, 223, 162, 0.04) 100%);
+  }
+
+  .insight-list {
+    display: grid;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .insight-item {
+    font-size: 0.86rem;
+    color: #e9dbc9;
+    background: rgba(31, 24, 19, 0.65);
+    border: 1px solid #4a3a30;
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+
+  @media (max-width: 720px) {
+    body {
+      padding: 14px;
+    }
+
+    .two-col {
+      grid-template-columns: 1fr;
+    }
+
+    .progress {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Internal Double Crux</h1>
+  <p class="subtitle">Resolve inner conflict by helping two parts of you reveal their key cruxes, then integrate around what they both care about.</p>
+
+  <div class="top-row">
+    <div class="progress" id="progress"></div>
+    <button class="btn btn-danger" onclick="restartAll()">Restart</button>
+  </div>
+
+  <div class="step active" id="step-1">
+    <div class="card">
+      <div class="step-title">1. Name the internal conflict</div>
+      <div class="step-desc">What tension are you feeling? Phrase it as one concrete conflict.</div>
+      <label for="conflict">Conflict statement</label>
+      <textarea id="conflict" placeholder="Example: Part of me wants to switch careers, and part of me wants security in my current role."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="nextFrom(1)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-2">
+    <div class="card">
+      <div class="step-title">2. Name the two sides</div>
+      <div class="step-desc">Give each part a short name that captures its role.</div>
+      <div class="two-col">
+        <div class="side side-a">
+          <div class="side-heading">Part A</div>
+          <label for="part-a-name">Part A name</label>
+          <input id="part-a-name" type="text" placeholder="Example: The Explorer">
+        </div>
+        <div class="side side-b">
+          <div class="side-heading">Part B</div>
+          <label for="part-b-name">Part B name</label>
+          <input id="part-b-name" type="text" placeholder="Example: The Stabilizer">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(1)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFrom(2)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-3">
+    <div class="card">
+      <div class="step-title">3. Give voice to each side</div>
+      <div class="step-desc">Let each part speak in first person: what does it know, want, or protect?</div>
+      <div class="two-col">
+        <div class="side side-a">
+          <div class="side-heading" id="voice-a-heading">Part A</div>
+          <label for="voice-a">What this part knows/wants</label>
+          <textarea id="voice-a" placeholder="I want... I am worried that... I am trying to protect..."></textarea>
+        </div>
+        <div class="side side-b">
+          <div class="side-heading" id="voice-b-heading">Part B</div>
+          <label for="voice-b">What this part knows/wants</label>
+          <textarea id="voice-b" placeholder="I want... I am worried that... I am trying to protect..."></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(2)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFrom(3)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-4">
+    <div class="card">
+      <div class="step-title">4. Find each side's crux</div>
+      <div class="step-desc">What is the key belief or concern that would move each part if it changed?</div>
+      <div class="two-col">
+        <div class="side side-a">
+          <div class="side-heading" id="crux-a-heading">Part A crux</div>
+          <label for="crux-a">Crux belief/concern</label>
+          <textarea id="crux-a" placeholder="I can only support this if... / I oppose this because..."></textarea>
+        </div>
+        <div class="side side-b">
+          <div class="side-heading" id="crux-b-heading">Part B crux</div>
+          <label for="crux-b">Crux belief/concern</label>
+          <textarea id="crux-b" placeholder="I can only support this if... / I oppose this because..."></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(3)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFrom(4)">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-5">
+    <div class="card">
+      <div class="step-title">5. Find the shared concern and integration point</div>
+      <div class="step-desc">What do both parts ultimately care about? Then propose a concrete integration move.</div>
+      <label for="shared-concern">Shared concern</label>
+      <textarea id="shared-concern" placeholder="Both parts care about..."></textarea>
+      <label for="integration">Integration point</label>
+      <textarea id="integration" placeholder="A policy/action that honors both parts could be..."></textarea>
+      <div class="hint">Good integration usually preserves each part's core concern while reducing the cost each one fears.</div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(4)">&larr; Back</button>
+        <button class="btn btn-primary" onclick="nextFrom(5)">See summary &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-6">
+    <div class="card">
+      <div class="step-title">6. Summary and insights</div>
+      <div id="summary-content" class="summary-grid"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(5)">&larr; Back</button>
+        <button class="btn btn-danger" onclick="restartAll()">Start over</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var totalSteps = 6;
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function escapeHtml(text) {
+    return String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function stepData() {
+    return {
+      conflict: byId('conflict').value.trim(),
+      partA: byId('part-a-name').value.trim(),
+      partB: byId('part-b-name').value.trim(),
+      voiceA: byId('voice-a').value.trim(),
+      voiceB: byId('voice-b').value.trim(),
+      cruxA: byId('crux-a').value.trim(),
+      cruxB: byId('crux-b').value.trim(),
+      sharedConcern: byId('shared-concern').value.trim(),
+      integration: byId('integration').value.trim()
+    };
+  }
+
+  function buildProgress(currentStep) {
+    var progress = byId('progress');
+    progress.innerHTML = '';
+    for (var i = 1; i <= totalSteps; i += 1) {
+      var dot = document.createElement('div');
+      dot.className = 'dot';
+      if (i < currentStep) {
+        dot.className += ' done';
+      } else if (i === currentStep) {
+        dot.className += ' current';
+      }
+      progress.appendChild(dot);
+    }
+  }
+
+  function setDynamicHeadings(data) {
+    byId('voice-a-heading').textContent = data.partA || 'Part A';
+    byId('voice-b-heading').textContent = data.partB || 'Part B';
+    byId('crux-a-heading').textContent = (data.partA || 'Part A') + ' crux';
+    byId('crux-b-heading').textContent = (data.partB || 'Part B') + ' crux';
+  }
+
+  function validateStep(step, data) {
+    if (step === 1 && !data.conflict) {
+      alert('Please name the internal conflict first.');
+      return false;
+    }
+
+    if (step === 2 && (!data.partA || !data.partB)) {
+      alert('Please name both Part A and Part B.');
+      return false;
+    }
+
+    if (step === 3 && (!data.voiceA || !data.voiceB)) {
+      alert('Please give voice to both sides before continuing.');
+      return false;
+    }
+
+    if (step === 4 && (!data.cruxA || !data.cruxB)) {
+      alert('Please write both cruxes before continuing.');
+      return false;
+    }
+
+    if (step === 5 && (!data.sharedConcern || !data.integration)) {
+      alert('Please fill in both the shared concern and integration point.');
+      return false;
+    }
+
+    return true;
+  }
+
+  function showStep(stepNumber) {
+    var steps = document.querySelectorAll('.step');
+    steps.forEach(function(step) {
+      step.classList.remove('active');
+    });
+
+    var current = byId('step-' + stepNumber);
+    if (current) {
+      current.classList.add('active');
+    }
+
+    buildProgress(stepNumber);
+
+    if (stepNumber === 6) {
+      renderSummary();
+    }
+  }
+
+  function goToStep(stepNumber) {
+    var data = stepData();
+    setDynamicHeadings(data);
+    showStep(stepNumber);
+  }
+
+  function nextFrom(currentStep) {
+    var data = stepData();
+    setDynamicHeadings(data);
+    if (!validateStep(currentStep, data)) {
+      return;
+    }
+    showStep(currentStep + 1);
+  }
+
+  function renderSummary() {
+    var data = stepData();
+    var partAName = data.partA || 'Part A';
+    var partBName = data.partB || 'Part B';
+
+    var html = '';
+
+    html += '<div class="summary-card">';
+    html += '<div class="summary-title">Internal conflict</div>';
+    html += '<div class="summary-text">' + escapeHtml(data.conflict || '(not specified)') + '</div>';
+    html += '</div>';
+
+    html += '<div class="two-col">';
+
+    html += '<div class="summary-card" style="border-color: rgba(255, 172, 115, 0.45);">';
+    html += '<div class="summary-title"><span class="pill pill-a">' + escapeHtml(partAName) + '</span></div>';
+    html += '<div class="summary-text">' + escapeHtml(data.voiceA || '(not specified)') + '</div>';
+    html += '</div>';
+
+    html += '<div class="summary-card" style="border-color: rgba(127, 199, 255, 0.45);">';
+    html += '<div class="summary-title"><span class="pill pill-b">' + escapeHtml(partBName) + '</span></div>';
+    html += '<div class="summary-text">' + escapeHtml(data.voiceB || '(not specified)') + '</div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    html += '<div class="two-col">';
+
+    html += '<div class="summary-card" style="border-color: rgba(255, 172, 115, 0.45);">';
+    html += '<div class="summary-title">' + escapeHtml(partAName) + ' crux</div>';
+    html += '<div class="summary-text">' + escapeHtml(data.cruxA || '(not specified)') + '</div>';
+    html += '</div>';
+
+    html += '<div class="summary-card" style="border-color: rgba(127, 199, 255, 0.45);">';
+    html += '<div class="summary-title">' + escapeHtml(partBName) + ' crux</div>';
+    html += '<div class="summary-text">' + escapeHtml(data.cruxB || '(not specified)') + '</div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    html += '<div class="summary-card integration-card">';
+    html += '<div class="summary-title">Shared concern</div>';
+    html += '<div class="summary-text">' + escapeHtml(data.sharedConcern || '(not specified)') + '</div>';
+    html += '</div>';
+
+    html += '<div class="summary-card integration-card">';
+    html += '<div class="summary-title">Integration point</div>';
+    html += '<div class="summary-text">' + escapeHtml(data.integration || '(not specified)') + '</div>';
+    html += '</div>';
+
+    html += '<div class="summary-card">';
+    html += '<div class="summary-title">Insights</div>';
+    html += '<div class="insight-list">';
+    html += '<div class="insight-item">Both ' + escapeHtml(partAName) + ' and ' + escapeHtml(partBName) + ' are trying to protect something valuable.</div>';
+    html += '<div class="insight-item">The two cruxes highlight what evidence or safeguards each part needs.</div>';
+    html += '<div class="insight-item">Use the integration point as a testable policy for the next week, then revise.</div>';
+    html += '</div>';
+    html += '</div>';
+
+    byId('summary-content').innerHTML = html;
+  }
+
+  function restartAll() {
+    if (!confirm('Start over and clear all entries?')) {
+      return;
+    }
+
+    byId('conflict').value = '';
+    byId('part-a-name').value = '';
+    byId('part-b-name').value = '';
+    byId('voice-a').value = '';
+    byId('voice-b').value = '';
+    byId('crux-a').value = '';
+    byId('crux-b').value = '';
+    byId('shared-concern').value = '';
+    byId('integration').value = '';
+    byId('summary-content').innerHTML = '';
+
+    setDynamicHeadings({ partA: '', partB: '' });
+    showStep(1);
+  }
+
+  setDynamicHeadings({ partA: '', partB: '' });
+  buildProgress(1);
+</script>
+</body>
+</html>
