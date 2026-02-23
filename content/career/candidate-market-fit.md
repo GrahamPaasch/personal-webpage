@@ -7,4 +7,4 @@ status: "draft"
 
 ## Statement
 
-Network Automation for AI Datacenters.
+Safe and effective AI.
