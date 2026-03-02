@@ -88,11 +88,14 @@
     }
 
     .stage {
+      --timer-size: 280px;
+      --timer-text-size: 67.2px;
       position: relative;
-      width: min(76vw, 360px);
+      width: min(90vw, var(--timer-size));
       aspect-ratio: 1 / 1;
       display: grid;
       place-items: center;
+      transition: width 0.4s ease;
     }
 
     svg {
@@ -141,11 +144,12 @@
       display: grid;
       place-items: center;
       font-family: "Courier New", "IBM Plex Mono", monospace;
-      font-size: clamp(36px, 8vw, 60px);
+      font-size: clamp(36px, min(24vw, var(--timer-text-size)), 102px);
       letter-spacing: 0.04em;
       text-shadow: 0 2px 10px rgba(4, 7, 12, 0.9);
       user-select: none;
       pointer-events: none;
+      transition: font-size 0.4s ease;
     }
 
     .status {
@@ -381,8 +385,13 @@
   <script>
     (() => {
       const PRESET_MINUTES = [5, 10, 15, 20, 25, 30, 45, 60];
+      const RESIZE_MIN_MINUTES = 5;
+      const RESIZE_MAX_MINUTES = 60;
+      const RESIZE_MIN_PX = 200;
+      const RESIZE_MAX_PX = 420;
 
       const wedgeEl = document.getElementById("timer-wedge");
+      const stageEl = document.querySelector(".stage");
       const readoutEl = document.getElementById("time-readout");
       const statusEl = document.getElementById("status");
       const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
@@ -411,6 +420,18 @@
 
       function minuteLabel(minutes) {
         return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+      }
+
+      function setTimerVisualSize(minutes) {
+        if (!stageEl) {
+          return;
+        }
+
+        const clampedMinutes = Math.min(RESIZE_MAX_MINUTES, Math.max(RESIZE_MIN_MINUTES, minutes));
+        const progress = (clampedMinutes - RESIZE_MIN_MINUTES) / (RESIZE_MAX_MINUTES - RESIZE_MIN_MINUTES);
+        const sizePx = RESIZE_MIN_PX + progress * (RESIZE_MAX_PX - RESIZE_MIN_PX);
+        stageEl.style.setProperty("--timer-size", `${sizePx.toFixed(2)}px`);
+        stageEl.style.setProperty("--timer-text-size", `${(sizePx * 0.24).toFixed(2)}px`);
       }
 
       function updateReadout(force = false) {
@@ -633,6 +654,7 @@
 
         selectedMinutes = Math.floor(minutes);
         totalMs = selectedMinutes * 60 * 1000;
+        setTimerVisualSize(selectedMinutes);
         customInput.value = String(selectedMinutes);
         syncPresetButtons();
         resetTimer(customMessage || `Duration set to ${minuteLabel(selectedMinutes)}.`);
@@ -664,6 +686,7 @@
       pauseBtn.addEventListener("click", pauseOrResumeTimer);
       resetBtn.addEventListener("click", () => resetTimer());
 
+      setTimerVisualSize(selectedMinutes);
       setStaticWedge(1);
       updateReadout(true);
       syncPresetButtons();
