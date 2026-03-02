@@ -66,10 +66,9 @@
         KeyK: 3
       };
 
-      const BASE_BPM = 128;
-      let BPM = BASE_BPM;
-      let BEAT_SEC = 60 / BPM;
-      let STEP_SEC = BEAT_SEC / 4;
+      const BPM = 128;
+      const BEAT_SEC = 60 / BPM;
+      const STEP_SEC = BEAT_SEC / 4;
       const TOTAL_BEATS = 128;
       const TOTAL_STEPS = TOTAL_BEATS * 4;
       const TUTORIAL_BEATS = 8;
@@ -78,19 +77,9 @@
       const PARTICLE_POOL_SIZE = 200;
       const POPUP_POOL_SIZE = 72;
       const COMBO_MILESTONES = [25, 50, 100];
-      const COUNTDOWN_BEATS_PER_BAR = 4;
-      const COUNTDOWN_CUES = [
-        { beat: 0, label: '3', hit: 'kick' },
-        { beat: 2, label: '2', hit: 'snare' },
-        { beat: 4, label: '1', hit: 'kick' },
-        { beat: 6, label: 'GO!', hit: 'snare', crash: true }
-      ];
-      const COUNTDOWN_CUE_BY_BEAT = new Map(COUNTDOWN_CUES.map((cue) => [cue.beat, cue]));
-      const COUNTDOWN_BEATS = COUNTDOWN_BEATS_PER_BAR * 2;
-      const COUNTDOWN_STEPS = COUNTDOWN_BEATS * 4;
-      let COUNTDOWN_SEC = COUNTDOWN_BEATS * BEAT_SEC;
-      const COUNTDOWN_GO_BEAT = COUNTDOWN_CUES[COUNTDOWN_CUES.length - 1].beat;
-      let COUNTDOWN_INPUT_UNLOCK_SONG_TIME = -COUNTDOWN_SEC + COUNTDOWN_GO_BEAT * BEAT_SEC;
+      const COUNTDOWN_LABELS = ['3', '2', '1', 'GO!'];
+      const COUNTDOWN_BEATS = COUNTDOWN_LABELS.length;
+      const COUNTDOWN_SEC = COUNTDOWN_BEATS * BEAT_SEC;
       const AUDIO_START_DELAY_SEC = 0.06;
 
       const TIMING_MS = {
@@ -113,7 +102,6 @@
           id: 'easy',
           name: 'Easy',
           approachSec: 4.0,
-          bpm: 128,
           timingMs: { perfect: 80, great: 150, good: 220 },
           missDamage: 3,
           hitHeal: { perfect: 6.2, great: 4.6, good: 3.2 }
@@ -122,7 +110,6 @@
           id: 'normal',
           name: 'Normal',
           approachSec: 2.0,
-          bpm: 256,
           missDamage: 11,
           hitHeal: { perfect: 3.0, great: 2.0, good: 1.2 }
         },
@@ -130,7 +117,6 @@
           id: 'hard',
           name: 'Hard',
           approachSec: 1.45,
-          bpm: 353,
           missDamage: 13,
           hitHeal: { perfect: 2.4, great: 1.5, good: 0.8 }
         }
@@ -811,36 +797,6 @@
         noise.stop(time + length + 0.02);
       }
 
-      function scheduleCrashCymbal(time) {
-        const context = audio.ctx;
-        if (!context || !audio.noiseBuffer) return;
-
-        const noise = context.createBufferSource();
-        noise.buffer = audio.noiseBuffer;
-
-        const hp = context.createBiquadFilter();
-        hp.type = 'highpass';
-        hp.frequency.setValueAtTime(3200, time);
-
-        const bp = context.createBiquadFilter();
-        bp.type = 'bandpass';
-        bp.frequency.setValueAtTime(6200, time);
-        bp.Q.setValueAtTime(0.45, time);
-
-        const gain = context.createGain();
-        gain.gain.setValueAtTime(0.0001, time);
-        gain.gain.exponentialRampToValueAtTime(0.22, time + 0.004);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.9);
-
-        noise.connect(hp);
-        hp.connect(bp);
-        bp.connect(gain);
-        gain.connect(audio.drumBus);
-
-        noise.start(time);
-        noise.stop(time + 0.95);
-      }
-
       function scheduleSubBass(time, frequency, durationSec) {
         const context = audio.ctx;
         if (!context || frequency <= 0) return;
@@ -1045,37 +1001,15 @@
         });
       }
 
-      function scheduleCountdownGroove(startTimeSec) {
+      function scheduleCountdownBar(startTimeSec) {
         if (!audio.ctx || !audio.audioReady) return;
 
-        for (let stepIndex = 0; stepIndex < COUNTDOWN_STEPS; stepIndex += 1) {
-          const when = startTimeSec + stepIndex * STEP_SEC;
-          const beatStep = stepIndex % 4;
-          const beatIndex = Math.floor(stepIndex / 4);
-          const beatInBar = beatIndex % COUNTDOWN_BEATS_PER_BAR;
-
-          if (stepIndex % 2 === 0) {
-            const accent = beatStep === 0;
-            const openHat = beatStep === 2 && beatInBar === COUNTDOWN_BEATS_PER_BAR - 1;
-            if (openHat) {
-              scheduleOpenHiHat(when, true);
-            } else {
-              scheduleHiHat(when, accent);
-            }
-          }
-
-          if (beatStep !== 0) continue;
-
-          const cue = COUNTDOWN_CUE_BY_BEAT.get(beatIndex);
-          if (!cue) continue;
-
-          if (cue.hit === 'kick') {
+        for (let i = 0; i < COUNTDOWN_BEATS; i += 1) {
+          const when = startTimeSec + i * BEAT_SEC;
+          if (i === 0 || i === 2) {
             scheduleKick(when);
-          } else if (cue.hit === 'snare') {
+          } else {
             scheduleSnare(when);
-          }
-          if (cue.crash) {
-            scheduleCrashCymbal(when);
           }
         }
       }
@@ -1551,13 +1485,6 @@
         if (game.screen === 'playing') return;
 
         game.currentDifficulty = DIFFICULTIES[game.selectedDifficulty];
-        BPM = game.currentDifficulty.bpm || BASE_BPM;
-        BEAT_SEC = 60 / BPM;
-        STEP_SEC = BEAT_SEC / 4;
-        COUNTDOWN_SEC = COUNTDOWN_BEATS * BEAT_SEC;
-        COUNTDOWN_INPUT_UNLOCK_SONG_TIME = -COUNTDOWN_SEC + COUNTDOWN_GO_BEAT * BEAT_SEC;
-        game.totalBeats = Math.max(1, Math.round(TOTAL_BEATS * (BPM / BASE_BPM)));
-        game.totalSteps = game.totalBeats * 4;
         const leadInSec = game.currentDifficulty.approachSec + COUNTDOWN_SEC;
 
         game.chartSeed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF) ^ Math.floor(performance.now() * 1000)) >>> 0;
@@ -1604,7 +1531,7 @@
           game.songStartAudioTime = countInAudioStart + leadInSec;
           game.songStartPerfTime = performance.now() + (leadInSec + AUDIO_START_DELAY_SEC) * 1000;
           game.usingAudioClock = true;
-          scheduleCountdownGroove(game.songStartAudioTime - COUNTDOWN_SEC);
+          scheduleCountdownBar(game.songStartAudioTime - COUNTDOWN_SEC);
           startScheduledAudio(game.songStartAudioTime, game.totalSteps);
         } catch (err) {
           game.songStartPerfTime = performance.now() + leadInSec * 1000;
@@ -1769,7 +1696,7 @@
         if (game.screen !== 'playing') return;
 
         const songTime = getSongTimeSec();
-        if (songTime < COUNTDOWN_INPUT_UNLOCK_SONG_TIME) {
+        if (songTime < -BEAT_SEC) {
           game.laneFlash[lane] = Math.max(game.laneFlash[lane], 0.2);
           return;
         }
@@ -2615,23 +2542,11 @@
 
         const elapsed = songTime + COUNTDOWN_SEC;
         const beatPosition = clamp(elapsed / BEAT_SEC, 0, COUNTDOWN_BEATS - 0.000001);
-        let cueIndex = 0;
-        for (let i = 1; i < COUNTDOWN_CUES.length; i += 1) {
-          if (beatPosition >= COUNTDOWN_CUES[i].beat) cueIndex = i;
-          else break;
-        }
-        const cue = COUNTDOWN_CUES[cueIndex];
-        const nextCueBeat = cueIndex + 1 < COUNTDOWN_CUES.length
-          ? COUNTDOWN_CUES[cueIndex + 1].beat
-          : COUNTDOWN_BEATS;
-        const cueProgress = clamp(
-          (beatPosition - cue.beat) / Math.max(0.0001, nextCueBeat - cue.beat),
-          0,
-          1
-        );
-        const label = cue.label;
+        const beatIndex = clamp(Math.floor(beatPosition), 0, COUNTDOWN_BEATS - 1);
+        const label = COUNTDOWN_LABELS[beatIndex];
+        const phaseProgress = beatPosition - beatIndex;
 
-        const pulse = 1 - cueProgress;
+        const pulse = 1 - clamp(phaseProgress, 0, 1);
         const scale = label === 'GO!' ? (0.94 + pulse * 0.32) : (0.9 + pulse * 0.4);
         const alpha = 0.42 + pulse * 0.56;
 
