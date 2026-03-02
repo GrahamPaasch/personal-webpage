@@ -531,12 +531,12 @@
 
         if (clamped > 0) {
           const startAngle = -Math.PI / 2;
-          const endAngle = startAngle + clamped * Math.PI * 2;
+          const endAngle = startAngle - clamped * Math.PI * 2;
 
           faviconCtx.fillStyle = faviconWedgeColor;
           faviconCtx.beginPath();
           faviconCtx.moveTo(center, center);
-          faviconCtx.arc(center, center, radius, startAngle, endAngle, false);
+          faviconCtx.arc(center, center, radius, startAngle, endAngle, true);
           faviconCtx.closePath();
           faviconCtx.fill();
         }
