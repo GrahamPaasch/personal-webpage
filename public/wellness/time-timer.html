@@ -429,7 +429,7 @@
       faviconCanvas.width = 64;
       faviconCanvas.height = 64;
 
-      let faviconLink = document.querySelector("link[rel~='icon']");
+      let prevFaviconUrl = null;
 
       let selectedMinutes = 25;
       let totalMs = selectedMinutes * 60 * 1000;
@@ -510,13 +510,6 @@
           return;
         }
 
-        if (!faviconLink) {
-          faviconLink = document.createElement("link");
-          faviconLink.rel = "icon";
-          faviconLink.type = "image/png";
-          document.head.appendChild(faviconLink);
-        }
-
         const clamped = Math.min(1, Math.max(0, fraction));
         const size = faviconCanvas.width;
         const center = size / 2;
@@ -547,7 +540,27 @@
         faviconCtx.arc(center, center, radius, 0, Math.PI * 2);
         faviconCtx.stroke();
 
-        faviconLink.href = faviconCanvas.toDataURL("image/png");
+        faviconCanvas.toBlob((blob) => {
+          if (!blob) {
+            return;
+          }
+
+          if (prevFaviconUrl) {
+            URL.revokeObjectURL(prevFaviconUrl);
+            prevFaviconUrl = null;
+          }
+
+          document.querySelectorAll("link[rel~='icon']").forEach((link) => link.remove());
+
+          const nextFaviconUrl = URL.createObjectURL(blob);
+          const nextFaviconLink = document.createElement("link");
+          nextFaviconLink.rel = "icon";
+          nextFaviconLink.type = "image/png";
+          nextFaviconLink.href = nextFaviconUrl;
+          document.head.appendChild(nextFaviconLink);
+
+          prevFaviconUrl = nextFaviconUrl;
+        }, "image/png");
       }
 
       function setStaticWedge(fraction) {
