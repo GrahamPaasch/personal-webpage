@@ -152,6 +152,18 @@
       transition: font-size 0.4s ease;
     }
 
+    .timestamps {
+      display: grid;
+      gap: 3px;
+      color: #aaa;
+      font-size: 12px;
+      letter-spacing: 0.01em;
+    }
+
+    .timestamps p {
+      margin: 0;
+    }
+
     .status {
       margin: 0;
       min-height: 1.5em;
@@ -342,6 +354,10 @@
         </svg>
         <div id="time-readout" class="time-readout" role="timer" aria-live="polite" aria-atomic="true">25:00</div>
       </div>
+      <div id="timestamps" class="timestamps" hidden>
+        <p id="started-at"></p>
+        <p id="end-at"></p>
+      </div>
       <p id="status" class="status" role="status" aria-live="polite">Choose a duration and press Start.</p>
     </section>
 
@@ -393,6 +409,9 @@
       const wedgeEl = document.getElementById("timer-wedge");
       const stageEl = document.querySelector(".stage");
       const readoutEl = document.getElementById("time-readout");
+      const timestampsEl = document.getElementById("timestamps");
+      const startedAtEl = document.getElementById("started-at");
+      const endAtEl = document.getElementById("end-at");
       const statusEl = document.getElementById("status");
       const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
       const customInput = document.getElementById("custom-minutes");
@@ -410,12 +429,40 @@
       let rafId = 0;
       let lastShownSecond = Math.ceil(remainingMs / 1000);
       let audioContext = null;
+      let startedAt = null;
+
+      const clockFormatter = new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      });
 
       function formatTime(ms) {
         const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
         return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      }
+
+      function formatClockTime(date) {
+        return clockFormatter.format(date);
+      }
+
+      function hideTimestamps() {
+        timestampsEl.hidden = true;
+        startedAtEl.textContent = "";
+        endAtEl.textContent = "";
+      }
+
+      function showTimestamps(endLabel, endDate) {
+        if (!startedAt) {
+          hideTimestamps();
+          return;
+        }
+
+        startedAtEl.textContent = `Started at ${formatClockTime(startedAt)}`;
+        endAtEl.textContent = `${endLabel} ${formatClockTime(endDate)}`;
+        timestampsEl.hidden = false;
       }
 
       function minuteLabel(minutes) {
@@ -564,6 +611,7 @@
         setStaticWedge(0);
         updateReadout(true);
         setStatus("Time is up. Nice work staying with it.");
+        showTimestamps("Finished at", new Date());
         updateControls();
         void playChime();
       }
@@ -595,10 +643,15 @@
           updateReadout(true);
         }
 
+        if (remainingMs === totalMs) {
+          startedAt = new Date();
+        }
+
         running = true;
         endTime = performance.now() + remainingMs;
         animateWedgeFrom(remainingMs / totalMs, remainingMs);
         setStatus(`Running ${minuteLabel(selectedMinutes)}.`);
+        showTimestamps("Ends at", new Date(Date.now() + remainingMs));
         updateControls();
 
         stopAnimationFrame();
@@ -628,6 +681,7 @@
         endTime = performance.now() + remainingMs;
         wedgeEl.style.animationPlayState = "running";
         setStatus("Timer resumed.");
+        showTimestamps("Ends at", new Date(Date.now() + remainingMs));
         updateControls();
 
         stopAnimationFrame();
@@ -638,10 +692,12 @@
         running = false;
         paused = false;
         remainingMs = totalMs;
+        startedAt = null;
 
         stopAnimationFrame();
         setStaticWedge(1);
         updateReadout(true);
+        hideTimestamps();
         setStatus(statusMessage);
         updateControls();
       }
