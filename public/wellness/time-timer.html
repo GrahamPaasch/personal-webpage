@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Time Timer</title>
+  <style>
+    :root {
+      --bg: #060b12;
+      --bg-deep: #04070c;
+      --text: #e6fbff;
+      --muted: #a8c4d1;
+      --accent: #00e5ff;
+      --accent-strong: #2cf6d6;
+      --card: rgba(7, 16, 26, 0.84);
+      --border: rgba(0, 229, 255, 0.26);
+      --shadow: rgba(0, 229, 255, 0.18);
+      --wedge: #ff4d5a;
+      --track: rgba(231, 245, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(600px 600px at 72% 14%, rgba(0, 229, 255, 0.14), transparent 60%),
+        radial-gradient(540px 540px at 18% 84%, rgba(0, 130, 255, 0.14), transparent 65%),
+        linear-gradient(180deg, var(--bg-deep), var(--bg));
+      color: var(--text);
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: clamp(20px, 4vw, 48px);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .wrap {
+      width: min(980px, 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: clamp(18px, 3vw, 30px);
+    }
+
+    .back {
+      align-self: flex-start;
+      font-family: "Courier New", "IBM Plex Mono", monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--accent-strong);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 4.5vw, 50px);
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+      margin: 10px auto 0;
+      max-width: 680px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: clamp(16px, 2.1vw, 20px);
+    }
+
+    .timer-panel {
+      width: min(560px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: clamp(16px, 3vw, 28px);
+      box-shadow: 0 20px 45px rgba(3, 8, 14, 0.56), 0 0 28px var(--shadow);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .stage {
+      position: relative;
+      width: min(76vw, 360px);
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .timer-face {
+      fill: var(--track);
+      stroke: rgba(230, 251, 255, 0.12);
+      stroke-width: 2;
+    }
+
+    .timer-ring {
+      fill: none;
+      stroke: rgba(230, 251, 255, 0.28);
+      stroke-width: 2;
+    }
+
+    .timer-wedge {
+      --from-dash: 100;
+      --from-offset: 0;
+      fill: none;
+      stroke: var(--wedge);
+      stroke-opacity: 0.93;
+      stroke-width: 190;
+      stroke-linecap: butt;
+      stroke-dasharray: 100 100;
+      stroke-dashoffset: 0;
+      transform-origin: 120px 120px;
+      transform: rotate(-90deg) scaleX(-1);
+      filter: drop-shadow(0 0 10px rgba(255, 77, 90, 0.35));
+      animation-play-state: paused;
+    }
+
+    .timer-wedge.animating {
+      animation-name: shrink-wedge;
+      animation-timing-function: linear;
+      animation-fill-mode: forwards;
+    }
+
+    .time-readout {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-family: "Courier New", "IBM Plex Mono", monospace;
+      font-size: clamp(36px, 8vw, 60px);
+      letter-spacing: 0.04em;
+      text-shadow: 0 2px 10px rgba(4, 7, 12, 0.9);
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .status {
+      margin: 0;
+      min-height: 1.5em;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.01em;
+    }
+
+    .controls-wrap {
+      width: min(560px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+      gap: 10px;
+    }
+
+    button,
+    input {
+      border-radius: 12px;
+      border: 1px solid rgba(230, 251, 255, 0.24);
+      background: rgba(6, 11, 18, 0.92);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 16px;
+      font-family: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(44, 246, 214, 0.66);
+      background: rgba(0, 229, 255, 0.12);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    a:focus-visible {
+      outline: 2px solid var(--accent-strong);
+      outline-offset: 2px;
+    }
+
+    .preset-btn {
+      font-weight: 600;
+    }
+
+    .preset-btn[aria-pressed="true"] {
+      border-color: rgba(255, 77, 90, 0.78);
+      background: rgba(255, 77, 90, 0.16);
+      box-shadow: 0 0 0 1px rgba(255, 77, 90, 0.4) inset;
+    }
+
+    .custom-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      align-items: flex-end;
+      padding-top: 4px;
+    }
+
+    .custom-field {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .custom-field label {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+
+    #custom-minutes {
+      width: 130px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      padding-top: 4px;
+    }
+
+    .action-btn {
+      min-width: 130px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    .action-start {
+      border-color: rgba(44, 246, 214, 0.7);
+      background: rgba(44, 246, 214, 0.16);
+    }
+
+    .action-reset {
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    @keyframes shrink-wedge {
+      from {
+        stroke-dasharray: var(--from-dash) 100;
+        stroke-dashoffset: var(--from-offset);
+      }
+      to {
+        stroke-dasharray: 0 100;
+        stroke-dashoffset: -100;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .back {
+        align-self: center;
+      }
+
+      .action-btn {
+        min-width: 110px;
+      }
+
+      .custom-row {
+        align-items: stretch;
+      }
+
+      .custom-field {
+        width: 100%;
+        align-items: center;
+      }
+
+      #custom-minutes {
+        width: 100%;
+        max-width: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <a class="back" href="/wellness" aria-label="Back to wellness tools">Back to Wellness Tools</a>
+
+    <header>
+      <h1>Time Timer</h1>
+      <p class="subtitle">
+        A visual countdown that makes time concrete, helping reduce ADHD time blindness by showing how
+        much time is left at a glance.
+      </p>
+    </header>
+
+    <section class="timer-panel" aria-label="Visual countdown timer">
+      <div class="stage">
+        <svg viewBox="0 0 240 240" role="img" aria-label="Circular countdown with shrinking time wedge">
+          <defs>
+            <clipPath id="timer-face-clip">
+              <circle cx="120" cy="120" r="95"></circle>
+            </clipPath>
+          </defs>
+          <circle class="timer-face" cx="120" cy="120" r="95"></circle>
+          <circle
+            id="timer-wedge"
+            class="timer-wedge"
+            cx="120"
+            cy="120"
+            r="95"
+            pathLength="100"
+            clip-path="url(#timer-face-clip)"
+            aria-hidden="true"
+          ></circle>
+          <circle class="timer-ring" cx="120" cy="120" r="95"></circle>
+        </svg>
+        <div id="time-readout" class="time-readout" role="timer" aria-live="polite" aria-atomic="true">25:00</div>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite">Choose a duration and press Start.</p>
+    </section>
+
+    <section class="controls-wrap" aria-label="Timer controls">
+      <div class="preset-grid" role="group" aria-label="Preset durations in minutes">
+        <button class="preset-btn" data-minutes="5" aria-pressed="false" aria-label="Set timer to 5 minutes">5m</button>
+        <button class="preset-btn" data-minutes="10" aria-pressed="false" aria-label="Set timer to 10 minutes">10m</button>
+        <button class="preset-btn" data-minutes="15" aria-pressed="false" aria-label="Set timer to 15 minutes">15m</button>
+        <button class="preset-btn" data-minutes="20" aria-pressed="false" aria-label="Set timer to 20 minutes">20m</button>
+        <button class="preset-btn" data-minutes="25" aria-pressed="true" aria-label="Set timer to 25 minutes">25m</button>
+        <button class="preset-btn" data-minutes="30" aria-pressed="false" aria-label="Set timer to 30 minutes">30m</button>
+        <button class="preset-btn" data-minutes="45" aria-pressed="false" aria-label="Set timer to 45 minutes">45m</button>
+        <button class="preset-btn" data-minutes="60" aria-pressed="false" aria-label="Set timer to 60 minutes">60m</button>
+      </div>
+
+      <div class="custom-row" role="group" aria-label="Custom timer duration">
+        <div class="custom-field">
+          <label for="custom-minutes">Custom minutes</label>
+          <input
+            id="custom-minutes"
+            type="number"
+            min="1"
+            max="240"
+            step="1"
+            value="25"
+            inputmode="numeric"
+            aria-label="Custom timer minutes"
+          />
+        </div>
+        <button id="apply-custom" aria-label="Set custom timer duration">Set Time</button>
+      </div>
+
+      <div class="actions" role="group" aria-label="Start pause and reset controls">
+        <button id="start-btn" class="action-btn action-start" aria-label="Start timer">Start</button>
+        <button id="pause-btn" class="action-btn" aria-label="Pause timer" disabled>Pause</button>
+        <button id="reset-btn" class="action-btn action-reset" aria-label="Reset timer">Reset</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const PRESET_MINUTES = [5, 10, 15, 20, 25, 30, 45, 60];
+
+      const wedgeEl = document.getElementById("timer-wedge");
+      const readoutEl = document.getElementById("time-readout");
+      const statusEl = document.getElementById("status");
+      const presetButtons = Array.from(document.querySelectorAll(".preset-btn"));
+      const customInput = document.getElementById("custom-minutes");
+      const applyCustomBtn = document.getElementById("apply-custom");
+      const startBtn = document.getElementById("start-btn");
+      const pauseBtn = document.getElementById("pause-btn");
+      const resetBtn = document.getElementById("reset-btn");
+
+      let selectedMinutes = 25;
+      let totalMs = selectedMinutes * 60 * 1000;
+      let remainingMs = totalMs;
+      let running = false;
+      let paused = false;
+      let endTime = 0;
+      let rafId = 0;
+      let lastShownSecond = Math.ceil(remainingMs / 1000);
+      let audioContext = null;
+
+      function formatTime(ms) {
+        const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      }
+
+      function minuteLabel(minutes) {
+        return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+      }
+
+      function updateReadout(force = false) {
+        const currentSecond = Math.ceil(remainingMs / 1000);
+        if (!force && currentSecond === lastShownSecond) {
+          return;
+        }
+        lastShownSecond = currentSecond;
+        readoutEl.textContent = formatTime(remainingMs);
+      }
+
+      function setStatus(message) {
+        statusEl.textContent = message;
+      }
+
+      function setStaticWedge(fraction) {
+        const clamped = Math.min(1, Math.max(0, fraction));
+        const dash = (clamped * 100).toFixed(4);
+        const offset = (-(1 - clamped) * 100).toFixed(4);
+
+        wedgeEl.classList.remove("animating");
+        wedgeEl.style.animationDuration = "";
+        wedgeEl.style.animationPlayState = "paused";
+        wedgeEl.style.strokeDasharray = `${dash} 100`;
+        wedgeEl.style.strokeDashoffset = offset;
+        wedgeEl.style.setProperty("--from-dash", dash);
+        wedgeEl.style.setProperty("--from-offset", offset);
+      }
+
+      function animateWedgeFrom(fraction, durationMs) {
+        const clamped = Math.min(1, Math.max(0, fraction));
+        const dash = (clamped * 100).toFixed(4);
+        const offset = (-(1 - clamped) * 100).toFixed(4);
+
+        wedgeEl.classList.remove("animating");
+        wedgeEl.style.animationDuration = "";
+        wedgeEl.style.strokeDasharray = `${dash} 100`;
+        wedgeEl.style.strokeDashoffset = offset;
+        wedgeEl.style.setProperty("--from-dash", dash);
+        wedgeEl.style.setProperty("--from-offset", offset);
+
+        void wedgeEl.getBoundingClientRect();
+
+        wedgeEl.style.animationDuration = `${Math.max(1, durationMs)}ms`;
+        wedgeEl.style.animationPlayState = "running";
+        wedgeEl.classList.add("animating");
+      }
+
+      function syncPresetButtons() {
+        presetButtons.forEach((button) => {
+          const minutes = Number(button.dataset.minutes);
+          button.setAttribute("aria-pressed", String(minutes === selectedMinutes));
+        });
+      }
+
+      function updateControls() {
+        startBtn.disabled = running || paused || (remainingMs > 0 && remainingMs < totalMs);
+        pauseBtn.disabled = (!running && !paused) || remainingMs <= 0;
+        pauseBtn.textContent = running ? "Pause" : "Resume";
+        pauseBtn.setAttribute("aria-label", running ? "Pause timer" : "Resume timer");
+      }
+
+      function stopAnimationFrame() {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = 0;
+        }
+      }
+
+      async function ensureAudioContext() {
+        if (!("AudioContext" in window) && !("webkitAudioContext" in window)) {
+          return null;
+        }
+
+        if (!audioContext) {
+          const AudioCtor = window.AudioContext || window.webkitAudioContext;
+          audioContext = new AudioCtor();
+        }
+
+        if (audioContext.state === "suspended") {
+          try {
+            await audioContext.resume();
+          } catch (error) {
+            return null;
+          }
+        }
+
+        return audioContext;
+      }
+
+      async function playChime() {
+        const ctx = await ensureAudioContext();
+        if (!ctx) {
+          return;
+        }
+
+        const now = ctx.currentTime;
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(0.0001, now);
+        master.gain.exponentialRampToValueAtTime(0.2, now + 0.03);
+        master.gain.exponentialRampToValueAtTime(0.0001, now + 1.3);
+        master.connect(ctx.destination);
+
+        const notes = [523.25, 659.25, 783.99];
+        notes.forEach((frequency, index) => {
+          const startAt = now + index * 0.12;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(frequency, startAt);
+
+          gain.gain.setValueAtTime(0.0001, startAt);
+          gain.gain.exponentialRampToValueAtTime(0.08 / (index + 1), startAt + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.75);
+
+          osc.connect(gain);
+          gain.connect(master);
+          osc.start(startAt);
+          osc.stop(startAt + 0.8);
+        });
+      }
+
+      function finishTimer() {
+        running = false;
+        paused = false;
+        remainingMs = 0;
+
+        stopAnimationFrame();
+        setStaticWedge(0);
+        updateReadout(true);
+        setStatus("Time is up. Nice work staying with it.");
+        updateControls();
+        void playChime();
+      }
+
+      function tick(now) {
+        if (!running) {
+          return;
+        }
+
+        remainingMs = Math.max(0, endTime - now);
+        updateReadout();
+
+        if (remainingMs <= 0) {
+          finishTimer();
+          return;
+        }
+
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function startTimer() {
+        if (running || paused || (remainingMs > 0 && remainingMs < totalMs)) {
+          return;
+        }
+
+        if (remainingMs <= 0) {
+          remainingMs = totalMs;
+          setStaticWedge(1);
+          updateReadout(true);
+        }
+
+        running = true;
+        endTime = performance.now() + remainingMs;
+        animateWedgeFrom(remainingMs / totalMs, remainingMs);
+        setStatus(`Running ${minuteLabel(selectedMinutes)}.`);
+        updateControls();
+
+        stopAnimationFrame();
+        rafId = requestAnimationFrame(tick);
+        void ensureAudioContext();
+      }
+
+      function pauseOrResumeTimer() {
+        if (running) {
+          running = false;
+          paused = true;
+          remainingMs = Math.max(0, endTime - performance.now());
+          stopAnimationFrame();
+          wedgeEl.style.animationPlayState = "paused";
+          updateReadout(true);
+          setStatus("Timer paused.");
+          updateControls();
+          return;
+        }
+
+        if (!paused || remainingMs <= 0) {
+          return;
+        }
+
+        running = true;
+        paused = false;
+        endTime = performance.now() + remainingMs;
+        wedgeEl.style.animationPlayState = "running";
+        setStatus("Timer resumed.");
+        updateControls();
+
+        stopAnimationFrame();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function resetTimer(statusMessage = `Ready for ${minuteLabel(selectedMinutes)}.`) {
+        running = false;
+        paused = false;
+        remainingMs = totalMs;
+
+        stopAnimationFrame();
+        setStaticWedge(1);
+        updateReadout(true);
+        setStatus(statusMessage);
+        updateControls();
+      }
+
+      function applyDuration(minutes, customMessage = "") {
+        if (!Number.isFinite(minutes) || minutes < 1 || minutes > 240) {
+          setStatus("Enter a whole number from 1 to 240 minutes.");
+          return;
+        }
+
+        selectedMinutes = Math.floor(minutes);
+        totalMs = selectedMinutes * 60 * 1000;
+        customInput.value = String(selectedMinutes);
+        syncPresetButtons();
+        resetTimer(customMessage || `Duration set to ${minuteLabel(selectedMinutes)}.`);
+      }
+
+      presetButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const minutes = Number(button.dataset.minutes);
+          if (!PRESET_MINUTES.includes(minutes)) {
+            return;
+          }
+          applyDuration(minutes);
+        });
+      });
+
+      applyCustomBtn.addEventListener("click", () => {
+        const minutes = Number(customInput.value);
+        applyDuration(minutes, `Custom duration set to ${Math.floor(minutes)} minute${Math.floor(minutes) === 1 ? "" : "s"}.`);
+      });
+
+      customInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          applyCustomBtn.click();
+        }
+      });
+
+      startBtn.addEventListener("click", startTimer);
+      pauseBtn.addEventListener("click", pauseOrResumeTimer);
+      resetBtn.addEventListener("click", () => resetTimer());
+
+      setStaticWedge(1);
+      updateReadout(true);
+      syncPresetButtons();
+      updateControls();
+      setStatus("Choose a duration and press Start.");
+    })();
+  </script>
+</body>
+</html>

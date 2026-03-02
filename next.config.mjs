@@ -48,6 +48,8 @@ const nextConfig = {
         source: '/wellness/coherent-breathing/',
         destination: '/wellness/coherent-breathing.html',
       },
+      { source: '/wellness/time-timer', destination: '/wellness/time-timer.html' },
+      { source: '/wellness/time-timer/', destination: '/wellness/time-timer.html' },
     ];
   },
   env: {
