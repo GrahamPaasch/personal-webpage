@@ -666,6 +666,7 @@
 
         stopAnimationFrame();
         setStaticWedge(0);
+        updateFavicon(0);
         updateReadout(true);
         setStatus("Time is up. Nice work staying with it.");
         showTimestamps("Finished at", new Date());
@@ -680,13 +681,13 @@
 
         remainingMs = Math.max(0, endTime - now);
         updateReadout();
-        updateFavicon(remainingMs / totalMs);
 
         if (remainingMs <= 0) {
           finishTimer();
           return;
         }
 
+        updateFavicon(Math.max(0, remainingMs / totalMs));
         rafId = requestAnimationFrame(tick);
       }
 
@@ -757,6 +758,7 @@
 
         stopAnimationFrame();
         setStaticWedge(1);
+        updateFavicon(1);
         updateReadout(true);
         hideTimestamps();
         setStatus(statusMessage);
