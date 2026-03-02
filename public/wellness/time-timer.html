@@ -419,6 +419,17 @@
       const startBtn = document.getElementById("start-btn");
       const pauseBtn = document.getElementById("pause-btn");
       const resetBtn = document.getElementById("reset-btn");
+      const faviconCanvas = document.createElement("canvas");
+      const faviconCtx = faviconCanvas.getContext("2d");
+      const rootStyles = getComputedStyle(document.documentElement);
+      const faviconWedgeColor = rootStyles.getPropertyValue("--wedge").trim() || "#ff4d5a";
+      const faviconBgColor = rootStyles.getPropertyValue("--bg").trim() || "#060b12";
+      const faviconRingColor = "rgba(230, 251, 255, 0.28)";
+
+      faviconCanvas.width = 64;
+      faviconCanvas.height = 64;
+
+      let faviconLink = document.querySelector("link[rel~='icon']");
 
       let selectedMinutes = 25;
       let totalMs = selectedMinutes * 60 * 1000;
@@ -494,6 +505,51 @@
         statusEl.textContent = message;
       }
 
+      function updateFavicon(fraction) {
+        if (!faviconCtx) {
+          return;
+        }
+
+        if (!faviconLink) {
+          faviconLink = document.createElement("link");
+          faviconLink.rel = "icon";
+          faviconLink.type = "image/png";
+          document.head.appendChild(faviconLink);
+        }
+
+        const clamped = Math.min(1, Math.max(0, fraction));
+        const size = faviconCanvas.width;
+        const center = size / 2;
+        const radius = center - 2;
+
+        faviconCtx.clearRect(0, 0, size, size);
+
+        faviconCtx.fillStyle = faviconBgColor;
+        faviconCtx.beginPath();
+        faviconCtx.arc(center, center, radius, 0, Math.PI * 2);
+        faviconCtx.fill();
+
+        if (clamped > 0) {
+          const startAngle = -Math.PI / 2;
+          const endAngle = startAngle + clamped * Math.PI * 2;
+
+          faviconCtx.fillStyle = faviconWedgeColor;
+          faviconCtx.beginPath();
+          faviconCtx.moveTo(center, center);
+          faviconCtx.arc(center, center, radius, startAngle, endAngle, false);
+          faviconCtx.closePath();
+          faviconCtx.fill();
+        }
+
+        faviconCtx.strokeStyle = faviconRingColor;
+        faviconCtx.lineWidth = 2;
+        faviconCtx.beginPath();
+        faviconCtx.arc(center, center, radius, 0, Math.PI * 2);
+        faviconCtx.stroke();
+
+        faviconLink.href = faviconCanvas.toDataURL("image/png");
+      }
+
       function setStaticWedge(fraction) {
         const clamped = Math.min(1, Math.max(0, fraction));
         const dash = (clamped * 100).toFixed(4);
@@ -506,6 +562,7 @@
         wedgeEl.style.strokeDashoffset = offset;
         wedgeEl.style.setProperty("--from-dash", dash);
         wedgeEl.style.setProperty("--from-offset", offset);
+        updateFavicon(clamped);
       }
 
       function animateWedgeFrom(fraction, durationMs) {
@@ -623,6 +680,7 @@
 
         remainingMs = Math.max(0, endTime - now);
         updateReadout();
+        updateFavicon(remainingMs / totalMs);
 
         if (remainingMs <= 0) {
           finishTimer();
@@ -650,6 +708,7 @@
         running = true;
         endTime = performance.now() + remainingMs;
         animateWedgeFrom(remainingMs / totalMs, remainingMs);
+        updateFavicon(remainingMs / totalMs);
         setStatus(`Running ${minuteLabel(selectedMinutes)}.`);
         showTimestamps("Ends at", new Date(Date.now() + remainingMs));
         updateControls();
@@ -667,6 +726,7 @@
           stopAnimationFrame();
           wedgeEl.style.animationPlayState = "paused";
           updateReadout(true);
+          updateFavicon(remainingMs / totalMs);
           setStatus("Timer paused.");
           updateControls();
           return;
@@ -680,6 +740,7 @@
         paused = false;
         endTime = performance.now() + remainingMs;
         wedgeEl.style.animationPlayState = "running";
+        updateFavicon(remainingMs / totalMs);
         setStatus("Timer resumed.");
         showTimestamps("Ends at", new Date(Date.now() + remainingMs));
         updateControls();
