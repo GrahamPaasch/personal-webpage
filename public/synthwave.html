@@ -122,6 +122,1147 @@
         }
       ];
 
+      const RHYTHM_LIBRARY = [
+        {
+          "name": "Four on the Floor",
+          "origin": "Rock / Pop / Dance",
+          "steps": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "description": "Kick on every quarter note — the backbone of disco, house, and rock.",
+          "difficulty": 1
+        },
+        {
+          "name": "Backbeat",
+          "origin": "Rock / Pop / R&B",
+          "steps": [
+            4,
+            12
+          ],
+          "description": "Snare on beats 2 and 4 — the defining feel of rock and pop.",
+          "difficulty": 1
+        },
+        {
+          "name": "Standard Rock Beat",
+          "origin": "Rock / Pop",
+          "steps": [
+            0,
+            4,
+            8,
+            12,
+            2,
+            6,
+            10,
+            14
+          ],
+          "description": "Kick on quarters with hi-hat 8ths — the most common rock drum pattern.",
+          "difficulty": 1
+        },
+        {
+          "name": "Half-time Feel",
+          "origin": "Rock / Pop / Hip-Hop",
+          "steps": [
+            0,
+            8
+          ],
+          "description": "Snare on beat 3 only — creates a slow, heavy groove.",
+          "difficulty": 1
+        },
+        {
+          "name": "Double-time Feel",
+          "origin": "Rock / Pop / Punk",
+          "steps": [
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            12,
+            14
+          ],
+          "description": "Driving 8th-note pulse that doubles the perceived tempo.",
+          "difficulty": 1
+        },
+        {
+          "name": "Bo Diddley Beat",
+          "origin": "Rock / R&B (American)",
+          "steps": [
+            0,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "A hambone-derived pattern that became a rock-and-roll staple.",
+          "difficulty": 2
+        },
+        {
+          "name": "Tresillo",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            6,
+            10
+          ],
+          "description": "The 3-side of clave — a foundational Afro-Latin cell heard worldwide.",
+          "difficulty": 2
+        },
+        {
+          "name": "Son Clave 3-2",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            6,
+            10,
+            16,
+            24
+          ],
+          "description": "The classic Cuban clave that underpins salsa, son, and timba.",
+          "difficulty": 2,
+          "bars": 2
+        },
+        {
+          "name": "Son Clave 2-3",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            8,
+            14,
+            16,
+            22
+          ],
+          "description": "Son clave reversed — the 2-side leads.",
+          "difficulty": 2,
+          "bars": 2
+        },
+        {
+          "name": "Rumba Clave 3-2",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            6,
+            9,
+            16,
+            24
+          ],
+          "description": "A shifted third stroke gives rumba its distinctive push.",
+          "difficulty": 3,
+          "bars": 2
+        },
+        {
+          "name": "Rumba Clave 2-3",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            8,
+            14,
+            16,
+            22,
+            25
+          ],
+          "description": "Rumba clave with the 2-side leading.",
+          "difficulty": 3,
+          "bars": 2
+        },
+        {
+          "name": "Bossa Nova Clave",
+          "origin": "Afro-Cuban / Brazilian crossover",
+          "steps": [
+            0,
+            6,
+            10,
+            16,
+            22,
+            26
+          ],
+          "description": "Son clave with an added note — the rhythmic DNA of bossa nova.",
+          "difficulty": 2,
+          "bars": 2
+        },
+        {
+          "name": "Cáscara (shell pattern)",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            2,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "Played on the timbale shell — interlocks with clave in salsa.",
+          "difficulty": 2
+        },
+        {
+          "name": "Montuno (basic)",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            2,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "The piano guajeo skeleton that drives salsa and son montuno.",
+          "difficulty": 2
+        },
+        {
+          "name": "Tumbao (basic conga)",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            6,
+            10,
+            12
+          ],
+          "description": "The fundamental conga pattern — open tones on the and-of-4 and the and-of-2.",
+          "difficulty": 2
+        },
+        {
+          "name": "Mozambique",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            2,
+            6,
+            8,
+            12,
+            14
+          ],
+          "description": "A Cuban carnival rhythm created by Pello el Afrokán.",
+          "difficulty": 3
+        },
+        {
+          "name": "Songo",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            3,
+            6,
+            10,
+            12,
+            14
+          ],
+          "description": "A modern Cuban groove blending rumba and funk — popularised by Los Van Van.",
+          "difficulty": 3
+        },
+        {
+          "name": "Nanigo / Abakuá",
+          "origin": "Afro-Cuban",
+          "steps": [
+            0,
+            3,
+            6,
+            10,
+            12
+          ],
+          "description": "A sacred Abakuá rhythm that influenced rumba and jazz.",
+          "difficulty": 3
+        },
+        {
+          "name": "Samba Surdo (first)",
+          "origin": "Brazilian",
+          "steps": [
+            0,
+            8
+          ],
+          "description": "The deep surdo marks beats 1 and 3 — the heartbeat of samba.",
+          "difficulty": 1
+        },
+        {
+          "name": "Samba Surdo (second / response)",
+          "origin": "Brazilian",
+          "steps": [
+            4,
+            12
+          ],
+          "description": "The answering surdo on beats 2 and 4.",
+          "difficulty": 1
+        },
+        {
+          "name": "Partido Alto",
+          "origin": "Brazilian",
+          "steps": [
+            0,
+            6,
+            10,
+            12
+          ],
+          "description": "A syncopated samba sub-genre pattern central to pagode and MPB.",
+          "difficulty": 2
+        },
+        {
+          "name": "Samba Telecoteco",
+          "origin": "Brazilian",
+          "steps": [
+            0,
+            2,
+            4,
+            6,
+            10,
+            12,
+            14
+          ],
+          "description": "The agogô/tamborim timeline that gives samba its swing.",
+          "difficulty": 3
+        },
+        {
+          "name": "Baião",
+          "origin": "Brazilian (Nordeste)",
+          "steps": [
+            0,
+            2,
+            6,
+            8,
+            14
+          ],
+          "description": "The zabumba pattern of forró and baião from northeast Brazil.",
+          "difficulty": 2
+        },
+        {
+          "name": "Maracatu",
+          "origin": "Brazilian (Pernambuco)",
+          "steps": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "An Afro-Brazilian carnival rhythm from Recife.",
+          "difficulty": 3
+        },
+        {
+          "name": "Ijexá",
+          "origin": "Brazilian (Bahia / Candomblé)",
+          "steps": [
+            0,
+            2,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "A Candomblé-derived rhythm central to Bahian carnival and axé music.",
+          "difficulty": 2
+        },
+        {
+          "name": "Standard Pattern (West African bell)",
+          "origin": "West African",
+          "steps": [
+            0,
+            2,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "The asymmetric 12-pulse timeline mapped to 16 steps — the most widespread African bell pattern.",
+          "difficulty": 2
+        },
+        {
+          "name": "Bembé / 12-8 bell",
+          "origin": "West African / Afro-Cuban",
+          "steps": [
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "A 7-stroke bell cycle common in 12/8 West African and Afro-Cuban music.",
+          "difficulty": 2
+        },
+        {
+          "name": "Kpanlogo",
+          "origin": "West African (Ga / Ghana)",
+          "steps": [
+            0,
+            4,
+            6,
+            10,
+            12
+          ],
+          "description": "A Ga recreational dance rhythm from Accra.",
+          "difficulty": 2
+        },
+        {
+          "name": "Gahu",
+          "origin": "West African (Ewe / Ghana)",
+          "steps": [
+            0,
+            2,
+            6,
+            10,
+            12
+          ],
+          "description": "An Ewe social-dance bell pattern.",
+          "difficulty": 2
+        },
+        {
+          "name": "Fume-Fume",
+          "origin": "West African (Ewe / Ghana)",
+          "steps": [
+            0,
+            4,
+            6,
+            10,
+            14
+          ],
+          "description": "An Ewe processional rhythm.",
+          "difficulty": 2
+        },
+        {
+          "name": "Highlife Timeline",
+          "origin": "West African (Ghana / Nigeria)",
+          "steps": [
+            0,
+            2,
+            4,
+            8,
+            10,
+            14
+          ],
+          "description": "The guitar/bell timeline of classic highlife.",
+          "difficulty": 2
+        },
+        {
+          "name": "Afrobeat (Tony Allen snare)",
+          "origin": "West African (Nigeria)",
+          "steps": [
+            2,
+            6,
+            10,
+            14
+          ],
+          "description": "Tony Allen's displaced snare pattern — the engine of Fela Kuti's Afrobeat.",
+          "difficulty": 3
+        },
+        {
+          "name": "Soukous / Cavacha",
+          "origin": "West African (Congo / DRC)",
+          "steps": [
+            0,
+            2,
+            4,
+            8,
+            10,
+            12
+          ],
+          "description": "The snare/guitar timeline of Congolese soukous and cavacha dance.",
+          "difficulty": 2
+        },
+        {
+          "name": "One Drop",
+          "origin": "Afro-Caribbean (Jamaica / Reggae)",
+          "steps": [
+            12
+          ],
+          "description": "Kick and snare together on beat 4 only — the signature of roots reggae.",
+          "difficulty": 1
+        },
+        {
+          "name": "Steppers / Four on the Floor Reggae",
+          "origin": "Afro-Caribbean (Jamaica / Reggae)",
+          "steps": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "description": "Kick on every quarter — a driving reggae variant.",
+          "difficulty": 1
+        },
+        {
+          "name": "Rockers Reggae",
+          "origin": "Afro-Caribbean (Jamaica / Reggae)",
+          "steps": [
+            0,
+            12
+          ],
+          "description": "Kick on 1, snare on 4 — Sly Dunbar's modernisation of one-drop.",
+          "difficulty": 1
+        },
+        {
+          "name": "Ska Offbeat",
+          "origin": "Afro-Caribbean (Jamaica / Ska)",
+          "steps": [
+            2,
+            6,
+            10,
+            14
+          ],
+          "description": "Guitar/keys chop on every offbeat 8th — the original ska skank.",
+          "difficulty": 1
+        },
+        {
+          "name": "Dancehall (Sleng Teng era)",
+          "origin": "Afro-Caribbean (Jamaica / Dancehall)",
+          "steps": [
+            0,
+            6,
+            8,
+            14
+          ],
+          "description": "A digital-era dancehall pattern with syncopated kick.",
+          "difficulty": 2
+        },
+        {
+          "name": "Calypso",
+          "origin": "Afro-Caribbean (Trinidad)",
+          "steps": [
+            0,
+            2,
+            6,
+            8,
+            12,
+            14
+          ],
+          "description": "The iron/conga pattern of Trinidad calypso and soca.",
+          "difficulty": 2
+        },
+        {
+          "name": "Soca (modern power soca)",
+          "origin": "Afro-Caribbean (Trinidad)",
+          "steps": [
+            0,
+            4,
+            6,
+            8,
+            12,
+            14
+          ],
+          "description": "A driving carnival groove — bass drum on quarters with syncopated accents.",
+          "difficulty": 2
+        },
+        {
+          "name": "Funk (James Brown / Clyde Stubblefield)",
+          "origin": "American Funk / Soul / R&B",
+          "steps": [
+            0,
+            6,
+            10,
+            12
+          ],
+          "description": "The 'Funky Drummer' skeleton — arguably the most sampled groove in history.",
+          "difficulty": 2
+        },
+        {
+          "name": "Funk Backbeat 16ths",
+          "origin": "American Funk / Soul / R&B",
+          "steps": [
+            0,
+            3,
+            4,
+            6,
+            8,
+            10,
+            12,
+            14
+          ],
+          "description": "A busy 16th-note funk groove with ghost notes on the e's and a's.",
+          "difficulty": 3
+        },
+        {
+          "name": "New Orleans Second Line",
+          "origin": "American Funk / Soul / R&B (New Orleans)",
+          "steps": [
+            0,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "The snare-driven parade beat of New Orleans brass bands.",
+          "difficulty": 2
+        },
+        {
+          "name": "Go-Go (DC)",
+          "origin": "American Funk / Soul / R&B (Washington DC)",
+          "steps": [
+            0,
+            4,
+            6,
+            10,
+            12,
+            14
+          ],
+          "description": "The conga-driven groove of DC go-go — a perpetual-motion funk machine.",
+          "difficulty": 3
+        },
+        {
+          "name": "Motown (Four on the Floor + tambourine 8ths)",
+          "origin": "American Funk / Soul / R&B",
+          "steps": [
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            12,
+            14
+          ],
+          "description": "Benny Benjamin's driving Motown pulse — kick quarters plus tambourine 8ths.",
+          "difficulty": 1
+        },
+        {
+          "name": "Purdie Shuffle",
+          "origin": "American Funk / Soul / R&B",
+          "steps": [
+            0,
+            4,
+            5,
+            8,
+            12,
+            13
+          ],
+          "description": "Bernard Purdie's half-swung shuffle with ghost notes — a studio legend.",
+          "difficulty": 3
+        },
+        {
+          "name": "Hip-Hop Boom-Bap",
+          "origin": "American Funk / Soul / R&B (Hip-Hop)",
+          "steps": [
+            0,
+            4,
+            8,
+            10,
+            12
+          ],
+          "description": "The classic East-Coast hip-hop kick-snare pattern.",
+          "difficulty": 1
+        },
+        {
+          "name": "Swing Ride Pattern (straight-grid approximation)",
+          "origin": "Jazz",
+          "steps": [
+            0,
+            6,
+            8,
+            14
+          ],
+          "description": "The jazz ride cymbal pattern approximated on a straight 16th grid.",
+          "difficulty": 2
+        },
+        {
+          "name": "Bebop Comping (Charleston base)",
+          "origin": "Jazz",
+          "steps": [
+            0,
+            10
+          ],
+          "description": "The Charleston rhythm used as a comping skeleton in bebop.",
+          "difficulty": 2
+        },
+        {
+          "name": "Jazz Waltz Ride (mapped to 4/4)",
+          "origin": "Jazz",
+          "steps": [
+            0,
+            5,
+            10
+          ],
+          "description": "A 3/4 ride pattern proportionally mapped into a 16-step bar.",
+          "difficulty": 3
+        },
+        {
+          "name": "Boogaloo (Latin Jazz)",
+          "origin": "Jazz (Latin Jazz / Boogaloo)",
+          "steps": [
+            0,
+            6,
+            8,
+            10,
+            14
+          ],
+          "description": "A 1960s Latin-soul hybrid groove.",
+          "difficulty": 2
+        },
+        {
+          "name": "House Four-on-the-Floor + Open Hat",
+          "origin": "Electronic / Dance (House)",
+          "steps": [
+            0,
+            4,
+            8,
+            12,
+            2,
+            6,
+            10,
+            14
+          ],
+          "description": "Kick on quarters, open hi-hat on 8th offbeats — classic house.",
+          "difficulty": 1
+        },
+        {
+          "name": "Garage / 2-Step",
+          "origin": "Electronic / Dance (UK Garage)",
+          "steps": [
+            0,
+            6,
+            10,
+            14
+          ],
+          "description": "A skippy, syncopated kick pattern that defines UK garage.",
+          "difficulty": 2
+        },
+        {
+          "name": "Drum & Bass (Amen break skeleton)",
+          "origin": "Electronic / Dance (Drum & Bass)",
+          "steps": [
+            0,
+            4,
+            6,
+            10,
+            12,
+            14
+          ],
+          "description": "The Amen break's accent skeleton — the backbone of jungle and DnB.",
+          "difficulty": 3
+        },
+        {
+          "name": "Breakbeat (Think break)",
+          "origin": "Electronic / Dance (Breakbeat)",
+          "steps": [
+            0,
+            4,
+            8,
+            10,
+            14
+          ],
+          "description": "Lyn Collins 'Think' break — a staple of breakbeat and big beat.",
+          "difficulty": 2
+        },
+        {
+          "name": "Trap (basic hi-hat)",
+          "origin": "Electronic / Dance (Trap / Hip-Hop)",
+          "steps": [
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            12,
+            14
+          ],
+          "description": "Rapid hi-hat 8ths (often 16ths/32nds) over a sparse kick-snare.",
+          "difficulty": 1
+        },
+        {
+          "name": "Trap (kick-snare skeleton)",
+          "origin": "Electronic / Dance (Trap / Hip-Hop)",
+          "steps": [
+            0,
+            6,
+            8,
+            14
+          ],
+          "description": "The sparse, booming kick-snare of modern trap.",
+          "difficulty": 2
+        },
+        {
+          "name": "Dembow (Reggaetón)",
+          "origin": "Electronic / Dance (Latin / Caribbean)",
+          "steps": [
+            0,
+            6,
+            8,
+            10
+          ],
+          "description": "The Dem Bow riddim — the universal engine of reggaetón.",
+          "difficulty": 1
+        },
+        {
+          "name": "Moombahton",
+          "origin": "Electronic / Dance (Dutch-American hybrid)",
+          "steps": [
+            0,
+            6,
+            8,
+            14
+          ],
+          "description": "A half-tempo dembow variant blending reggaetón with Dutch house.",
+          "difficulty": 2
+        },
+        {
+          "name": "Techno (basic)",
+          "origin": "Electronic / Dance (Techno)",
+          "steps": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "description": "Minimal four-on-the-floor with emphasis on timbre over rhythm.",
+          "difficulty": 1
+        },
+        {
+          "name": "Cumbia (basic)",
+          "origin": "Latin (Colombia)",
+          "steps": [
+            0,
+            6,
+            8,
+            14
+          ],
+          "description": "The güira/tambora pattern of Colombian cumbia.",
+          "difficulty": 2
+        },
+        {
+          "name": "Cumbia Sonidera / Rebajada",
+          "origin": "Latin (Mexico)",
+          "steps": [
+            0,
+            4,
+            6,
+            8,
+            12,
+            14
+          ],
+          "description": "A slowed, bass-heavy Mexican reinterpretation of cumbia.",
+          "difficulty": 2
+        },
+        {
+          "name": "Merengue",
+          "origin": "Latin (Dominican Republic)",
+          "steps": [
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            12,
+            14
+          ],
+          "description": "Driving 8th-note güira with tambora accents — the national rhythm of the DR.",
+          "difficulty": 1
+        },
+        {
+          "name": "Bachata",
+          "origin": "Latin (Dominican Republic)",
+          "steps": [
+            0,
+            4,
+            8,
+            14
+          ],
+          "description": "A syncopated guitar-driven pattern with a signature bass anticipation.",
+          "difficulty": 2
+        },
+        {
+          "name": "Bolero (Afro-Cuban / pan-Latin)",
+          "origin": "Latin",
+          "steps": [
+            0,
+            6,
+            10,
+            12
+          ],
+          "description": "A slow, romantic rhythm shared across Cuba, Mexico, and the Americas.",
+          "difficulty": 2
+        },
+        {
+          "name": "Reggaetón Dembow (full two-bar)",
+          "origin": "Latin (Caribbean / global)",
+          "steps": [
+            0,
+            6,
+            8,
+            10,
+            16,
+            22,
+            24,
+            26
+          ],
+          "description": "The full two-bar dembow cycle with kick and snare placement.",
+          "difficulty": 2,
+          "bars": 2
+        },
+        {
+          "name": "Maqsoum",
+          "origin": "Middle Eastern / North African",
+          "steps": [
+            0,
+            2,
+            8,
+            10,
+            12
+          ],
+          "description": "The most common Arabic rhythm — D-k---D-kD------.",
+          "difficulty": 2
+        },
+        {
+          "name": "Baladi",
+          "origin": "Middle Eastern / North African",
+          "steps": [
+            0,
+            2,
+            4,
+            8,
+            10,
+            12
+          ],
+          "description": "A heavier, earthier cousin of maqsoum — the 'of the country' rhythm.",
+          "difficulty": 2
+        },
+        {
+          "name": "Saidi",
+          "origin": "Middle Eastern / North African",
+          "steps": [
+            0,
+            2,
+            4,
+            8,
+            12
+          ],
+          "description": "An Upper-Egyptian folk rhythm — similar to maqsoum but with a heavier feel.",
+          "difficulty": 2
+        },
+        {
+          "name": "Ayub / Zaar",
+          "origin": "Middle Eastern / North African",
+          "steps": [
+            0,
+            2,
+            8
+          ],
+          "description": "A driving two-beat trance/ritual rhythm — D-k-----D-------.",
+          "difficulty": 1
+        },
+        {
+          "name": "Malfuf",
+          "origin": "Middle Eastern / North African",
+          "steps": [
+            0,
+            6,
+            8
+          ],
+          "description": "A fast 2/4 rhythm common in Egyptian pop and belly-dance finales.",
+          "difficulty": 2
+        },
+        {
+          "name": "Ciftetelli / Wahda Kebira",
+          "origin": "Middle Eastern / North African (Turkey / Arab)",
+          "steps": [
+            0,
+            4,
+            6,
+            8,
+            12,
+            14
+          ],
+          "description": "A slow, ornamental rhythm used in belly-dance taxim sections.",
+          "difficulty": 3
+        },
+        {
+          "name": "Karachi / Khaliji",
+          "origin": "Middle Eastern / North African (Gulf)",
+          "steps": [
+            0,
+            2,
+            4,
+            8,
+            10,
+            14
+          ],
+          "description": "A Gulf-region rhythm popular in khaliji pop and dance.",
+          "difficulty": 3
+        },
+        {
+          "name": "Samai Thaqil 10/8 (mapped)",
+          "origin": "Middle Eastern / North African (Ottoman / Arab art music)",
+          "steps": [
+            0,
+            4,
+            6,
+            10,
+            14
+          ],
+          "description": "A 10-beat Ottoman/Arab art-music cycle proportionally mapped to 16 steps.",
+          "difficulty": 4
+        },
+        {
+          "name": "Jurjina 10/16",
+          "origin": "Middle Eastern / North African (Iraqi / Turkish)",
+          "steps": [
+            0,
+            3,
+            5,
+            7,
+            10,
+            12
+          ],
+          "description": "A 10-pulse Iraqi/Turkish cycle with a distinctive lopsided lilt.",
+          "difficulty": 4
+        },
+        {
+          "name": "Tintal 16-beat (accent cycle)",
+          "origin": "South Asian (Hindustani classical)",
+          "steps": [
+            0,
+            4,
+            8,
+            12
+          ],
+          "description": "The four vibhag accents of the 16-matra Tintal — the most common Hindustani tala.",
+          "difficulty": 2
+        },
+        {
+          "name": "Jhaptal 10-beat (mapped)",
+          "origin": "South Asian (Hindustani classical)",
+          "steps": [
+            0,
+            3,
+            6,
+            10,
+            13
+          ],
+          "description": "A 10-beat tala (2+3+2+3) proportionally mapped to 16 steps.",
+          "difficulty": 3
+        },
+        {
+          "name": "Rupak 7-beat (mapped)",
+          "origin": "South Asian (Hindustani classical)",
+          "steps": [
+            0,
+            5,
+            9
+          ],
+          "description": "A 7-beat tala (3+2+2) mapped to 16 steps — starts on a khali (wave).",
+          "difficulty": 3
+        },
+        {
+          "name": "Dadra 6-beat (mapped)",
+          "origin": "South Asian (Hindustani light-classical)",
+          "steps": [
+            0,
+            5,
+            10
+          ],
+          "description": "A 6-beat cycle (3+3) used in thumri and ghazal, mapped to 16 steps.",
+          "difficulty": 2
+        },
+        {
+          "name": "Adi Tala / Chatusra-jati Triputa (accent cycle)",
+          "origin": "South Asian (Carnatic)",
+          "steps": [
+            0,
+            4,
+            8,
+            10,
+            12,
+            14
+          ],
+          "description": "The 8-beat Carnatic tala with laghu + two drutam clap accents.",
+          "difficulty": 2
+        },
+        {
+          "name": "Misra Chapu (accent cycle)",
+          "origin": "South Asian (Carnatic)",
+          "steps": [
+            0,
+            7
+          ],
+          "description": "A 7-akshara chapu feel reduced to its larger grouping accent points.",
+          "difficulty": 4
+        },
+        {
+          "name": "Khanda Chapu (accent cycle)",
+          "origin": "South Asian (Carnatic)",
+          "steps": [
+            0,
+            6
+          ],
+          "description": "A 5-akshara asymmetrical cycle compressed into one 16-step bar.",
+          "difficulty": 4
+        },
+        {
+          "name": "Keherwa / Kaharwa (accent cycle)",
+          "origin": "South Asian (Hindustani / folk-light-classical)",
+          "steps": [
+            0,
+            8
+          ],
+          "description": "An 8-beat cycle reduced to its two big halves for easy groove mapping.",
+          "difficulty": 1
+        },
+        {
+          "name": "Rachenitsa / Ruchenitsa 7/8",
+          "origin": "Odd meter (Bulgarian folk)",
+          "steps": [
+            0,
+            5,
+            9
+          ],
+          "description": "A 2+2+3 additive dance meter proportionally fit to 16 steps.",
+          "difficulty": 4
+        },
+        {
+          "name": "Lesnoto 7/8",
+          "origin": "Odd meter (Balkan / North Macedonia-Bulgaria)",
+          "steps": [
+            0,
+            7,
+            11
+          ],
+          "description": "A 3+2+2 additive dance meter common across Balkan folk traditions.",
+          "difficulty": 4
+        },
+        {
+          "name": "Karsilama 9/8",
+          "origin": "Odd meter (Turkey/Greece/Thrace)",
+          "steps": [
+            0,
+            4,
+            7,
+            11
+          ],
+          "description": "A face-to-face dance rhythm usually grouped in a 2+2+2+3 contour.",
+          "difficulty": 4
+        },
+        {
+          "name": "Kopanitsa 11/8",
+          "origin": "Odd meter (Bulgarian folk)",
+          "steps": [
+            0,
+            3,
+            6,
+            10,
+            13
+          ],
+          "description": "A lively Bulgarian 11-beat dance with a strongly asymmetrical additive pulse.",
+          "difficulty": 5
+        },
+        {
+          "name": "Take Five 5/4",
+          "origin": "Odd meter (modern jazz standard)",
+          "steps": [
+            0,
+            10
+          ],
+          "description": "The familiar 3+2 five-beat grouping associated with 'Take Five' and related 5/4 grooves.",
+          "difficulty": 3
+        }
+      ];
+
+      const GAME_MODES = [
+        { id: 'freestyle', name: 'Freestyle' },
+        { id: 'rhythmStudy', name: 'Rhythm Study' }
+      ];
+
+      const RHYTHM_DIFFICULTY_FILTERS = [0, 1, 2, 3, 4, 5];
+
       // 8th-note motifs in C minor used for chart lane hinting.
       const BASS_PATTERN_BARS = [
         ['C2', null, 'C2', null, 'G1', null, 'C2', null],
@@ -164,7 +1305,11 @@
         hitY: 0,
         touchTopY: 0,
         laneCenters: [0, 0, 0, 0],
-        difficultyButtons: []
+        difficultyButtons: [],
+        modeButtons: [],
+        rhythmFamilyButtons: [],
+        rhythmDifficultyButtons: [],
+        rhythmNavButtons: []
       };
 
       const game = {
@@ -172,6 +1317,12 @@
         startStage: 'splash', // splash | difficulty
         selectedDifficulty: 1,
         currentDifficulty: DIFFICULTIES[1],
+        selectedMode: 'freestyle',
+        currentMode: 'freestyle',
+        selectedRhythmFamily: '',
+        selectedRhythmDifficultyFilter: 0,
+        selectedRhythmIndex: 0,
+        currentRhythm: null,
         chart: [],
         chartKeySet: new Set(),
         judgedCount: 0,
@@ -290,6 +1441,133 @@
         if (p < 0.72) return lerp(0.58, 1.0, (p - 0.18) / 0.54);
         if (p < 0.9) return lerp(1.0, 0.82, (p - 0.72) / 0.18);
         return lerp(0.82, 0.68, (p - 0.9) / 0.1);
+      }
+
+      function rhythmFamilyFromOrigin(origin) {
+        if (!origin || typeof origin !== 'string') return 'Other';
+        const leftSide = origin.split('/')[0].trim();
+        const compact = leftSide.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        if (compact) return compact;
+        return origin.trim() || 'Other';
+      }
+
+      const RHYTHM_LIBRARY_DATA = RHYTHM_LIBRARY.map((rhythm) => ({
+        name: String(rhythm.name || 'Untitled Rhythm'),
+        origin: String(rhythm.origin || 'Unknown Origin'),
+        description: String(rhythm.description || ''),
+        steps: Array.isArray(rhythm.steps)
+          ? rhythm.steps
+            .map((step) => Number(step))
+            .filter((step) => Number.isFinite(step))
+          : [],
+        difficulty: clamp(Math.round(Number(rhythm.difficulty) || 1), 1, 5),
+        bars: rhythm.bars === 2 ? 2 : 1,
+        family: rhythmFamilyFromOrigin(String(rhythm.origin || 'Unknown Origin'))
+      }));
+
+      const RHYTHM_FAMILIES = (() => {
+        const seen = new Set();
+        const families = [];
+        for (let i = 0; i < RHYTHM_LIBRARY_DATA.length; i += 1) {
+          const family = RHYTHM_LIBRARY_DATA[i].family;
+          if (!seen.has(family)) {
+            seen.add(family);
+            families.push(family);
+          }
+        }
+        return families;
+      })();
+
+      function getRhythmsForSelection() {
+        const selectedFamily = game.selectedRhythmFamily;
+        const selectedDiff = game.selectedRhythmDifficultyFilter;
+        return RHYTHM_LIBRARY_DATA.filter((rhythm) => {
+          if (selectedFamily && rhythm.family !== selectedFamily) return false;
+          if (selectedDiff > 0 && rhythm.difficulty !== selectedDiff) return false;
+          return true;
+        });
+      }
+
+      function syncRhythmSelectionBounds() {
+        if (!RHYTHM_FAMILIES.length) {
+          game.selectedRhythmFamily = '';
+          game.selectedRhythmIndex = 0;
+          game.selectedRhythmDifficultyFilter = 0;
+          return;
+        }
+
+        if (!game.selectedRhythmFamily || !RHYTHM_FAMILIES.includes(game.selectedRhythmFamily)) {
+          game.selectedRhythmFamily = RHYTHM_FAMILIES[0];
+        }
+
+        game.selectedRhythmDifficultyFilter = clamp(game.selectedRhythmDifficultyFilter | 0, 0, 5);
+        const rhythms = getRhythmsForSelection();
+        if (!rhythms.length) {
+          game.selectedRhythmIndex = 0;
+          return;
+        }
+        game.selectedRhythmIndex = clamp(game.selectedRhythmIndex | 0, 0, rhythms.length - 1);
+      }
+
+      function cycleRhythmFamily(direction) {
+        if (!RHYTHM_FAMILIES.length) return;
+        const current = RHYTHM_FAMILIES.indexOf(game.selectedRhythmFamily);
+        const start = current >= 0 ? current : 0;
+        const next = (start + direction + RHYTHM_FAMILIES.length) % RHYTHM_FAMILIES.length;
+        game.selectedRhythmFamily = RHYTHM_FAMILIES[next];
+        game.selectedRhythmIndex = 0;
+        syncRhythmSelectionBounds();
+      }
+
+      function cycleRhythmChoice(direction) {
+        const rhythms = getRhythmsForSelection();
+        if (!rhythms.length) {
+          game.selectedRhythmIndex = 0;
+          return;
+        }
+        const next = (game.selectedRhythmIndex + direction + rhythms.length) % rhythms.length;
+        game.selectedRhythmIndex = next;
+      }
+
+      function setRhythmDifficultyFilter(value) {
+        game.selectedRhythmDifficultyFilter = clamp(value | 0, 0, 5);
+        game.selectedRhythmIndex = 0;
+        syncRhythmSelectionBounds();
+      }
+
+      function adjustRhythmDifficultyFilter(delta) {
+        const next = clamp((game.selectedRhythmDifficultyFilter | 0) + delta, 0, 5);
+        setRhythmDifficultyFilter(next);
+      }
+
+      function setSelectedMode(modeId) {
+        game.selectedMode = modeId === 'rhythmStudy' ? 'rhythmStudy' : 'freestyle';
+        if (game.selectedMode === 'rhythmStudy') {
+          syncRhythmSelectionBounds();
+        }
+      }
+
+      function toggleSelectedMode() {
+        setSelectedMode(game.selectedMode === 'rhythmStudy' ? 'freestyle' : 'rhythmStudy');
+      }
+
+      function getSelectedRhythm() {
+        syncRhythmSelectionBounds();
+        const rhythms = getRhythmsForSelection();
+        if (!rhythms.length) return null;
+        return rhythms[game.selectedRhythmIndex] || rhythms[0] || null;
+      }
+
+      function trimTextToWidth(text, maxWidth) {
+        const safeText = String(text || '');
+        if (maxWidth <= 0) return '';
+        if (ctx.measureText(safeText).width <= maxWidth) return safeText;
+        const ellipsis = '...';
+        let out = safeText;
+        while (out.length > 0 && ctx.measureText(out + ellipsis).width > maxWidth) {
+          out = out.slice(0, -1);
+        }
+        return out + ellipsis;
       }
 
       function allocParticleFromPool() {
@@ -1459,6 +2737,70 @@
         }
       }
 
+      function buildChartForRhythmStudy(rhythm, difficulty) {
+        resetChartContainer();
+        game.densityCache = [];
+
+        const totalBars = Math.ceil(game.totalSteps / 16);
+        for (let bar = 0; bar < totalBars; bar += 1) {
+          const progress = bar / Math.max(1, totalBars - 1);
+          game.densityCache.push(densityCurveAtProgress(progress));
+        }
+
+        if (!rhythm || !Array.isArray(rhythm.steps) || rhythm.steps.length <= 0) {
+          addChartNote(0, 0, 0);
+          return;
+        }
+
+        const fallbackSeed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF)) >>> 0;
+        const baseSeed = ((typeof game.chartSeed === 'number' ? game.chartSeed : fallbackSeed) >>> 0) || 1;
+        const seedLabel = `${difficulty.id}:${rhythm.name}:${rhythm.origin}`;
+        const rng = createSeededRng(mixSeedWithText(baseSeed, seedLabel));
+        const patternLengthSteps = rhythm.bars === 2 ? 32 : 16;
+        const stepSet = new Set(
+          rhythm.steps
+            .map((step) => Math.floor(Number(step)))
+            .filter((step) => Number.isFinite(step) && step >= 0 && step < patternLengthSteps)
+        );
+
+        const state = {
+          laneCounts: [0, 0, 0, 0],
+          recentLane: -1,
+          recentLaneStreak: 0,
+          lastLane: -1,
+          lastStep: -999,
+          lastStepLanes: [],
+          restUntilStep: 0
+        };
+
+        for (let absoluteStep = 0; absoluteStep < game.totalSteps; absoluteStep += 1) {
+          if (!stepSet.has(absoluteStep % patternLengthSteps)) continue;
+
+          const stepInBar = absoluteStep % 16;
+          const patternIndex = Math.floor(absoluteStep / 16) % BASS_PATTERN_BARS.length;
+          const lane = pickLaneWithConstraints(
+            rng,
+            state,
+            absoluteStep,
+            stepInBar,
+            patternIndex,
+            difficulty.id,
+            -1
+          );
+          if (lane === null || lane === undefined) continue;
+
+          addChartNote(absoluteStep * STEP_SEC, lane, absoluteStep);
+          updateLaneState(state, lane, absoluteStep);
+        }
+
+        game.chart.sort((a, b) => a.time - b.time || a.lane - b.lane);
+        if (game.chart.length <= 0 || game.chart[0].time > 0) {
+          const anchorLane = game.chart.length > 0 ? game.chart[0].lane : 0;
+          addChartNote(0, anchorLane, 0);
+          game.chart.sort((a, b) => a.time - b.time || a.lane - b.lane);
+        }
+      }
+
       // =========================
       // Game Flow
       // =========================
@@ -1476,11 +2818,24 @@
         if (game.screen === 'playing') return;
 
         game.currentDifficulty = DIFFICULTIES[game.selectedDifficulty];
+        game.currentMode = game.selectedMode === 'rhythmStudy' ? 'rhythmStudy' : 'freestyle';
+        game.currentRhythm = null;
+
+        if (game.currentMode === 'rhythmStudy') {
+          const selectedRhythm = getSelectedRhythm();
+          if (!selectedRhythm) return;
+          game.currentRhythm = selectedRhythm;
+        }
+
         const leadInSec = game.currentDifficulty.approachSec + COUNTDOWN_SEC;
 
         game.chartSeed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF) ^ Math.floor(performance.now() * 1000)) >>> 0;
         if (game.chartSeed === 0) game.chartSeed = 1;
-        buildChartForDifficulty(game.currentDifficulty, game.chartSeed);
+        if (game.currentMode === 'rhythmStudy' && game.currentRhythm) {
+          buildChartForRhythmStudy(game.currentRhythm, game.currentDifficulty);
+        } else {
+          buildChartForDifficulty(game.currentDifficulty, game.chartSeed);
+        }
 
         game.score = 0;
         game.combo = 0;
@@ -1796,6 +3151,68 @@
             return;
           }
 
+          if (event.code === 'KeyF') {
+            setSelectedMode('freestyle');
+            event.preventDefault();
+            return;
+          }
+
+          if (event.code === 'KeyR') {
+            setSelectedMode('rhythmStudy');
+            event.preventDefault();
+            return;
+          }
+
+          if (event.code === 'KeyM') {
+            toggleSelectedMode();
+            event.preventDefault();
+            return;
+          }
+
+          if (game.selectedMode === 'rhythmStudy') {
+            if (event.code === 'ArrowUp') {
+              cycleRhythmFamily(-1);
+              event.preventDefault();
+              return;
+            }
+
+            if (event.code === 'ArrowDown') {
+              cycleRhythmFamily(1);
+              event.preventDefault();
+              return;
+            }
+
+            if (event.code === 'KeyQ') {
+              cycleRhythmChoice(-1);
+              event.preventDefault();
+              return;
+            }
+
+            if (event.code === 'KeyE') {
+              cycleRhythmChoice(1);
+              event.preventDefault();
+              return;
+            }
+
+            if (event.code === 'KeyZ') {
+              adjustRhythmDifficultyFilter(-1);
+              event.preventDefault();
+              return;
+            }
+
+            if (event.code === 'KeyX') {
+              adjustRhythmDifficultyFilter(1);
+              event.preventDefault();
+              return;
+            }
+
+            if (event.code === 'KeyC') {
+              setRhythmDifficultyFilter(0);
+              event.preventDefault();
+              return;
+            }
+          }
+
           if (event.code === 'Space' || event.code === 'Enter') {
             if (!event.repeat) {
               startGame();
@@ -1842,14 +3259,39 @@
         });
       }
 
-      function hitTestDifficultyButtons(x, y) {
-        for (let i = 0; i < layout.difficultyButtons.length; i += 1) {
-          const button = layout.difficultyButtons[i];
+      function hitTestButtons(buttons, x, y) {
+        for (let i = 0; i < buttons.length; i += 1) {
+          const button = buttons[i];
           if (x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h) {
-            return i;
+            return button;
           }
         }
-        return -1;
+        return null;
+      }
+
+      function hitTestDifficultyButtons(x, y) {
+        const hit = hitTestButtons(layout.difficultyButtons, x, y);
+        return hit ? hit.index : -1;
+      }
+
+      function hitTestModeButtons(x, y) {
+        const hit = hitTestButtons(layout.modeButtons, x, y);
+        return hit ? hit.modeId : null;
+      }
+
+      function hitTestRhythmFamilyButtons(x, y) {
+        const hit = hitTestButtons(layout.rhythmFamilyButtons, x, y);
+        return hit ? hit.direction : 0;
+      }
+
+      function hitTestRhythmDifficultyButtons(x, y) {
+        const hit = hitTestButtons(layout.rhythmDifficultyButtons, x, y);
+        return hit ? hit.filter : null;
+      }
+
+      function hitTestRhythmNavButtons(x, y) {
+        const hit = hitTestButtons(layout.rhythmNavButtons, x, y);
+        return hit ? hit.direction : 0;
       }
 
       function handlePointerDown(event) {
@@ -1864,12 +3306,44 @@
             return;
           }
 
+          const modeHit = hitTestModeButtons(x, y);
+          if (modeHit) {
+            setSelectedMode(modeHit);
+            event.preventDefault();
+            return;
+          }
+
           const difficultyHit = hitTestDifficultyButtons(x, y);
           if (difficultyHit >= 0) {
             game.selectedDifficulty = difficultyHit;
-          } else {
-            startGame();
+            event.preventDefault();
+            return;
           }
+
+          if (game.selectedMode === 'rhythmStudy') {
+            const familyDirection = hitTestRhythmFamilyButtons(x, y);
+            if (familyDirection !== 0) {
+              cycleRhythmFamily(familyDirection);
+              event.preventDefault();
+              return;
+            }
+
+            const difficultyFilter = hitTestRhythmDifficultyButtons(x, y);
+            if (difficultyFilter !== null) {
+              setRhythmDifficultyFilter(difficultyFilter);
+              event.preventDefault();
+              return;
+            }
+
+            const rhythmDirection = hitTestRhythmNavButtons(x, y);
+            if (rhythmDirection !== 0) {
+              cycleRhythmChoice(rhythmDirection);
+              event.preventDefault();
+              return;
+            }
+          }
+
+          startGame();
           event.preventDefault();
           return;
         }
@@ -2420,6 +3894,51 @@
         ctx.globalAlpha = 1;
       }
 
+      function renderRhythmStudyBanner() {
+        if (game.currentMode !== 'rhythmStudy' || !game.currentRhythm) return;
+
+        const rhythm = game.currentRhythm;
+        const bannerW = Math.min(layout.playAreaWidth + 120, width * 0.94);
+        const bannerH = Math.max(72, Math.floor(height * 0.12));
+        const bannerX = (width - bannerW) * 0.5;
+        const bannerY = Math.max(6, layout.laneTop - bannerH * 0.32);
+        const bannerGradient = ctx.createLinearGradient(bannerX, bannerY, bannerX, bannerY + bannerH);
+
+        bannerGradient.addColorStop(0, 'rgba(10,10,15,0.92)');
+        bannerGradient.addColorStop(1, 'rgba(40,9,175,0.52)');
+
+        ctx.globalAlpha = 0.74;
+        ctx.fillStyle = bannerGradient;
+        drawRoundedRect(ctx, bannerX, bannerY, bannerW, bannerH, 12);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.86;
+        ctx.strokeStyle = PALETTE.magenta;
+        ctx.lineWidth = 1.5;
+        drawRoundedRect(ctx, bannerX, bannerY, bannerW, bannerH, 12);
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const nameY = bannerY + Math.floor(bannerH * 0.29);
+        const originY = bannerY + Math.floor(bannerH * 0.58);
+        const descY = bannerY + Math.floor(bannerH * 0.82);
+
+        ctx.fillStyle = PALETTE.pink;
+        ctx.font = `800 ${Math.max(13, Math.floor(width * 0.018))}px monospace`;
+        ctx.fillText(trimTextToWidth(rhythm.name, bannerW - 22), width * 0.5, nameY);
+
+        ctx.fillStyle = PALETTE.magenta;
+        ctx.font = `600 ${Math.max(10, Math.floor(width * 0.014))}px monospace`;
+        ctx.fillText(trimTextToWidth(rhythm.origin, bannerW - 26), width * 0.5, originY);
+
+        ctx.fillStyle = PALETTE.violet;
+        ctx.font = `600 ${Math.max(9, Math.floor(width * 0.012))}px monospace`;
+        ctx.fillText(trimTextToWidth(rhythm.description, bannerW - 30), width * 0.5, descY);
+      }
+
       function renderHUD(songTime) {
         const acc = currentAccuracy();
         const grade = gradeFromAccuracy(acc);
@@ -2601,6 +4120,11 @@
       // =========================
       function renderStartScreen() {
         const titleY = height * 0.22;
+        layout.difficultyButtons = [];
+        layout.modeButtons = [];
+        layout.rhythmFamilyButtons = [];
+        layout.rhythmDifficultyButtons = [];
+        layout.rhythmNavButtons = [];
 
         ctx.fillStyle = PALETTE.black;
         ctx.globalAlpha = 0.36;
@@ -2614,41 +4138,71 @@
         ctx.fillText('ANALOGOUS HARMONY', width * 0.5, titleY);
 
         if (game.startStage === 'splash') {
-          layout.difficultyButtons = [];
-
           ctx.fillStyle = PALETTE.magenta;
           ctx.font = `700 ${Math.max(14, Math.floor(width * 0.022))}px monospace`;
           ctx.fillText('PRESS SPACE OR TAP', width * 0.5, titleY + 52);
 
           ctx.fillStyle = PALETTE.violet;
           ctx.font = `600 ${Math.max(12, Math.floor(width * 0.017))}px monospace`;
-          ctx.fillText('THEN SELECT A DIFFICULTY TO PLAY', width * 0.5, titleY + 82);
+          ctx.fillText('THEN PICK MODE + DIFFICULTY', width * 0.5, titleY + 82);
 
           return;
         }
 
+        syncRhythmSelectionBounds();
+
         ctx.fillStyle = PALETTE.magenta;
         ctx.font = `700 ${Math.max(14, Math.floor(width * 0.022))}px monospace`;
-        ctx.fillText('SELECT DIFFICULTY', width * 0.5, titleY + 52);
+        ctx.fillText('SELECT MODE + DIFFICULTY', width * 0.5, titleY + 52);
 
         ctx.fillStyle = PALETTE.violet;
         ctx.font = `600 ${Math.max(12, Math.floor(width * 0.017))}px monospace`;
-        ctx.fillText('LEFT/RIGHT OR 1/2/3 TO CHOOSE, SPACE/ENTER TO PLAY', width * 0.5, titleY + 82);
+        ctx.fillText('LEFT/RIGHT OR 1/2/3 FOR DIFFICULTY, F/R OR M FOR MODE, SPACE TO START', width * 0.5, titleY + 82);
+
+        // Mode buttons
+        const modeButtonW = Math.min(205, width * 0.32);
+        const modeButtonH = 42;
+        const modeGap = Math.max(10, width * 0.02);
+        const modeTotalW = modeButtonW * GAME_MODES.length + modeGap * Math.max(0, GAME_MODES.length - 1);
+        const modeStartX = (width - modeTotalW) * 0.5;
+        const modeY = height * 0.34;
+
+        for (let i = 0; i < GAME_MODES.length; i += 1) {
+          const mode = GAME_MODES[i];
+          const x = modeStartX + i * (modeButtonW + modeGap);
+          const selected = mode.id === game.selectedMode;
+          layout.modeButtons.push({ x, y: modeY, w: modeButtonW, h: modeButtonH, modeId: mode.id });
+
+          ctx.globalAlpha = selected ? 0.3 : 0.14;
+          ctx.fillStyle = selected ? PALETTE.pink : PALETTE.indigo;
+          drawRoundedRect(ctx, x, modeY, modeButtonW, modeButtonH, 10);
+          ctx.fill();
+
+          ctx.globalAlpha = selected ? 0.95 : 0.68;
+          ctx.strokeStyle = selected ? PALETTE.magenta : PALETTE.violet;
+          ctx.lineWidth = selected ? 2.4 : 1.2;
+          drawRoundedRect(ctx, x, modeY, modeButtonW, modeButtonH, 10);
+          ctx.stroke();
+
+          ctx.globalAlpha = selected ? 0.98 : 0.82;
+          ctx.fillStyle = selected ? PALETTE.pink : PALETTE.violet;
+          ctx.font = `700 ${Math.max(14, Math.floor(width * 0.02))}px monospace`;
+          ctx.fillText(mode.name, x + modeButtonW * 0.5, modeY + modeButtonH * 0.5);
+        }
 
         // Difficulty buttons
-        layout.difficultyButtons = [];
         const buttonW = Math.min(165, width * 0.26);
         const buttonH = 44;
         const gap = Math.max(10, width * 0.02);
         const totalW = buttonW * 3 + gap * 2;
         const startX = (width - totalW) * 0.5;
-        const y = height * 0.42;
+        const y = modeY + modeButtonH + 20;
 
         for (let i = 0; i < DIFFICULTIES.length; i += 1) {
           const x = startX + i * (buttonW + gap);
           const selected = i === game.selectedDifficulty;
 
-          layout.difficultyButtons.push({ x, y, w: buttonW, h: buttonH });
+          layout.difficultyButtons.push({ x, y, w: buttonW, h: buttonH, index: i });
 
           ctx.globalAlpha = selected ? 0.28 : 0.16;
           ctx.fillStyle = selected ? PALETTE.pink : PALETTE.indigo;
@@ -2683,7 +4237,221 @@
 
         ctx.fillStyle = PALETTE.violet;
         ctx.font = `600 ${Math.max(12, Math.floor(width * 0.015))}px monospace`;
-        ctx.fillText('MOBILE: TAP A DIFFICULTY, THEN TAP OUTSIDE BUTTONS TO START', width * 0.5, y + 108);
+        if (game.selectedMode === 'rhythmStudy') {
+          ctx.fillText('RHYTHM STUDY: UP/DOWN FAMILY, Q/E RHYTHM, Z/X FILTER, C=ALL', width * 0.5, y + 108);
+        } else {
+          ctx.fillText('MOBILE: TAP MODE/DIFFICULTY, THEN TAP OUTSIDE BUTTONS TO START', width * 0.5, y + 108);
+        }
+
+        if (game.selectedMode === 'rhythmStudy') {
+          const rhythms = getRhythmsForSelection();
+          const selectedRhythm = rhythms.length
+            ? (rhythms[game.selectedRhythmIndex] || rhythms[0])
+            : null;
+
+          const panelY = y + 132;
+          const panelW = Math.min(width * 0.9, 900);
+          const panelX = (width - panelW) * 0.5;
+          const panelMaxH = Math.max(126, height - panelY - 14);
+          const panelH = Math.max(126, Math.min(Math.floor(height * 0.34), panelMaxH));
+          const panelBottom = panelY + panelH;
+          const pad = Math.max(10, Math.floor(panelW * 0.018));
+
+          const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelBottom);
+          panelGradient.addColorStop(0, 'rgba(10,10,15,0.88)');
+          panelGradient.addColorStop(1, 'rgba(40,9,175,0.50)');
+          ctx.globalAlpha = 0.68;
+          ctx.fillStyle = panelGradient;
+          drawRoundedRect(ctx, panelX, panelY, panelW, panelH, 14);
+          ctx.fill();
+
+          ctx.globalAlpha = 0.86;
+          ctx.strokeStyle = PALETTE.violet;
+          ctx.lineWidth = 1.4;
+          drawRoundedRect(ctx, panelX, panelY, panelW, panelH, 14);
+          ctx.stroke();
+
+          const navW = Math.max(34, Math.floor(panelW * 0.055));
+          const navH = 28;
+          const familyY = panelY + pad + 6;
+          const familyLeftX = panelX + pad;
+          const familyRightX = panelX + panelW - pad - navW;
+          const familyLabelX = familyLeftX + navW + 10;
+          const familyLabelW = familyRightX - familyLabelX - 10;
+
+          layout.rhythmFamilyButtons.push({ x: familyLeftX, y: familyY, w: navW, h: navH, direction: -1 });
+          layout.rhythmFamilyButtons.push({ x: familyRightX, y: familyY, w: navW, h: navH, direction: 1 });
+
+          ctx.globalAlpha = 0.24;
+          ctx.fillStyle = PALETTE.indigo;
+          drawRoundedRect(ctx, familyLeftX, familyY, navW, navH, 8);
+          ctx.fill();
+          drawRoundedRect(ctx, familyRightX, familyY, navW, navH, 8);
+          ctx.fill();
+
+          ctx.globalAlpha = 0.86;
+          ctx.strokeStyle = PALETTE.violet;
+          ctx.lineWidth = 1.1;
+          drawRoundedRect(ctx, familyLeftX, familyY, navW, navH, 8);
+          ctx.stroke();
+          drawRoundedRect(ctx, familyRightX, familyY, navW, navH, 8);
+          ctx.stroke();
+
+          ctx.fillStyle = PALETTE.pink;
+          ctx.font = `700 ${Math.max(14, Math.floor(width * 0.018))}px monospace`;
+          ctx.fillText('<', familyLeftX + navW * 0.5, familyY + navH * 0.52);
+          ctx.fillText('>', familyRightX + navW * 0.5, familyY + navH * 0.52);
+
+          ctx.globalAlpha = 0.18;
+          ctx.fillStyle = PALETTE.indigo;
+          drawRoundedRect(ctx, familyLabelX, familyY, familyLabelW, navH, 8);
+          ctx.fill();
+
+          ctx.globalAlpha = 0.72;
+          ctx.strokeStyle = PALETTE.magenta;
+          drawRoundedRect(ctx, familyLabelX, familyY, familyLabelW, navH, 8);
+          ctx.stroke();
+
+          ctx.textAlign = 'left';
+          ctx.fillStyle = PALETTE.violet;
+          ctx.font = `600 ${Math.max(10, Math.floor(width * 0.013))}px monospace`;
+          ctx.fillText('FAMILY / ORIGIN', familyLabelX + 10, familyY - 8);
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = PALETTE.pink;
+          ctx.font = `700 ${Math.max(12, Math.floor(width * 0.015))}px monospace`;
+          ctx.fillText(
+            trimTextToWidth(game.selectedRhythmFamily || 'N/A', familyLabelW - 14),
+            familyLabelX + familyLabelW * 0.5,
+            familyY + navH * 0.52
+          );
+
+          const filterOptions = RHYTHM_DIFFICULTY_FILTERS.map((value) => ({
+            label: value === 0 ? 'ALL' : String(value),
+            value
+          }));
+          const filterY = familyY + navH + 14;
+          const filterH = 24;
+          const filterGap = 6;
+          const filterW = Math.min(50, Math.floor((panelW - pad * 2 - filterGap * (filterOptions.length - 1)) / filterOptions.length));
+          const totalFilterW = filterW * filterOptions.length + filterGap * (filterOptions.length - 1);
+          const filterStartX = panelX + (panelW - totalFilterW) * 0.5;
+
+          ctx.textAlign = 'left';
+          ctx.fillStyle = PALETTE.violet;
+          ctx.font = `600 ${Math.max(10, Math.floor(width * 0.013))}px monospace`;
+          ctx.fillText('FILTER BY DIFFICULTY', panelX + pad, filterY - 6);
+
+          for (let i = 0; i < filterOptions.length; i += 1) {
+            const option = filterOptions[i];
+            const fx = filterStartX + i * (filterW + filterGap);
+            const selected = option.value === game.selectedRhythmDifficultyFilter;
+            layout.rhythmDifficultyButtons.push({ x: fx, y: filterY, w: filterW, h: filterH, filter: option.value });
+
+            ctx.globalAlpha = selected ? 0.32 : 0.15;
+            ctx.fillStyle = selected ? PALETTE.pink : PALETTE.indigo;
+            drawRoundedRect(ctx, fx, filterY, filterW, filterH, 7);
+            ctx.fill();
+
+            ctx.globalAlpha = selected ? 0.88 : 0.58;
+            ctx.strokeStyle = selected ? PALETTE.magenta : PALETTE.violet;
+            ctx.lineWidth = selected ? 1.7 : 1;
+            drawRoundedRect(ctx, fx, filterY, filterW, filterH, 7);
+            ctx.stroke();
+
+            ctx.globalAlpha = selected ? 0.98 : 0.74;
+            ctx.fillStyle = selected ? PALETTE.pink : PALETTE.violet;
+            ctx.textAlign = 'center';
+            ctx.font = `700 ${Math.max(12, Math.floor(width * 0.015))}px monospace`;
+            ctx.fillText(option.label, fx + filterW * 0.5, filterY + filterH * 0.53);
+          }
+
+          const rhythmY = filterY + filterH + 16;
+          const rhythmNavW = navW;
+          const rhythmNavH = 30;
+          const rhythmLeftX = panelX + pad;
+          const rhythmRightX = panelX + panelW - pad - rhythmNavW;
+          const rhythmCardX = rhythmLeftX + rhythmNavW + 10;
+          const rhythmCardW = rhythmRightX - rhythmCardX - 10;
+
+          if (selectedRhythm) {
+            layout.rhythmNavButtons.push({ x: rhythmLeftX, y: rhythmY, w: rhythmNavW, h: rhythmNavH, direction: -1 });
+            layout.rhythmNavButtons.push({ x: rhythmRightX, y: rhythmY, w: rhythmNavW, h: rhythmNavH, direction: 1 });
+          }
+
+          ctx.globalAlpha = 0.24;
+          ctx.fillStyle = PALETTE.indigo;
+          drawRoundedRect(ctx, rhythmLeftX, rhythmY, rhythmNavW, rhythmNavH, 8);
+          ctx.fill();
+          drawRoundedRect(ctx, rhythmRightX, rhythmY, rhythmNavW, rhythmNavH, 8);
+          ctx.fill();
+
+          ctx.globalAlpha = 0.82;
+          ctx.strokeStyle = PALETTE.violet;
+          ctx.lineWidth = 1.1;
+          drawRoundedRect(ctx, rhythmLeftX, rhythmY, rhythmNavW, rhythmNavH, 8);
+          ctx.stroke();
+          drawRoundedRect(ctx, rhythmRightX, rhythmY, rhythmNavW, rhythmNavH, 8);
+          ctx.stroke();
+
+          ctx.fillStyle = PALETTE.pink;
+          ctx.font = `700 ${Math.max(14, Math.floor(width * 0.018))}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillText('<', rhythmLeftX + rhythmNavW * 0.5, rhythmY + rhythmNavH * 0.52);
+          ctx.fillText('>', rhythmRightX + rhythmNavW * 0.5, rhythmY + rhythmNavH * 0.52);
+
+          ctx.globalAlpha = 0.22;
+          ctx.fillStyle = PALETTE.indigo;
+          drawRoundedRect(ctx, rhythmCardX, rhythmY, rhythmCardW, rhythmNavH, 8);
+          ctx.fill();
+
+          ctx.globalAlpha = 0.78;
+          ctx.strokeStyle = PALETTE.magenta;
+          drawRoundedRect(ctx, rhythmCardX, rhythmY, rhythmCardW, rhythmNavH, 8);
+          ctx.stroke();
+
+          ctx.textAlign = 'left';
+          ctx.fillStyle = PALETTE.violet;
+          ctx.font = `600 ${Math.max(10, Math.floor(width * 0.013))}px monospace`;
+          ctx.fillText('RHYTHM', rhythmCardX + 10, rhythmY - 8);
+
+          if (selectedRhythm) {
+            ctx.textAlign = 'center';
+            ctx.fillStyle = PALETTE.pink;
+            ctx.font = `700 ${Math.max(12, Math.floor(width * 0.015))}px monospace`;
+            ctx.fillText(
+              trimTextToWidth(selectedRhythm.name, rhythmCardW - 16),
+              rhythmCardX + rhythmCardW * 0.5,
+              rhythmY + rhythmNavH * 0.53
+            );
+
+            const originY = rhythmY + rhythmNavH + 18;
+            const descY = originY + 19;
+            const countY = descY + 19;
+
+            ctx.textAlign = 'center';
+            ctx.fillStyle = PALETTE.magenta;
+            ctx.font = `600 ${Math.max(11, Math.floor(width * 0.014))}px monospace`;
+            ctx.fillText(trimTextToWidth(selectedRhythm.origin, panelW - pad * 2), width * 0.5, originY);
+
+            ctx.fillStyle = PALETTE.violet;
+            ctx.font = `600 ${Math.max(10, Math.floor(width * 0.013))}px monospace`;
+            ctx.fillText(trimTextToWidth(selectedRhythm.description, panelW - pad * 2), width * 0.5, descY);
+
+            const rhythmIndex = clamp(game.selectedRhythmIndex + 1, 1, rhythms.length);
+            ctx.fillStyle = PALETTE.pink;
+            ctx.font = `600 ${Math.max(10, Math.floor(width * 0.012))}px monospace`;
+            ctx.fillText(`RHYTHM ${rhythmIndex}/${rhythms.length}`, width * 0.5, countY);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.fillStyle = PALETTE.red;
+            ctx.font = `700 ${Math.max(11, Math.floor(width * 0.014))}px monospace`;
+            ctx.fillText('NO RHYTHMS MATCH THE CURRENT FAMILY + FILTER', width * 0.5, rhythmY + rhythmNavH + 20);
+            ctx.fillStyle = PALETTE.violet;
+            ctx.font = `600 ${Math.max(10, Math.floor(width * 0.013))}px monospace`;
+            ctx.fillText('ADJUST FAMILY OR DIFFICULTY FILTER TO CONTINUE', width * 0.5, rhythmY + rhythmNavH + 40);
+          }
+        }
 
         ctx.globalAlpha = 1;
       }
@@ -2849,6 +4617,9 @@
         if (game.screen === 'playing' || game.screen === 'gameover') {
           renderLanes(songTime);
           renderParticlesAndPopups();
+          if (game.screen === 'playing') {
+            renderRhythmStudyBanner();
+          }
           renderHUD(songTime);
           if (game.screen === 'playing') {
             renderCountdownOverlay(songTime);
@@ -2914,6 +4685,10 @@
         game.highScores = loadHighScores();
         initObjectPools();
         clearTransientEffects();
+        if (RHYTHM_FAMILIES.length > 0) {
+          game.selectedRhythmFamily = RHYTHM_FAMILIES[0];
+        }
+        syncRhythmSelectionBounds();
         resize();
 
         window.addEventListener('resize', resize);
