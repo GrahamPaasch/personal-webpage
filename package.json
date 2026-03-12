@@ -24,7 +24,6 @@
     "@next/mdx": "^16.1.6",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
-    "@react-three/postprocessing": "^2.19.1",
     "@supabase/supabase-js": "^2.76.1",
     "@types/three": "^0.183.1",
     "gray-matter": "^4.0.3",

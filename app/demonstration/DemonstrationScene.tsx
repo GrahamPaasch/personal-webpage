@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useRef } from 'react';
+import { Suspense, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import {
   Environment,
@@ -10,12 +10,7 @@ import {
   Sphere,
   Stars,
 } from '@react-three/drei';
-import {
-  Bloom,
-  ChromaticAberration,
-  EffectComposer,
-} from '@react-three/postprocessing';
-import { MathUtils, Vector2 as ThreeVector2 } from 'three';
+import { MathUtils } from 'three';
 import type { Mesh, Vector2 } from 'three';
 
 type OrbiterConfig = {
@@ -101,7 +96,7 @@ function CentralCore() {
 
     const hue = (elapsed * 0.06 + proximity * 0.35) % 1;
     material.color.setHSL(hue, 0.88, 0.55);
-    material.emissive.setHSL((hue + 0.2) % 1, 0.82, 0.2);
+    material.emissive.setHSL((hue + 0.2) % 1, 0.88, 0.34);
 
     mesh.rotation.x = elapsed * 0.18;
     mesh.rotation.y = elapsed * 0.24;
@@ -124,7 +119,7 @@ function CentralCore() {
           color="#5bc8ff"
           distort={0.32}
           emissive="#32196f"
-          emissiveIntensity={0.8}
+          emissiveIntensity={1.55}
           metalness={0.95}
           ref={materialRef}
           roughness={0.08}
@@ -177,7 +172,7 @@ function OrbitingSphere({ config }: { config: OrbiterConfig }) {
           color={config.color}
           distort={config.distort}
           emissive={config.color}
-          emissiveIntensity={0.35}
+          emissiveIntensity={0.95}
           metalness={0.8}
           ref={materialRef}
           roughness={0.18}
@@ -189,25 +184,29 @@ function OrbitingSphere({ config }: { config: OrbiterConfig }) {
 }
 
 function Scene() {
-  const chromaticOffset = useMemo(() => new ThreeVector2(0.00065, 0.00085), []);
-
   return (
     <>
       <ambientLight
         color="#6475aa"
-        intensity={0.26}
+        intensity={0.18}
       />
       <pointLight
         color="#4ba7ff"
-        distance={18}
-        intensity={45}
+        distance={22}
+        intensity={62}
         position={[4.5, 3.4, 3.2]}
       />
       <pointLight
         color="#ff4ab5"
-        distance={14}
-        intensity={28}
+        distance={19}
+        intensity={42}
         position={[-4, -2.8, -2.5]}
+      />
+      <pointLight
+        color="#7a5dff"
+        distance={24}
+        intensity={36}
+        position={[0, 5.8, -4.6]}
       />
 
       <Stars
@@ -241,20 +240,6 @@ function Scene() {
         maxDistance={11}
         minDistance={4}
       />
-
-      <EffectComposer>
-        <Bloom
-          intensity={1.2}
-          luminanceSmoothing={0.9}
-          luminanceThreshold={0.2}
-          mipmapBlur
-        />
-        <ChromaticAberration
-          modulationOffset={0}
-          offset={chromaticOffset}
-          radialModulation={false}
-        />
-      </EffectComposer>
     </>
   );
 }
