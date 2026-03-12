@@ -15,7 +15,7 @@ import {
   ChromaticAberration,
   EffectComposer,
 } from '@react-three/postprocessing';
-import { Color, MathUtils, Vector2 as ThreeVector2 } from 'three';
+import { MathUtils, Vector2 as ThreeVector2 } from 'three';
 import type { Mesh, Vector2 } from 'three';
 
 type OrbiterConfig = {
@@ -26,12 +26,6 @@ type OrbiterConfig = {
   phase: number;
   size: number;
   yAmplitude: number;
-};
-
-type DistortMaterialHandle = {
-  color: Color;
-  distort: number;
-  emissive: Color;
 };
 
 const ORBITERS: OrbiterConfig[] = [
@@ -80,7 +74,7 @@ function pointerProximity(pointer: Vector2): number {
 
 function CentralCore() {
   const meshRef = useRef<Mesh>(null);
-  const materialRef = useRef<DistortMaterialHandle | null>(null);
+  const materialRef = useRef<any>(null!);
   const distortRef = useRef(0.32);
 
   useFrame((state, delta) => {
@@ -143,7 +137,7 @@ function CentralCore() {
 
 function OrbitingSphere({ config }: { config: OrbiterConfig }) {
   const meshRef = useRef<Mesh>(null);
-  const materialRef = useRef<DistortMaterialHandle | null>(null);
+  const materialRef = useRef<any>(null!);
 
   useFrame((state) => {
     const mesh = meshRef.current;
@@ -254,7 +248,11 @@ function Scene() {
           luminanceThreshold={0.2}
           mipmapBlur
         />
-        <ChromaticAberration offset={chromaticOffset} />
+        <ChromaticAberration
+          modulationOffset={0}
+          offset={chromaticOffset}
+          radialModulation={false}
+        />
       </EffectComposer>
     </>
   );
