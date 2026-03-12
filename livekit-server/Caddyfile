@@ -1,0 +1,3 @@
+meet.grahampaasch.com {
+  reverse_proxy localhost:7880
+}

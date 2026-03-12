@@ -1,0 +1,7 @@
+port: 7880
+rtc:
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true
+keys:
+  API0ef640b58c47acaa0653a1ebb026cba5: 24e114a34a042324543f7a7c3e01ff430eb7f303d69c373aa56293538e8a8c31
