@@ -384,14 +384,13 @@ const projectPoint = (
   camera: Camera,
   width: number,
   height: number,
-  zoom: number,
 ): { x: number; y: number; depth: number; scale: number } | null => {
   const dz = point.z - camera.z;
   if (dz <= 0.05) {
     return null;
   }
 
-  const scale = (camera.fov * zoom) / (camera.fov + dz);
+  const scale = camera.fov / (camera.fov + dz);
 
   return {
     x: width * 0.5 + (point.x - camera.x) * scale * height * 0.62,
@@ -614,20 +613,36 @@ const fbm2D = (
   lacunarity: number,
   gain: number,
 ): number => {
+  const octaveCount = Math.max(0.5, octaves);
+  const wholeOctaves = Math.floor(octaveCount);
+  const fractionalOctave = octaveCount - wholeOctaves;
+
   let frequency = 1;
   let amplitude = 1;
   let sum = 0;
   let normalizer = 0;
 
-  for (let i = 0; i < octaves; i += 1) {
+  for (let i = 0; i < wholeOctaves; i += 1) {
     sum += noise.noise2D(x * frequency, y * frequency) * amplitude;
     normalizer += amplitude;
     frequency *= lacunarity;
     amplitude *= gain;
   }
 
+  if (fractionalOctave > 0) {
+    sum += noise.noise2D(x * frequency, y * frequency) * amplitude * fractionalOctave;
+    normalizer += amplitude * fractionalOctave;
+  }
+
   return normalizer > 0 ? sum / normalizer : 0;
 };
+
+const detailOctaves = (
+  baseOctaves: number,
+  detailZoom: number,
+  growth: number,
+  maxOctaves: number,
+): number => clamp(baseOctaves + Math.log2(Math.max(0.001, detailZoom)) * growth, 0.75, maxOctaves);
 
 const renderSplinePath = (ctx: CanvasRenderingContext2D, points: TendrilNode[]): void => {
   if (points.length < 2) {
@@ -673,8 +688,8 @@ export default function DemonstrationPage() {
     let dpr = 1;
     let raf = 0;
     let elapsed = 0;
-    let zoom = 1;
-    let targetZoom = 1;
+    let detailZoom = 1;
+    let targetDetailZoom = 1;
     let previousTime = performance.now();
     let tendrilSpawnTimer = 0;
 
@@ -712,6 +727,8 @@ export default function DemonstrationPage() {
 
     const maxStructures = 8;
     const maxTendrils = 22;
+    const minDetailZoom = 0.18;
+    const maxDetailZoom = 1e12;
 
     const createStars = (): Star[] => {
       const count = Math.max(180, Math.floor((width * height) / 6200));
@@ -809,6 +826,22 @@ export default function DemonstrationPage() {
       };
     };
 
+    const clientToCanvas = (clientX: number, clientY: number): Vec2 => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      };
+    };
+
+    const applyZoomRatio = (ratio: number): void => {
+      targetDetailZoom = clamp(
+        targetDetailZoom * Math.pow(ratio, 2.25),
+        minDetailZoom,
+        maxDetailZoom,
+      );
+    };
+
     const spawnShockwave = (x: number, y: number): void => {
       const world = pointerToWorld(x, y);
 
@@ -830,21 +863,55 @@ export default function DemonstrationPage() {
     };
 
     const terrainHeight = (x: number, z: number, t: number): number => {
-      const zoomedFreq = 0.075 * zoom;
-      const flow = t * 0.095;
+      const detailLod = Math.log2(Math.max(0.001, detailZoom));
+      const detailFreq = Math.pow(2, detailLod * 1.18);
+      const detailBlend = clamp((detailLod + 1.5) / 7.8, 0, 1);
+      const baseOctaves = detailOctaves(4, detailZoom, 1.9, 18);
+      const ridgeOctaves = detailOctaves(3, detailZoom, 1.58, 16);
+      const microOctaves = detailOctaves(2, detailZoom, 1.34, 14);
+      const ultraOctaves = detailOctaves(1.4, detailZoom, 1.08, 12);
+      const zoomedFreq = 0.04 * detailFreq;
+      const flow = t * (0.095 + detailBlend * 0.042);
 
-      const base = fbm2D(noise, x * zoomedFreq, (z + flow * 8) * zoomedFreq, 4, 2.03, 0.52);
+      const base = fbm2D(
+        noise,
+        x * zoomedFreq,
+        (z + flow * 8) * zoomedFreq,
+        baseOctaves,
+        2.03,
+        0.52,
+      );
       const ridgeRaw = fbm2D(
         noise,
         x * zoomedFreq * 1.55 + 17.2,
         (z - flow * 12) * zoomedFreq * 1.55 - 28.7,
-        3,
+        ridgeOctaves,
         2.16,
         0.58,
       );
       const ridge = 1 - Math.abs(ridgeRaw);
+      const micro = fbm2D(
+        noise,
+        x * zoomedFreq * 3.8 - 63.7,
+        (z + flow * 18) * zoomedFreq * 3.8 + 41.2,
+        microOctaves,
+        2.28,
+        0.47,
+      );
+      const ultra = fbm2D(
+        noise,
+        x * zoomedFreq * 8.1 + 121.3,
+        (z - flow * 27) * zoomedFreq * 8.1 - 94.2,
+        ultraOctaves,
+        2.41,
+        0.43,
+      );
 
-      let heightValue = base * 2.8 + ridge * 1.45;
+      let heightValue =
+        base * 2.7 +
+        ridge * 1.4 +
+        micro * (0.16 + detailBlend * 1.45) +
+        ultra * clamp(detailLod * 0.24, 0, 2.15);
 
       const pointerWorld = pointerToWorld(pointer.x, pointer.y);
       const dx = x - pointerWorld.x;
@@ -985,29 +1052,45 @@ export default function DemonstrationPage() {
           );
 
           let targetDirection = tendril.direction + noiseInfluence * 1.08;
+          let steerResponse = 0.55;
+          let pointerPullX = 0;
+          let pointerPullY = 0;
 
           if (pointer.active) {
             const dx = pointer.x - head.x;
             const dy = pointer.y - head.y;
             const dist = Math.hypot(dx, dy) + 0.001;
-            const attract = clamp(1 - dist / Math.max(width, height), 0, 1);
+            const attract = clamp(1 - dist / (Math.max(width, height) * 1.8), 0, 1);
+            const attractCurve = Math.pow(attract, 0.62);
             const pointerAngle = Math.atan2(dy, dx);
-            targetDirection = lerpAngle(targetDirection, pointerAngle, 0.06 + attract * 0.26);
+            targetDirection = tendril.direction + noiseInfluence * (0.22 + (1 - attractCurve) * 0.22);
+            targetDirection = lerpAngle(targetDirection, pointerAngle, 0.6 + attractCurve * 0.36);
+            steerResponse = clamp(0.78 + attractCurve * 0.18, 0.78, 0.96);
+
+            const pull = attractCurve * (3.6 + tendril.vigor * 3.4);
+            pointerPullX = (dx / dist) * pull;
+            pointerPullY = (dy / dist) * pull * 0.92;
           }
 
           const shock = screenShock(head.x, head.y);
           if (Math.abs(shock.x) + Math.abs(shock.y) > 0.001) {
             const shockAngle = Math.atan2(shock.y, shock.x);
-            targetDirection = lerpAngle(targetDirection, shockAngle, 0.21);
+            targetDirection = lerpAngle(targetDirection, shockAngle, pointer.active ? 0.12 : 0.21);
           }
 
-          tendril.direction = lerpAngle(tendril.direction, targetDirection, 0.55);
+          tendril.direction = lerpAngle(tendril.direction, targetDirection, steerResponse);
 
           const stepLength = 2.3 + tendril.vigor * 1.25 + rng.range(0, 1.7);
           const upwardBias = -0.52 - (1.25 - tendril.vigor) * 0.15;
 
-          const nextX = head.x + Math.cos(tendril.direction) * stepLength + shock.x * 0.7;
-          const nextY = head.y + Math.sin(tendril.direction) * stepLength + upwardBias + shock.y * 0.7;
+          const nextX =
+            head.x + Math.cos(tendril.direction) * stepLength + shock.x * 0.7 + pointerPullX;
+          const nextY =
+            head.y +
+            Math.sin(tendril.direction) * stepLength +
+            upwardBias +
+            shock.y * 0.7 +
+            pointerPullY;
 
           const nextThickness = Math.max(0.65, head.thickness * rng.range(0.982, 0.996));
 
@@ -1124,13 +1207,18 @@ export default function DemonstrationPage() {
 
     const renderAurora = (palette: Palette, t: number): void => {
       const layers = 5;
+      const auroraDetailZoom = clamp(detailZoom, minDetailZoom, 96);
+      const detailFreq = Math.pow(auroraDetailZoom, 0.92);
+      const detailBlend = clamp((Math.log2(Math.max(0.001, auroraDetailZoom)) + 1.2) / 7, 0, 1);
+      const auroraOctaves = detailOctaves(2, auroraDetailZoom, 0.82, 7);
+      const auroraScale = Math.pow(auroraDetailZoom, 0.08);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
 
       for (let layer = 0; layer < layers; layer += 1) {
         const layerMix = layer / (layers - 1);
         const baseY = height * (0.16 + layerMix * 0.2);
-        const amplitude = height * (0.12 - layerMix * 0.038) * (1.3 / zoom);
+        const amplitude = height * (0.12 - layerMix * 0.038) * (1.3 / auroraScale);
         const thicknessBase = 22 + (1 - layerMix) * 22;
 
         const top: Vec2[] = [];
@@ -1139,15 +1227,28 @@ export default function DemonstrationPage() {
 
         const step = 18;
         for (let x = -32; x <= width + 32; x += step) {
-          const nx = x * 0.0023 * zoom;
+          const nx = x * 0.0023 * detailFreq;
           const flow = t * 0.17 + layer * 0.35;
 
           const n1 = noise.noise3D(nx + 11.2, layer * 0.42, flow);
           const n2 = noise.noise2D(nx * 1.7 - flow * 0.31, layer * 1.2 + 5.1);
-          const sway = Math.sin(nx * 4.4 + flow * 2.3 + layer * 1.4) * 0.35;
+          const nDetail = fbm2D(
+            noise,
+            nx * 3.6 + layer * 1.7,
+            flow * 0.85 + layer * 0.9,
+            auroraOctaves,
+            2.04,
+            0.52,
+          );
+          const sway = Math.sin(nx * 4.4 + flow * 2.3 + layer * 1.4) * (0.28 + detailBlend * 0.2);
 
-          const centerY = baseY + n1 * amplitude + n2 * amplitude * 0.38 + sway * amplitude;
-          const thickness = thicknessBase + n2 * 12 + Math.sin(flow + nx * 3.2) * 6;
+          const centerY =
+            baseY + n1 * amplitude + n2 * amplitude * 0.38 + nDetail * amplitude * (0.1 + detailBlend * 0.35) + sway * amplitude;
+          const thickness =
+            thicknessBase +
+            n2 * 12 +
+            nDetail * 8 * detailBlend +
+            Math.sin(flow + nx * 3.2) * (6 + detailBlend * 3.8);
 
           top.push({ x, y: centerY - thickness });
           bottom.push({ x, y: centerY + thickness });
@@ -1223,7 +1324,7 @@ export default function DemonstrationPage() {
           const x = (colT - 0.5) * worldWidth * spread;
 
           const h = terrainHeight(x, z, t);
-          const projected = projectPoint({ x, y: h, z }, camera, width, height, zoom);
+          const projected = projectPoint({ x, y: h, z }, camera, width, height);
           if (!projected) {
             continue;
           }
@@ -1290,6 +1391,9 @@ export default function DemonstrationPage() {
     };
 
     const renderStructures = (palette: Palette, t: number): void => {
+      const structureDetailZoom = clamp(detailZoom, minDetailZoom, 72);
+      const detailFreq = Math.pow(structureDetailZoom, 0.78);
+      const detailBlend = clamp((structureDetailZoom - 1) / 6.5, 0, 1);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
 
@@ -1300,12 +1404,19 @@ export default function DemonstrationPage() {
 
         for (let p = 0; p < structure.geometry.points.length; p += 1) {
           const basePoint = structure.geometry.points[p];
+          const basePulse = noise.noise3D(
+            basePoint.x * 0.9 * detailFreq + structure.seedOffset,
+            basePoint.y * 0.9 * detailFreq - structure.seedOffset,
+            t * structure.morphRate,
+          );
+          const finePulse = noise.noise3D(
+            basePoint.x * 2.35 * detailFreq - structure.seedOffset * 0.53,
+            basePoint.y * 2.1 * detailFreq + structure.seedOffset * 0.41,
+            t * structure.morphRate * 1.38 + structure.seedOffset * 0.022,
+          );
           const pulse =
-            noise.noise3D(
-              basePoint.x * 0.9 + structure.seedOffset,
-              basePoint.y * 0.9 - structure.seedOffset,
-              t * structure.morphRate,
-            ) * structure.morphAmount;
+            (basePulse * (1 - detailBlend * 0.45) + finePulse * detailBlend * 0.62) *
+            structure.morphAmount;
 
           const distorted: Vec3 = {
             x: basePoint.x * structure.scale * (1 + pulse * 0.6),
@@ -1333,7 +1444,7 @@ export default function DemonstrationPage() {
             };
           }
 
-          projectedPoints[p] = projectPoint(worldPoint, camera, width, height, zoom);
+          projectedPoints[p] = projectPoint(worldPoint, camera, width, height);
         }
 
         for (let s = 0; s < structure.geometry.segments.length; s += 1) {
@@ -1435,7 +1546,13 @@ export default function DemonstrationPage() {
 
     const update = (dt: number): void => {
       elapsed += dt;
-      zoom = lerp(zoom, targetZoom, clamp(dt * 4.4, 0.01, 0.25));
+      detailZoom = Math.exp(
+        lerp(
+          Math.log(Math.max(minDetailZoom, detailZoom)),
+          Math.log(Math.max(minDetailZoom, targetDetailZoom)),
+          clamp(dt * 5.1, 0.02, 0.32),
+        ),
+      );
 
       const palette = createPalette(elapsed, seedHue);
 
@@ -1473,7 +1590,8 @@ export default function DemonstrationPage() {
     };
 
     const onMouseMove = (event: MouseEvent): void => {
-      setPointer(event.clientX, event.clientY);
+      const local = clientToCanvas(event.clientX, event.clientY);
+      setPointer(local.x, local.y);
     };
 
     const onMouseLeave = (): void => {
@@ -1481,19 +1599,22 @@ export default function DemonstrationPage() {
     };
 
     const onMouseDown = (event: MouseEvent): void => {
-      spawnShockwave(event.clientX, event.clientY);
+      const local = clientToCanvas(event.clientX, event.clientY);
+      spawnShockwave(local.x, local.y);
     };
 
     const onWheel = (event: WheelEvent): void => {
       event.preventDefault();
-      targetZoom = clamp(targetZoom * (1 - event.deltaY * 0.0011), 0.6, 2.35);
+      const ratio = Math.exp(-event.deltaY * 0.0011);
+      applyZoomRatio(ratio);
     };
 
     const onTouchStart = (event: TouchEvent): void => {
       if (event.touches.length === 1) {
         const touch = event.touches[0];
-        setPointer(touch.clientX, touch.clientY);
-        spawnShockwave(touch.clientX, touch.clientY);
+        const local = clientToCanvas(touch.clientX, touch.clientY);
+        setPointer(local.x, local.y);
+        spawnShockwave(local.x, local.y);
       }
 
       if (event.touches.length >= 2) {
@@ -1506,7 +1627,8 @@ export default function DemonstrationPage() {
         pinch.distance = Math.hypot(dx, dy);
         pinch.midpointX = (a.clientX + b.clientX) * 0.5;
         pinch.midpointY = (a.clientY + b.clientY) * 0.5;
-        setPointer(pinch.midpointX, pinch.midpointY);
+        const local = clientToCanvas(pinch.midpointX, pinch.midpointY);
+        setPointer(local.x, local.y);
       }
 
       event.preventDefault();
@@ -1515,7 +1637,8 @@ export default function DemonstrationPage() {
     const onTouchMove = (event: TouchEvent): void => {
       if (event.touches.length === 1) {
         const touch = event.touches[0];
-        setPointer(touch.clientX, touch.clientY);
+        const local = clientToCanvas(touch.clientX, touch.clientY);
+        setPointer(local.x, local.y);
       }
 
       if (event.touches.length >= 2) {
@@ -1527,13 +1650,14 @@ export default function DemonstrationPage() {
         const distance = Math.hypot(dx, dy);
         if (pinch.active && pinch.distance > 0) {
           const ratio = distance / pinch.distance;
-          targetZoom = clamp(targetZoom * ratio, 0.6, 2.35);
+          applyZoomRatio(ratio);
         }
 
         pinch.distance = distance;
         pinch.midpointX = (a.clientX + b.clientX) * 0.5;
         pinch.midpointY = (a.clientY + b.clientY) * 0.5;
-        setPointer(pinch.midpointX, pinch.midpointY);
+        const local = clientToCanvas(pinch.midpointX, pinch.midpointY);
+        setPointer(local.x, local.y);
       }
 
       event.preventDefault();
@@ -1548,7 +1672,8 @@ export default function DemonstrationPage() {
 
       if (event.touches.length === 1) {
         const touch = event.touches[0];
-        setPointer(touch.clientX, touch.clientY);
+        const local = clientToCanvas(touch.clientX, touch.clientY);
+        setPointer(local.x, local.y);
         pinch.active = false;
         return;
       }
@@ -1561,7 +1686,8 @@ export default function DemonstrationPage() {
       pinch.midpointX = (a.clientX + b.clientX) * 0.5;
       pinch.midpointY = (a.clientY + b.clientY) * 0.5;
       pinch.active = true;
-      setPointer(pinch.midpointX, pinch.midpointY);
+      const local = clientToCanvas(pinch.midpointX, pinch.midpointY);
+      setPointer(local.x, local.y);
     };
 
     resize();
