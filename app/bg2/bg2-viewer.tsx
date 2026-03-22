@@ -5,7 +5,7 @@ export default function BG2Viewer() {
     <iframe
       src="https://bg2.grahampaasch.com/?pwd=bg2play"
       style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-      allow="fullscreen; autoplay"
+      allow="fullscreen; autoplay; pointer-lock"
     />
   );
 }
