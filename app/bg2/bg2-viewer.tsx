@@ -16,7 +16,12 @@ export default function BG2Viewer() {
     } else {
       const Hls = (await import('hls.js')).default;
       if (Hls.isSupported()) {
-        const hls = new Hls();
+        const hls = new Hls({
+          liveSyncDurationCount: 3,
+          liveMaxLatencyDurationCount: 5,
+          liveDurationInfinity: true,
+          enableWorker: true,
+        });
         hls.loadSource('https://bg2.grahampaasch.com:8443/stream.m3u8');
         hls.attachMedia(audio);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
