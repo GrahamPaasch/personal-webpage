@@ -1,3 +1,10 @@
 meet.grahampaasch.com {
   reverse_proxy localhost:7880
 }
+
+bg2.grahampaasch.com {
+  reverse_proxy localhost:8080 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+  }
+}
