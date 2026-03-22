@@ -1,39 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 export default function BG2Viewer() {
   const [audioStarted, setAudioStarted] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
-  const startAudio = async () => {
-    const audio = new Audio();
-    audioRef.current = audio;
-
-    if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-      audio.src = 'https://bg2.grahampaasch.com:8443/stream.m3u8';
-      audio.play().then(() => setAudioStarted(true)).catch(() => {});
-    } else {
-      const Hls = (await import('hls.js')).default;
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          liveSyncDurationCount: 3,
-          liveMaxLatencyDurationCount: 5,
-          liveDurationInfinity: true,
-          enableWorker: true,
-        });
-        hls.loadSource('https://bg2.grahampaasch.com:8443/stream.m3u8');
-        hls.attachMedia(audio);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          audio.play().then(() => setAudioStarted(true)).catch(() => {});
-        });
-      }
+  const startAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.src = 'https://bg2.grahampaasch.com:8443/bg2audio';
+      audioRef.current.play().then(() => setAudioStarted(true)).catch(() => {});
     }
   };
-
-  useEffect(() => {
-    return () => { audioRef.current?.pause(); };
-  }, []);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -74,6 +52,7 @@ export default function BG2Viewer() {
           </button>
         </div>
       )}
+      <audio ref={audioRef} preload="none" />
     </div>
   );
 }
