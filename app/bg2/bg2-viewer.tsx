@@ -14,17 +14,7 @@ export default function BG2Viewer() {
   };
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <iframe
-        src="https://bg2.grahampaasch.com:6080/vnc.html?autoconnect=true&resize=scale"
-        style={{
-          width: '100%',
-          height: audioStarted ? '100%' : 'calc(100% - 60px)',
-          border: 'none',
-          display: 'block',
-        }}
-        allow="fullscreen"
-      />
+    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {!audioStarted && (
         <div
           style={{
@@ -33,25 +23,38 @@ export default function BG2Viewer() {
             alignItems: 'center',
             justifyContent: 'center',
             background: '#1a1a1a',
+            flexShrink: 0,
           }}
         >
           <button
+            onTouchEnd={(e) => { e.preventDefault(); startAudio(); }}
             onClick={startAudio}
             style={{
-              padding: '10px 24px',
+              padding: '12px 32px',
               background: '#4a3728',
               color: '#d4a574',
               border: '2px solid #d4a574',
               borderRadius: 6,
               fontFamily: 'serif',
-              fontSize: '1rem',
+              fontSize: '1.1rem',
               cursor: 'pointer',
+              touchAction: 'manipulation',
             }}
           >
             Enable Audio
           </button>
         </div>
       )}
+      <iframe
+        src="https://bg2.grahampaasch.com:6080/vnc.html?autoconnect=true&resize=scale"
+        style={{
+          width: '100%',
+          flex: 1,
+          border: 'none',
+          display: 'block',
+        }}
+        allow="fullscreen"
+      />
       <audio ref={audioRef} preload="none" />
     </div>
   );
