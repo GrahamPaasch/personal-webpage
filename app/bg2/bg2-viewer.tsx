@@ -6,11 +6,9 @@ export default function BG2Viewer() {
   const [audioStarted, setAudioStarted] = useState(false);
 
   const startAudio = () => {
-    const audio = document.getElementById('bg2audio') as HTMLAudioElement;
-    if (audio) {
-      audio.play();
-      setAudioStarted(true);
-    }
+    const audio = new Audio('https://bg2.grahampaasch.com:8443/bg2audio');
+    audio.crossOrigin = 'anonymous';
+    audio.play().then(() => setAudioStarted(true)).catch(() => {});
   };
 
   return (
@@ -49,11 +47,6 @@ export default function BG2Viewer() {
           Enable Audio
         </button>
       )}
-      <audio
-        id="bg2audio"
-        src="https://bg2.grahampaasch.com:8443/bg2audio"
-        preload="none"
-      />
     </>
   );
 }
