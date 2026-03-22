@@ -26,6 +26,7 @@
     "gray-matter": "^4.0.3",
     "groq-sdk": "^0.37.0",
     "hastscript": "^9.0.0",
+    "hls.js": "^1.6.15",
     "livekit-client": "^2.17.2",
     "livekit-server-sdk": "^2.15.0",
     "marked": "^12.0.2",
