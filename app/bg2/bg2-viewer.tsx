@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const NEKO_URL = 'https://bg2.grahampaasch.com/?pwd=bg2play';
 
@@ -8,6 +8,32 @@ export default function BG2Viewer() {
   const [voiceOpen, setVoiceOpen] = useState(false);
   const jitsiRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<unknown>(null);
+
+  // Draggable widget state
+  const [pos, setPos] = useState({ x: 16, y: -1 }); // y=-1 signals "use CSS centering"
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const widgetRef = useRef<HTMLDivElement>(null);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only drag on the button / header, not inside the Jitsi iframe
+    if ((e.target as HTMLElement).tagName === 'IFRAME') return;
+    e.preventDefault();
+    dragging.current = true;
+    const rect = widgetRef.current!.getBoundingClientRect();
+    dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
+    };
+    const onUp = () => { dragging.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
 
   useEffect(() => {
     if (!voiceOpen) {
@@ -63,17 +89,23 @@ export default function BG2Viewer() {
         allow="pointer-lock; microphone; camera; fullscreen; autoplay"
       />
 
-      {/* Floating voice chat panel — top-center */}
-      <div style={{
-        position: 'absolute',
-        left: '1rem',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        zIndex: 10,
-      }}>
+      {/* Floating draggable voice chat panel */}
+      <div
+        ref={widgetRef}
+        onMouseDown={onMouseDown}
+        style={{
+          position: 'absolute',
+          left: pos.x,
+          top: pos.y === -1 ? '50%' : pos.y,
+          transform: pos.y === -1 ? 'translateY(-50%)' : 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          zIndex: 10,
+          cursor: 'grab',
+          userSelect: 'none',
+        }}
+      >
         <button
           onClick={() => setVoiceOpen(v => !v)}
           style={{
@@ -82,11 +114,12 @@ export default function BG2Viewer() {
             border: '2px solid #c8a96e88',
             borderRadius: '4px',
             color: '#c8a96e',
-            cursor: 'pointer',
+            cursor: 'grab',
             fontFamily: 'serif',
             fontSize: '0.9rem',
             backdropFilter: 'blur(4px)',
             marginBottom: '0.5rem',
+            width: '100%',
           }}
         >
           {voiceOpen ? '✕ Voice Chat' : '🎙 Voice Chat'}
