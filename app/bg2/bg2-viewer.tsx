@@ -1,19 +1,57 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const NEKO_URL = 'https://bg2.grahampaasch.com/?pwd=bg2play';
-const JITSI_URL = 'https://meet.jit.si/GrahamBG2SwordCoast'
-  + '#config.startWithVideoMuted=true'
-  + '&config.startWithAudioMuted=true'
-  + '&config.disableDeepLinking=true'
-  + '&config.prejoinPageEnabled=false'
-  + '&config.disableInviteFunctions=true'
-  + '&interfaceConfig.SHOW_JITSI_WATERMARK=false'
-  + '&interfaceConfig.SHOW_WATERMARK_FOR_GUESTS=false';
 
 export default function BG2Viewer() {
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const jitsiRef = useRef<HTMLDivElement>(null);
+  const apiRef = useRef<unknown>(null);
+
+  useEffect(() => {
+    if (!voiceOpen) {
+      if (apiRef.current) {
+        (apiRef.current as { dispose: () => void }).dispose();
+        apiRef.current = null;
+      }
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://meet.jit.si/external_api.js';
+    script.async = true;
+    script.onload = () => {
+      if (!jitsiRef.current) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      apiRef.current = new (window as any).JitsiMeetExternalAPI('meet.jit.si', {
+        roomName: 'GrahamBG2SwordCoast',
+        width: '100%',
+        height: '100%',
+        parentNode: jitsiRef.current,
+        configOverwrite: {
+          startWithVideoMuted: true,
+          startWithAudioMuted: true,
+          prejoinPageEnabled: false,
+          disableDeepLinking: true,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'settings'],
+        },
+      });
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      if (apiRef.current) {
+        (apiRef.current as { dispose: () => void }).dispose();
+        apiRef.current = null;
+      }
+      script.remove();
+    };
+  }, [voiceOpen]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }}>
@@ -25,18 +63,19 @@ export default function BG2Viewer() {
         allow="pointer-lock; microphone; camera; fullscreen; autoplay"
       />
 
-      {/* Floating voice chat panel */}
+      {/* Floating voice chat panel — top-center */}
       <div style={{
         position: 'absolute',
         top: '1rem',
         left: '50%',
         transform: 'translateX(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         zIndex: 10,
       }}>
         <button
           onClick={() => setVoiceOpen(v => !v)}
-          title={voiceOpen ? 'Close voice chat' : 'Open voice chat'}
           style={{
             padding: '0.5rem 1rem',
             background: voiceOpen ? '#c8a96e33' : '#0a0a0fcc',
@@ -52,19 +91,18 @@ export default function BG2Viewer() {
         >
           {voiceOpen ? '✕ Voice Chat' : '🎙 Voice Chat'}
         </button>
-        {voiceOpen && (
-          <iframe
-            src={JITSI_URL}
-            style={{
-              width: '320px',
-              height: '240px',
-              border: '2px solid #c8a96e55',
-              borderRadius: '6px',
-              background: '#0a0a0f',
-            }}
-            allow="camera; microphone; fullscreen"
-          />
-        )}
+        <div
+          ref={jitsiRef}
+          style={{
+            display: voiceOpen ? 'block' : 'none',
+            width: '360px',
+            height: '260px',
+            border: '2px solid #c8a96e55',
+            borderRadius: '6px',
+            overflow: 'hidden',
+            background: '#0a0a0f',
+          }}
+        />
       </div>
     </div>
   );
