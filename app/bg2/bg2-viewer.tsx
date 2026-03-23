@@ -11,7 +11,8 @@ export default function BG2Viewer() {
 
   // Draggable widget state
   const [pos, setPos] = useState({ x: 16, y: -1 }); // y=-1 signals "use CSS centering"
-  const dragging = useRef(false);
+  const isMouseDown = useRef(false);
+  const isDragging = useRef(false);
   const mouseDownPos = useRef({ x: 0, y: 0 });
   const dragOffset = useRef({ x: 0, y: 0 });
   const widgetRef = useRef<HTMLDivElement>(null);
@@ -19,6 +20,8 @@ export default function BG2Viewer() {
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'IFRAME') return;
+    isMouseDown.current = true;
+    isDragging.current = false;
     mouseDownPos.current = { x: e.clientX, y: e.clientY };
     const rect = widgetRef.current!.getBoundingClientRect();
     dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -26,14 +29,14 @@ export default function BG2Viewer() {
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      if (!isMouseDown.current) return;
       const dx = e.clientX - mouseDownPos.current.x;
       const dy = e.clientY - mouseDownPos.current.y;
-      // Only start dragging after threshold to preserve click behavior
-      if (!dragging.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-      dragging.current = true;
+      if (!isDragging.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      isDragging.current = true;
       setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
     };
-    const onUp = () => { dragging.current = false; };
+    const onUp = () => { isMouseDown.current = false; isDragging.current = false; };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
