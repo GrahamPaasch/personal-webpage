@@ -28,27 +28,13 @@ export default function BG2Viewer() {
       {/* Floating voice chat panel */}
       <div style={{
         position: 'absolute',
-        bottom: '1rem',
+        top: '1rem',
         right: '1rem',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-end',
-        gap: '0.5rem',
         zIndex: 10,
       }}>
-        {voiceOpen && (
-          <iframe
-            src={JITSI_URL}
-            style={{
-              width: '320px',
-              height: '240px',
-              border: '2px solid #c8a96e55',
-              borderRadius: '6px',
-              background: '#0a0a0f',
-            }}
-            allow="camera; microphone; fullscreen"
-          />
-        )}
         <button
           onClick={() => setVoiceOpen(v => !v)}
           title={voiceOpen ? 'Close voice chat' : 'Open voice chat'}
@@ -62,10 +48,24 @@ export default function BG2Viewer() {
             fontFamily: 'serif',
             fontSize: '0.9rem',
             backdropFilter: 'blur(4px)',
+            marginBottom: '0.5rem',
           }}
         >
           {voiceOpen ? '✕ Voice Chat' : '🎙 Voice Chat'}
         </button>
+        {voiceOpen && (
+          <iframe
+            src={JITSI_URL}
+            style={{
+              width: '320px',
+              height: '240px',
+              border: '2px solid #c8a96e55',
+              borderRadius: '6px',
+              background: '#0a0a0f',
+            }}
+            allow="camera; microphone; fullscreen"
+          />
+        )}
       </div>
     </div>
   );
