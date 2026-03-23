@@ -11,17 +11,19 @@ export default function BG2Viewer() {
 
   // Draggable widget state
   const [pos, setPos] = useState({ x: 16, y: -1 }); // y=-1 signals "use CSS centering"
+  const [isDragging, setIsDragging] = useState(false);
   const isMouseDown = useRef(false);
-  const isDragging = useRef(false);
+  const isDraggingRef = useRef(false);
   const mouseDownPos = useRef({ x: 0, y: 0 });
   const dragOffset = useRef({ x: 0, y: 0 });
   const widgetRef = useRef<HTMLDivElement>(null);
+  const nekoIframeRef = useRef<HTMLIFrameElement>(null);
   const DRAG_THRESHOLD = 6;
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'IFRAME') return;
     isMouseDown.current = true;
-    isDragging.current = false;
+    isDraggingRef.current = false;
     mouseDownPos.current = { x: e.clientX, y: e.clientY };
     const rect = widgetRef.current!.getBoundingClientRect();
     dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -32,11 +34,22 @@ export default function BG2Viewer() {
       if (!isMouseDown.current) return;
       const dx = e.clientX - mouseDownPos.current.x;
       const dy = e.clientY - mouseDownPos.current.y;
-      if (!isDragging.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-      isDragging.current = true;
+      if (!isDraggingRef.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      if (!isDraggingRef.current) {
+        isDraggingRef.current = true;
+        setIsDragging(true);
+        // Disable pointer events on Neko iframe so mouseup fires on window
+        if (nekoIframeRef.current) nekoIframeRef.current.style.pointerEvents = 'none';
+      }
       setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
     };
-    const onUp = () => { isMouseDown.current = false; isDragging.current = false; };
+    const onUp = () => {
+      isMouseDown.current = false;
+      isDraggingRef.current = false;
+      setIsDragging(false);
+      // Re-enable pointer events on Neko iframe
+      if (nekoIframeRef.current) nekoIframeRef.current.style.pointerEvents = '';
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
@@ -91,6 +104,7 @@ export default function BG2Viewer() {
 
       {/* Neko game — full viewport */}
       <iframe
+        ref={nekoIframeRef}
         src={NEKO_URL}
         style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
         allow="pointer-lock; microphone; camera; fullscreen; autoplay"
@@ -109,7 +123,7 @@ export default function BG2Viewer() {
           flexDirection: 'column',
           alignItems: 'flex-start',
           zIndex: 10,
-          cursor: 'grab',
+          cursor: isDragging ? 'grabbing' : 'grab',
           userSelect: 'none',
         }}
       >
