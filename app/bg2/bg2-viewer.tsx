@@ -12,21 +12,25 @@ export default function BG2Viewer() {
   // Draggable widget state
   const [pos, setPos] = useState({ x: 16, y: -1 }); // y=-1 signals "use CSS centering"
   const dragging = useRef(false);
+  const mouseDownPos = useRef({ x: 0, y: 0 });
   const dragOffset = useRef({ x: 0, y: 0 });
   const widgetRef = useRef<HTMLDivElement>(null);
+  const DRAG_THRESHOLD = 6;
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
-    // Only drag on the button / header, not inside the Jitsi iframe
     if ((e.target as HTMLElement).tagName === 'IFRAME') return;
-    e.preventDefault();
-    dragging.current = true;
+    mouseDownPos.current = { x: e.clientX, y: e.clientY };
     const rect = widgetRef.current!.getBoundingClientRect();
     dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }, []);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      if (!dragging.current) return;
+      const dx = e.clientX - mouseDownPos.current.x;
+      const dy = e.clientY - mouseDownPos.current.y;
+      // Only start dragging after threshold to preserve click behavior
+      if (!dragging.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      dragging.current = true;
       setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
     };
     const onUp = () => { dragging.current = false; };
