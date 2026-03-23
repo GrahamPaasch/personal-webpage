@@ -66,12 +66,12 @@ export default function BG2Viewer() {
       {/* Floating voice chat panel — top-center */}
       <div style={{
         position: 'absolute',
-        top: '1rem',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        left: '1rem',
+        top: '50%',
+        transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         zIndex: 10,
       }}>
         <button
