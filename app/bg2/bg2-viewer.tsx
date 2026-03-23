@@ -22,7 +22,7 @@ export default function BG2Viewer() {
       <iframe
         src={NEKO_URL}
         style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-        allow="pointer-lock; microphone; camera; fullscreen"
+        allow="pointer-lock; microphone; camera; fullscreen; autoplay"
       />
 
       {/* Floating voice chat panel */}
