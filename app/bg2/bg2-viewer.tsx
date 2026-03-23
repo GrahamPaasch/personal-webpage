@@ -2,11 +2,7 @@
 
 export default function BG2Viewer() {
   function openGame() {
-    window.open(
-      'https://bg2.grahampaasch.com/?pwd=bg2play',
-      'bg2game',
-      'width=1300,height=880,menubar=no,toolbar=no,location=no,status=no,resizable=yes'
-    );
+    window.open('https://bg2.grahampaasch.com/?pwd=bg2play', '_blank');
   }
 
   return (
@@ -51,7 +47,7 @@ export default function BG2Viewer() {
         Enter the Sword Coast
       </button>
       <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '-1rem' }}>
-        Opens in a new window
+        Opens in a new tab — press F11 for fullscreen
       </p>
     </div>
   );
