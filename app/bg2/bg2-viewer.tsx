@@ -1,51 +1,72 @@
 'use client';
 
+import { useState } from 'react';
+
+const NEKO_URL = 'https://bg2.grahampaasch.com/?pwd=bg2play';
+const JITSI_URL = 'https://meet.jit.si/GrahamBG2SwordCoast'
+  + '#config.startWithVideoMuted=true'
+  + '&config.startWithAudioMuted=true'
+  + '&config.disableDeepLinking=true'
+  + '&config.prejoinPageEnabled=false'
+  + '&config.disableInviteFunctions=true'
+  + '&interfaceConfig.SHOW_JITSI_WATERMARK=false'
+  + '&interfaceConfig.SHOW_WATERMARK_FOR_GUESTS=false';
+
 export default function BG2Viewer() {
-  function openGame() {
-    window.open('https://bg2.grahampaasch.com/?pwd=bg2play', '_blank');
-  }
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   return (
-    <div style={{
-      width: '100%',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#0a0a0f',
-      color: '#c8a96e',
-      fontFamily: 'serif',
-      gap: '2rem',
-    }}>
-      <h1 style={{ fontSize: '2.5rem', margin: 0, textShadow: '0 0 20px #c8a96e55' }}>
-        Baldur&apos;s Gate II
-      </h1>
-      <p style={{ fontSize: '1.1rem', color: '#9a7a4e', maxWidth: '480px', textAlign: 'center', lineHeight: 1.6 }}>
-        Watch live — or take control and play. Voice chat, mouse, keyboard, and
-        audio all work inside the game window.
-      </p>
-      <button
-        onClick={openGame}
-        style={{
-          padding: '0.85rem 2.5rem',
-          fontSize: '1.1rem',
-          background: 'transparent',
-          border: '2px solid #c8a96e',
-          color: '#c8a96e',
-          cursor: 'pointer',
-          letterSpacing: '0.1em',
-          fontFamily: 'serif',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#c8a96e22'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-      >
-        Enter the Sword Coast
-      </button>
-      <p style={{ fontSize: '0.8rem', color: '#555', marginTop: '-1rem' }}>
-        Opens in a new tab — press F11 for fullscreen
-      </p>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }}>
+
+      {/* Neko game — full viewport */}
+      <iframe
+        src={NEKO_URL}
+        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+        allow="pointer-lock; microphone; camera; fullscreen"
+      />
+
+      {/* Floating voice chat panel */}
+      <div style={{
+        position: 'absolute',
+        bottom: '1rem',
+        right: '1rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '0.5rem',
+        zIndex: 10,
+      }}>
+        {voiceOpen && (
+          <iframe
+            src={JITSI_URL}
+            style={{
+              width: '320px',
+              height: '240px',
+              border: '2px solid #c8a96e55',
+              borderRadius: '6px',
+              background: '#0a0a0f',
+            }}
+            allow="camera; microphone; fullscreen"
+          />
+        )}
+        <button
+          onClick={() => setVoiceOpen(v => !v)}
+          title={voiceOpen ? 'Close voice chat' : 'Open voice chat'}
+          style={{
+            padding: '0.5rem 1rem',
+            background: voiceOpen ? '#c8a96e33' : '#0a0a0fcc',
+            border: '2px solid #c8a96e88',
+            borderRadius: '4px',
+            color: '#c8a96e',
+            cursor: 'pointer',
+            fontFamily: 'serif',
+            fontSize: '0.9rem',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          {voiceOpen ? '✕ Voice Chat' : '🎙 Voice Chat'}
+        </button>
+      </div>
     </div>
   );
 }
