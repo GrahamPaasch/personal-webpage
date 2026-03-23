@@ -29,10 +29,9 @@ export default function BG2Viewer() {
       <div style={{
         position: 'absolute',
         top: '1rem',
-        right: '1rem',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        alignItems: 'center',
         zIndex: 10,
       }}>
         <button
