@@ -147,7 +147,7 @@ export default function BG2Viewer() {
       <iframe
         ref={nekoIframeRef}
         src={NEKO_URL}
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+        style={{ width: '100%', height: '100%', border: 'none', display: 'block', cursor: 'none' }}
         allow="pointer-lock; microphone; camera; fullscreen; autoplay"
       />
 
