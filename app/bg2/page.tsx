@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function BG2Page() {
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 50 }}>
       <BG2Viewer />
     </div>
   );
