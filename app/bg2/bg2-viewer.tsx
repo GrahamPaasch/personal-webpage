@@ -6,6 +6,7 @@ import {
   useLocalParticipant,
   RoomAudioRenderer,
   useTracks,
+  VideoTrack,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { Track } from 'livekit-client';
@@ -20,38 +21,70 @@ function randomName() {
   return `${adj[Math.floor(Math.random() * adj.length)]}${noun[Math.floor(Math.random() * noun.length)]}`;
 }
 
-function VoiceControls() {
-  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
-  const tracks = useTracks([Track.Source.Microphone], { onlySubscribed: false });
-  const participants = tracks.length;
+function ChatControls() {
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+  const audioTracks = useTracks([Track.Source.Microphone], { onlySubscribed: false });
+  const videoTracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
+  const participantCount = audioTracks.length;
+
+  const btnStyle = (active: boolean, color: string) => ({
+    background: active ? color : '#3a3a4a',
+    border: '1px solid #c8a96e44',
+    borderRadius: '4px',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    padding: '0.25rem 0.55rem',
+    lineHeight: 1,
+  });
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.6rem' }}>
-      <span style={{ color: '#c8a96e88', fontSize: '0.75rem' }}>
-        👥 {participants}
-      </span>
-      <button
-        onClick={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)}
-        title={isMicrophoneEnabled ? 'Mute' : 'Unmute'}
-        style={{
-          background: isMicrophoneEnabled ? '#2d5a2d' : '#5a2d2d',
-          border: '1px solid #c8a96e55',
-          borderRadius: '4px',
-          color: '#c8a96e',
-          cursor: 'pointer',
-          fontSize: '1rem',
-          padding: '0.2rem 0.5rem',
-          lineHeight: 1,
-        }}
-      >
-        {isMicrophoneEnabled ? '🎙' : '🔇'}
-      </button>
+    <div>
+      {/* Video tiles */}
+      {videoTracks.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+          gap: '4px',
+          padding: '4px',
+          maxHeight: '200px',
+          overflowY: 'auto',
+        }}>
+          {videoTracks.map(track => (
+            <div key={track.participant.sid} style={{ position: 'relative', aspectRatio: '4/3', background: '#111', borderRadius: '4px', overflow: 'hidden' }}>
+              <VideoTrack trackRef={track} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
+                {track.participant.name || track.participant.identity}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Controls row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.6rem' }}>
+        <span style={{ color: '#c8a96e88', fontSize: '0.75rem', marginRight: '0.25rem' }}>👥 {participantCount}</span>
+        <button
+          onClick={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)}
+          title={isMicrophoneEnabled ? 'Mute mic' : 'Unmute mic'}
+          style={btnStyle(isMicrophoneEnabled, '#2d5a2d')}
+        >
+          {isMicrophoneEnabled ? '🎙' : '🔇'}
+        </button>
+        <button
+          onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
+          title={isCameraEnabled ? 'Stop camera' : 'Start camera'}
+          style={btnStyle(isCameraEnabled, '#2d4a6a')}
+        >
+          {isCameraEnabled ? '📷' : '📵'}
+        </button>
+      </div>
     </div>
   );
 }
 
 export default function BG2Viewer() {
-  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [token, setToken] = useState('');
   const [username] = useState(randomName);
 
@@ -66,9 +99,9 @@ export default function BG2Viewer() {
   const nekoIframeRef = useRef<HTMLIFrameElement>(null);
   const DRAG_THRESHOLD = 6;
 
-  // Fetch LiveKit token when voice is opened
+  // Fetch LiveKit token when chat is opened
   useEffect(() => {
-    if (!voiceOpen || token) return;
+    if (!chatOpen || token) return;
     fetch('/api/meet/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -76,7 +109,7 @@ export default function BG2Viewer() {
     })
       .then(r => r.json())
       .then(d => { if (d.token) setToken(d.token); });
-  }, [voiceOpen, token, username]);
+  }, [chatOpen, token, username]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'IFRAME') return;
@@ -151,7 +184,7 @@ export default function BG2Viewer() {
         allow="pointer-lock; microphone; camera; fullscreen; autoplay"
       />
 
-      {/* Floating draggable voice chat widget */}
+      {/* Floating draggable party chat widget */}
       <div
         ref={widgetRef}
         onMouseDown={onMouseDown}
@@ -161,12 +194,10 @@ export default function BG2Viewer() {
           left: pos.x,
           top: pos.y === -1 ? '50%' : pos.y,
           transform: pos.y === -1 ? 'translateY(-50%)' : 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
           zIndex: 10,
           cursor: isDragging ? 'grabbing' : 'grab',
           userSelect: 'none',
+          width: '200px',
         }}
       >
         <div style={{
@@ -176,35 +207,32 @@ export default function BG2Viewer() {
           backdropFilter: 'blur(4px)',
           overflow: 'hidden',
         }}>
-          {/* Header row: label + toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.6rem', borderBottom: voiceOpen ? '1px solid #c8a96e33' : 'none' }}>
-            <span style={{ color: '#c8a96e', fontFamily: 'serif', fontSize: '0.85rem' }}>🎙 Voice Chat</span>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.6rem', borderBottom: chatOpen ? '1px solid #c8a96e33' : 'none' }}>
+            <span style={{ color: '#c8a96e', fontFamily: 'serif', fontSize: '0.85rem' }}>🎙 Party Chat</span>
             <button
-              onClick={() => setVoiceOpen(v => !v)}
-              style={{
-                background: 'none', border: 'none', color: '#c8a96e', cursor: 'pointer',
-                fontSize: '0.8rem', marginLeft: '0.75rem', lineHeight: 1,
-              }}
+              onClick={() => setChatOpen(v => !v)}
+              style={{ background: 'none', border: 'none', color: '#c8a96e', cursor: 'pointer', fontSize: '0.8rem', marginLeft: '0.75rem', lineHeight: 1 }}
             >
-              {voiceOpen ? '✕' : '▶'}
+              {chatOpen ? '✕' : '▶'}
             </button>
           </div>
 
-          {/* LiveKit audio-only panel */}
-          {voiceOpen && token && (
+          {/* LiveKit room */}
+          {chatOpen && token && (
             <LiveKitRoom
               token={token}
               serverUrl={LIVEKIT_URL}
               connect={true}
               audio={true}
-              video={false}
-              onDisconnected={() => { setVoiceOpen(false); setToken(''); }}
+              video={true}
+              onDisconnected={() => { setChatOpen(false); setToken(''); }}
             >
               <RoomAudioRenderer />
-              <VoiceControls />
+              <ChatControls />
             </LiveKitRoom>
           )}
-          {voiceOpen && !token && (
+          {chatOpen && !token && (
             <div style={{ color: '#c8a96e88', fontSize: '0.8rem', padding: '0.5rem 0.75rem' }}>Connecting…</div>
           )}
         </div>
@@ -212,5 +240,4 @@ export default function BG2Viewer() {
     </div>
   );
 }
-
 
