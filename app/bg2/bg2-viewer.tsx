@@ -170,7 +170,7 @@ export default function BG2Viewer() {
           onClick={toggleFullscreen}
           title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen — keeps Party Chat visible'}
           style={{
-            position: 'absolute', bottom: 8, right: 160,
+            position: 'absolute', bottom: 8, right: 210,
             background: '#0a0a0fcc', border: '1px solid #c8a96e88',
             borderRadius: 6, color: '#c8a96e', cursor: 'pointer',
             fontSize: '1rem', padding: '0.35rem 0.75rem', lineHeight: 1,
