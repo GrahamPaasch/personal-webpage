@@ -171,7 +171,7 @@ export default function BG2Viewer() {
           ref={nekoIframeRef}
           src={NEKO_URL}
           style={{ width: '100%', height: '100%', border: 'none', display: 'block', cursor: 'none' }}
-          allow="pointer-lock; microphone; camera; autoplay"
+          allow="pointer-lock; microphone; camera; fullscreen; autoplay"
         />
         {/* Fullscreen button — use this to keep Party Chat sidebars visible */}
         <button
