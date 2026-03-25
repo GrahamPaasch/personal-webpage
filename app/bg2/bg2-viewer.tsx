@@ -30,6 +30,10 @@ function isTrackReference(t: TrackReferenceOrPlaceholder): t is TrackReference {
 
 type Assignment = { sid: string; side: 'left' | 'right' };
 
+// Module-level drag state — ephemeral, shared between ConnectedLayout and BG2Viewer
+const dragState = { sid: null as string | null, overSid: null as string | null };
+let onSidebarDrop: ((side: 'left' | 'right') => void) | null = null;
+
 function ConnectedLayout({
   leftRef, rightRef, controlsRef, onLeave,
 }: {
@@ -44,7 +48,6 @@ function ConnectedLayout({
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  // Ordered assignments: which side each participant's tile lives on
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [draggingSid, setDraggingSid] = useState<string | null>(null);
   const [dragOverSid, setDragOverSid] = useState<string | null>(null);
@@ -66,42 +69,35 @@ function ConnectedLayout({
     });
   }, [videoTracks]);
 
+  // Register drop handler for outer sidebar containers in BG2Viewer.
+  // Runs every render so the closure always has fresh state.
+  useEffect(() => {
+    onSidebarDrop = (side: 'left' | 'right') => {
+      const { sid, overSid } = dragState;
+      if (!sid) return;
+      setAssignments(prev => {
+        const without = prev.filter(a => a.sid !== sid);
+        const item: Assignment = { sid, side };
+        if (!overSid) return [...without, item];
+        const idx = without.findIndex(a => a.sid === overSid);
+        if (idx === -1) return [...without, item];
+        const result = [...without];
+        result.splice(idx, 0, item);
+        return result;
+      });
+      dragState.sid = null;
+      dragState.overSid = null;
+      setDraggingSid(null);
+      setDragOverSid(null);
+    };
+    return () => { onSidebarDrop = null; };
+  });
+
   const getTrack = (sid: string) =>
     videoTracks.filter(isTrackReference).find(t => t.participant.sid === sid);
 
-  // Drop onto a specific tile: insert dragged item before target, on target's side
-  const handleDropOnTile = (targetSid: string, side: 'left' | 'right') => {
-    if (!draggingSid || draggingSid === targetSid) return;
-    setAssignments(prev => {
-      const without = prev.filter(a => a.sid !== draggingSid);
-      const idx = without.findIndex(a => a.sid === targetSid);
-      const item: Assignment = { sid: draggingSid, side };
-      if (idx === -1) return [...without, item];
-      const result = [...without];
-      result.splice(idx, 0, item);
-      return result;
-    });
-    setDraggingSid(null);
-    setDragOverSid(null);
-  };
-
-  // Drop onto sidebar background: append to that side
-  const handleDropOnSidebar = (side: 'left' | 'right') => {
-    if (!draggingSid) return;
-    setAssignments(prev => [
-      ...prev.filter(a => a.sid !== draggingSid),
-      { sid: draggingSid, side },
-    ]);
-    setDraggingSid(null);
-    setDragOverSid(null);
-  };
-
   const renderTiles = (side: 'left' | 'right') => (
-    <div
-      onDragOver={e => e.preventDefault()}
-      onDrop={e => { e.stopPropagation(); handleDropOnSidebar(side); }}
-      style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, padding: 4, minHeight: 40 }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, padding: 4, minHeight: 40 }}>
       {assignments.filter(a => a.side === side).map(a => {
         const track = getTrack(a.sid);
         if (!track) return null;
@@ -111,11 +107,10 @@ function ConnectedLayout({
           <div
             key={a.sid}
             draggable
-            onDragStart={() => setDraggingSid(a.sid)}
-            onDragEnd={() => { setDraggingSid(null); setDragOverSid(null); }}
-            onDragEnter={() => setDragOverSid(a.sid)}
-            onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-            onDrop={e => { e.stopPropagation(); handleDropOnTile(a.sid, side); }}
+            onDragStart={() => { dragState.sid = a.sid; setDraggingSid(a.sid); }}
+            onDragEnter={() => { dragState.overSid = a.sid; setDragOverSid(a.sid); }}
+            onDragEnd={() => { dragState.sid = null; dragState.overSid = null; setDraggingSid(null); setDragOverSid(null); }}
+            onDragOver={e => e.preventDefault()}
             style={{
               position: 'relative', aspectRatio: '4/3', borderRadius: 4,
               overflow: 'hidden', background: '#111',
@@ -129,7 +124,6 @@ function ConnectedLayout({
             <span style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
               {track.participant.name || track.participant.identity}
             </span>
-            {/* Drag handle hint */}
             <span style={{ position: 'absolute', top: 2, right: 4, fontSize: '0.6rem', color: '#c8a96e66', userSelect: 'none' }}>⠿</span>
           </div>
         );
@@ -210,7 +204,11 @@ export default function BG2Viewer() {
     <div ref={outerRef} style={{ width: '100%', height: '100%', display: 'flex', background: '#000', position: 'relative' }}>
 
       {/* Left sidebar — party chat controls + left video tiles */}
-      <div style={sideStyle}>
+      <div
+        style={sideStyle}
+        onDragOver={e => e.preventDefault()}
+        onDrop={() => onSidebarDrop?.('left')}
+      >
         <div style={{ padding: '0.5rem 0.6rem', borderBottom: '1px solid #c8a96e22', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
             <span style={{ color: '#c8a96e', fontFamily: 'serif', fontSize: '0.8rem' }}>🎙 Party Chat</span>
@@ -251,7 +249,11 @@ export default function BG2Viewer() {
       </div>
 
       {/* Right sidebar — right video tiles */}
-      <div style={sideStyle}>
+      <div
+        style={sideStyle}
+        onDragOver={e => e.preventDefault()}
+        onDrop={() => onSidebarDrop?.('right')}
+      >
         <div ref={rightSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
       </div>
 
