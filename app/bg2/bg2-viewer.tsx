@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   LiveKitRoom,
   useLocalParticipant,
@@ -8,6 +9,7 @@ import {
   useTracks,
   VideoTrack,
 } from '@livekit/components-react';
+import type { TrackReference, TrackReferenceOrPlaceholder } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { Track } from 'livekit-client';
 
@@ -21,65 +23,72 @@ function randomName() {
   return `${adj[Math.floor(Math.random() * adj.length)]}${noun[Math.floor(Math.random() * noun.length)]}`;
 }
 
-function ChatControls() {
-  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
-  const audioTracks = useTracks([Track.Source.Microphone], { onlySubscribed: false });
-  const videoTracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
-  const participantCount = audioTracks.length;
+function isTrackReference(t: TrackReferenceOrPlaceholder): t is TrackReference {
+  return t.publication !== undefined;
+}
 
-  const btnStyle = (active: boolean, color: string) => ({
-    background: active ? color : '#3a3a4a',
-    border: '1px solid #c8a96e44',
-    borderRadius: '4px',
-    color: '#fff',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    padding: '0.25rem 0.55rem',
-    lineHeight: 1,
-  });
+function VideoTile({ track }: { track: TrackReference }) {
+  return (
+    <div style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 4, overflow: 'hidden', background: '#111' }}>
+      <VideoTrack trackRef={track} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <span style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
+        {track.participant.name || track.participant.identity}
+      </span>
+    </div>
+  );
+}
+
+function ConnectedLayout({
+  leftRef, rightRef, controlsRef, onLeave,
+}: {
+  leftRef: React.RefObject<HTMLDivElement | null>;
+  rightRef: React.RefObject<HTMLDivElement | null>;
+  controlsRef: React.RefObject<HTMLDivElement | null>;
+  onLeave: () => void;
+}) {
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+  const videoTracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const leftTracks = videoTracks.filter((_, i) => i % 2 === 0).filter(isTrackReference);
+  const rightTracks = videoTracks.filter((_, i) => i % 2 !== 0).filter(isTrackReference);
+
+  const btn = (active: boolean, bg: string, label: string, onClick: () => void) => (
+    <button onClick={onClick} style={{
+      background: active ? bg : '#2a2a3a',
+      border: '1px solid #c8a96e44', borderRadius: 4,
+      color: '#fff', cursor: 'pointer', fontSize: '1rem',
+      padding: '0.25rem 0.5rem', lineHeight: 1,
+    }}>{label}</button>
+  );
+
+  if (!mounted) return null;
 
   return (
-    <div>
-      {/* Video tiles */}
-      {videoTracks.length > 0 && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-          gap: '4px',
-          padding: '4px',
-          maxHeight: '200px',
-          overflowY: 'auto',
-        }}>
-          {videoTracks.map(track => (
-            <div key={track.participant.sid} style={{ position: 'relative', aspectRatio: '4/3', background: '#111', borderRadius: '4px', overflow: 'hidden' }}>
-              <VideoTrack trackRef={track} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <div style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
-                {track.participant.name || track.participant.identity}
-              </div>
-            </div>
-          ))}
-        </div>
+    <>
+      {controlsRef.current && createPortal(
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0.3rem 0', flexWrap: 'wrap' }}>
+          <span style={{ color: '#c8a96e88', fontSize: '0.7rem' }}>👥 {videoTracks.length + 1}</span>
+          {btn(isMicrophoneEnabled, '#2d5a2d', isMicrophoneEnabled ? '🎙' : '🔇', () => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled))}
+          {btn(isCameraEnabled, '#2d4a6a', isCameraEnabled ? '📷' : '📵', () => localParticipant.setCameraEnabled(!isCameraEnabled))}
+          {btn(false, '#5a2d2d', '✕ Leave', onLeave)}
+        </div>,
+        controlsRef.current
       )}
-
-      {/* Controls row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.6rem' }}>
-        <span style={{ color: '#c8a96e88', fontSize: '0.75rem', marginRight: '0.25rem' }}>👥 {participantCount}</span>
-        <button
-          onClick={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)}
-          title={isMicrophoneEnabled ? 'Mute mic' : 'Unmute mic'}
-          style={btnStyle(isMicrophoneEnabled, '#2d5a2d')}
-        >
-          {isMicrophoneEnabled ? '🎙' : '🔇'}
-        </button>
-        <button
-          onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
-          title={isCameraEnabled ? 'Stop camera' : 'Start camera'}
-          style={btnStyle(isCameraEnabled, '#2d4a6a')}
-        >
-          {isCameraEnabled ? '📷' : '📵'}
-        </button>
-      </div>
-    </div>
+      {leftRef.current && createPortal(
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {leftTracks.map(t => <VideoTile key={t.participant.sid} track={t} />)}
+        </div>,
+        leftRef.current
+      )}
+      {rightRef.current && createPortal(
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {rightTracks.map(t => <VideoTile key={t.participant.sid} track={t} />)}
+        </div>,
+        rightRef.current
+      )}
+    </>
   );
 }
 
@@ -87,19 +96,25 @@ export default function BG2Viewer() {
   const [chatOpen, setChatOpen] = useState(false);
   const [token, setToken] = useState('');
   const [username] = useState(randomName);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Draggable widget state
-  const [pos, setPos] = useState({ x: 16, y: -1 }); // y=-1 signals "use CSS centering"
-  const [isDragging, setIsDragging] = useState(false);
-  const isMouseDown = useRef(false);
-  const isDraggingRef = useRef(false);
-  const mouseDownPos = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const widgetRef = useRef<HTMLDivElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
   const nekoIframeRef = useRef<HTMLIFrameElement>(null);
-  const DRAG_THRESHOLD = 6;
+  const leftSidebarRef = useRef<HTMLDivElement>(null);
+  const rightSidebarRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
 
-  // Fetch LiveKit token when chat is opened
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) outerRef.current?.requestFullscreen();
+    else document.exitFullscreen();
+  };
+
   useEffect(() => {
     if (!chatOpen || token) return;
     fetch('/api/meet/token', {
@@ -111,133 +126,82 @@ export default function BG2Viewer() {
       .then(d => { if (d.token) setToken(d.token); });
   }, [chatOpen, token, username]);
 
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === 'IFRAME') return;
-    isMouseDown.current = true;
-    isDraggingRef.current = false;
-    mouseDownPos.current = { x: e.clientX, y: e.clientY };
-    const rect = widgetRef.current!.getBoundingClientRect();
-    dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  }, []);
+  const handleLeave = () => { setChatOpen(false); setToken(''); };
 
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    const t = e.touches[0];
-    isMouseDown.current = true;
-    isDraggingRef.current = false;
-    mouseDownPos.current = { x: t.clientX, y: t.clientY };
-    const rect = widgetRef.current!.getBoundingClientRect();
-    dragOffset.current = { x: t.clientX - rect.left, y: t.clientY - rect.top };
-  }, []);
-
-  useEffect(() => {
-    const startDrag = () => {
-      isDraggingRef.current = true;
-      setIsDragging(true);
-      if (nekoIframeRef.current) nekoIframeRef.current.style.pointerEvents = 'none';
-    };
-    const endDrag = () => {
-      isMouseDown.current = false;
-      isDraggingRef.current = false;
-      setIsDragging(false);
-      if (nekoIframeRef.current) nekoIframeRef.current.style.pointerEvents = '';
-    };
-
-    const onMove = (e: MouseEvent) => {
-      if (!isMouseDown.current) return;
-      const dx = e.clientX - mouseDownPos.current.x;
-      const dy = e.clientY - mouseDownPos.current.y;
-      if (!isDraggingRef.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-      if (!isDraggingRef.current) startDrag();
-      setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (!isMouseDown.current) return;
-      const t = e.touches[0];
-      const dx = t.clientX - mouseDownPos.current.x;
-      const dy = t.clientY - mouseDownPos.current.y;
-      if (!isDraggingRef.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-      if (!isDraggingRef.current) startDrag();
-      e.preventDefault();
-      setPos({ x: t.clientX - dragOffset.current.x, y: t.clientY - dragOffset.current.y });
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', endDrag);
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
-    window.addEventListener('touchend', endDrag);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', endDrag);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', endDrag);
-    };
-  }, []);
+  const sideStyle: React.CSSProperties = {
+    flex: 1, minWidth: 0, background: '#0a0a0f',
+    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+  };
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }}>
+    <div ref={outerRef} style={{ width: '100%', height: '100%', display: 'flex', background: '#000', position: 'relative' }}>
 
-      {/* Neko game — full viewport */}
-      <iframe
-        ref={nekoIframeRef}
-        src={NEKO_URL}
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block', cursor: 'none' }}
-        allow="pointer-lock; microphone; camera; fullscreen; autoplay"
-      />
-
-      {/* Floating draggable party chat widget */}
-      <div
-        ref={widgetRef}
-        onMouseDown={onMouseDown}
-        onTouchStart={onTouchStart}
-        style={{
-          position: 'absolute',
-          left: pos.x,
-          top: pos.y === -1 ? '50%' : pos.y,
-          transform: pos.y === -1 ? 'translateY(-50%)' : 'none',
-          zIndex: 10,
-          cursor: isDragging ? 'grabbing' : 'grab',
-          userSelect: 'none',
-          width: '200px',
-        }}
-      >
-        <div style={{
-          background: '#0a0a0fcc',
-          border: '2px solid #c8a96e88',
-          borderRadius: '6px',
-          backdropFilter: 'blur(4px)',
-          overflow: 'hidden',
-        }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.6rem', borderBottom: chatOpen ? '1px solid #c8a96e33' : 'none' }}>
-            <span style={{ color: '#c8a96e', fontFamily: 'serif', fontSize: '0.85rem' }}>🎙 Party Chat</span>
-            <button
-              onClick={() => setChatOpen(v => !v)}
-              style={{ background: 'none', border: 'none', color: '#c8a96e', cursor: 'pointer', fontSize: '0.8rem', marginLeft: '0.75rem', lineHeight: 1 }}
-            >
-              {chatOpen ? '✕' : '▶'}
-            </button>
+      {/* Left sidebar — party chat controls + left video tiles */}
+      <div style={sideStyle}>
+        <div style={{ padding: '0.5rem 0.6rem', borderBottom: '1px solid #c8a96e22', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+            <span style={{ color: '#c8a96e', fontFamily: 'serif', fontSize: '0.8rem' }}>🎙 Party Chat</span>
+            {!chatOpen && (
+              <button
+                onClick={() => setChatOpen(true)}
+                style={{ background: '#1a2a1a', border: '1px solid #c8a96e55', borderRadius: 4, color: '#c8a96e', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
+              >Join</button>
+            )}
           </div>
-
-          {/* LiveKit room */}
-          {chatOpen && token && (
-            <LiveKitRoom
-              token={token}
-              serverUrl={LIVEKIT_URL}
-              connect={true}
-              audio={true}
-              video={true}
-              onDisconnected={() => { setChatOpen(false); setToken(''); }}
-            >
-              <RoomAudioRenderer />
-              <ChatControls />
-            </LiveKitRoom>
-          )}
-          {chatOpen && !token && (
-            <div style={{ color: '#c8a96e88', fontSize: '0.8rem', padding: '0.5rem 0.75rem' }}>Connecting…</div>
-          )}
+          {/* Controls portalled here when connected */}
+          <div ref={controlsRef} />
         </div>
+        {/* Left video tiles portalled here */}
+        <div ref={leftSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
       </div>
+
+      {/* Center — Neko iframe locked to 4:3, no black bars */}
+      <div style={{ height: '100%', aspectRatio: '4/3', maxWidth: '100%', flexShrink: 0, position: 'relative' }}>
+        <iframe
+          ref={nekoIframeRef}
+          src={NEKO_URL}
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block', cursor: 'none' }}
+          allow="pointer-lock; microphone; camera; fullscreen; autoplay"
+        />
+        {/* Fullscreen button */}
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          style={{
+            position: 'absolute', bottom: 8, right: 8,
+            background: '#0a0a0faa', border: '1px solid #c8a96e55',
+            borderRadius: 4, color: '#c8a96e', cursor: 'pointer',
+            fontSize: '0.8rem', padding: '0.2rem 0.5rem', lineHeight: 1,
+          }}
+        >{isFullscreen ? '⊡ Exit' : '⛶ Full'}</button>
+      </div>
+
+      {/* Right sidebar — right video tiles */}
+      <div style={sideStyle}>
+        <div ref={rightSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
+      </div>
+
+      {/* LiveKit — hidden from layout, portals content into sidebars */}
+      {chatOpen && token && (
+        <div style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+          <LiveKitRoom
+            token={token}
+            serverUrl={LIVEKIT_URL}
+            connect={true}
+            audio={true}
+            video={true}
+            onDisconnected={handleLeave}
+          >
+            <RoomAudioRenderer />
+            <ConnectedLayout
+              leftRef={leftSidebarRef}
+              rightRef={rightSidebarRef}
+              controlsRef={controlsRef}
+              onLeave={handleLeave}
+            />
+          </LiveKitRoom>
+        </div>
+      )}
     </div>
   );
 }
-
