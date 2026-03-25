@@ -28,16 +28,7 @@ function isTrackReference(t: TrackReferenceOrPlaceholder): t is TrackReference {
   return t.publication !== undefined;
 }
 
-function VideoTile({ track }: { track: TrackReference }) {
-  return (
-    <div style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 4, overflow: 'hidden', background: '#111' }}>
-      <VideoTrack trackRef={track} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      <span style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
-        {track.participant.name || track.participant.identity}
-      </span>
-    </div>
-  );
-}
+type Assignment = { sid: string; side: 'left' | 'right' };
 
 function ConnectedLayout({
   leftRef, rightRef, controlsRef, onLeave,
@@ -48,13 +39,103 @@ function ConnectedLayout({
   onLeave: () => void;
 }) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
-  const participants = useParticipants(); // includes local participant
+  const participants = useParticipants();
   const videoTracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  const leftTracks = videoTracks.filter((_, i) => i % 2 === 0).filter(isTrackReference);
-  const rightTracks = videoTracks.filter((_, i) => i % 2 !== 0).filter(isTrackReference);
+  // Ordered assignments: which side each participant's tile lives on
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [draggingSid, setDraggingSid] = useState<string | null>(null);
+  const [dragOverSid, setDragOverSid] = useState<string | null>(null);
+
+  // Sync assignments as participants join/leave
+  useEffect(() => {
+    const tracks = videoTracks.filter(isTrackReference);
+    setAssignments(prev => {
+      const activeSids = new Set(tracks.map(t => t.participant.sid));
+      const kept = prev.filter(a => activeSids.has(a.sid));
+      const existingSids = new Set(kept.map(a => a.sid));
+      const added = tracks
+        .filter(t => !existingSids.has(t.participant.sid))
+        .map((t, i) => ({
+          sid: t.participant.sid,
+          side: (kept.length + i) % 2 === 0 ? 'left' : 'right' as 'left' | 'right',
+        }));
+      return [...kept, ...added];
+    });
+  }, [videoTracks]);
+
+  const getTrack = (sid: string) =>
+    videoTracks.filter(isTrackReference).find(t => t.participant.sid === sid);
+
+  // Drop onto a specific tile: insert dragged item before target, on target's side
+  const handleDropOnTile = (targetSid: string, side: 'left' | 'right') => {
+    if (!draggingSid || draggingSid === targetSid) return;
+    setAssignments(prev => {
+      const without = prev.filter(a => a.sid !== draggingSid);
+      const idx = without.findIndex(a => a.sid === targetSid);
+      const item: Assignment = { sid: draggingSid, side };
+      if (idx === -1) return [...without, item];
+      const result = [...without];
+      result.splice(idx, 0, item);
+      return result;
+    });
+    setDraggingSid(null);
+    setDragOverSid(null);
+  };
+
+  // Drop onto sidebar background: append to that side
+  const handleDropOnSidebar = (side: 'left' | 'right') => {
+    if (!draggingSid) return;
+    setAssignments(prev => [
+      ...prev.filter(a => a.sid !== draggingSid),
+      { sid: draggingSid, side },
+    ]);
+    setDraggingSid(null);
+    setDragOverSid(null);
+  };
+
+  const renderTiles = (side: 'left' | 'right') => (
+    <div
+      onDragOver={e => e.preventDefault()}
+      onDrop={e => { e.stopPropagation(); handleDropOnSidebar(side); }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, padding: 4, minHeight: 40 }}
+    >
+      {assignments.filter(a => a.side === side).map(a => {
+        const track = getTrack(a.sid);
+        if (!track) return null;
+        const isBeingDragged = draggingSid === a.sid;
+        const isDropTarget = dragOverSid === a.sid && !isBeingDragged;
+        return (
+          <div
+            key={a.sid}
+            draggable
+            onDragStart={() => setDraggingSid(a.sid)}
+            onDragEnd={() => { setDraggingSid(null); setDragOverSid(null); }}
+            onDragEnter={() => setDragOverSid(a.sid)}
+            onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+            onDrop={e => { e.stopPropagation(); handleDropOnTile(a.sid, side); }}
+            style={{
+              position: 'relative', aspectRatio: '4/3', borderRadius: 4,
+              overflow: 'hidden', background: '#111',
+              opacity: isBeingDragged ? 0.35 : 1,
+              cursor: 'grab',
+              borderTop: isDropTarget ? '3px solid #c8a96e' : '3px solid transparent',
+              transition: 'opacity 0.15s, border-top-color 0.1s',
+            }}
+          >
+            <VideoTrack trackRef={track} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <span style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
+              {track.participant.name || track.participant.identity}
+            </span>
+            {/* Drag handle hint */}
+            <span style={{ position: 'absolute', top: 2, right: 4, fontSize: '0.6rem', color: '#c8a96e66', userSelect: 'none' }}>⠿</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   const btn = (active: boolean, bg: string, label: string, onClick: () => void) => (
     <button onClick={onClick} style={{
@@ -78,18 +159,8 @@ function ConnectedLayout({
         </div>,
         controlsRef.current
       )}
-      {leftRef.current && createPortal(
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {leftTracks.map(t => <VideoTile key={t.participant.sid} track={t} />)}
-        </div>,
-        leftRef.current
-      )}
-      {rightRef.current && createPortal(
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {rightTracks.map(t => <VideoTile key={t.participant.sid} track={t} />)}
-        </div>,
-        rightRef.current
-      )}
+      {leftRef.current && createPortal(renderTiles('left'), leftRef.current)}
+      {rightRef.current && createPortal(renderTiles('right'), rightRef.current)}
     </>
   );
 }
