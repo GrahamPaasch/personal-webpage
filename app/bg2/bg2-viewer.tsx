@@ -105,7 +105,15 @@ export default function BG2Viewer() {
   const controlsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const onChange = () => {
+      // If Neko's internal button fullscreened only the iframe, redirect to our outer
+      // container so the sidebars stay visible.
+      if (nekoIframeRef.current && document.fullscreenElement === nekoIframeRef.current) {
+        document.exitFullscreen().then(() => outerRef.current?.requestFullscreen());
+        return;
+      }
+      setIsFullscreen(!!document.fullscreenElement);
+    };
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
@@ -161,17 +169,18 @@ export default function BG2Viewer() {
           ref={nekoIframeRef}
           src={NEKO_URL}
           style={{ width: '100%', height: '100%', border: 'none', display: 'block', cursor: 'none' }}
-          allow="pointer-lock; microphone; camera; fullscreen; autoplay"
+          allow="pointer-lock; microphone; camera; autoplay"
         />
-        {/* Fullscreen button */}
+        {/* Fullscreen button — use this to keep Party Chat sidebars visible */}
         <button
           onClick={toggleFullscreen}
-          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen — keeps Party Chat visible'}
           style={{
             position: 'absolute', bottom: 8, right: 8,
-            background: '#0a0a0faa', border: '1px solid #c8a96e55',
-            borderRadius: 4, color: '#c8a96e', cursor: 'pointer',
-            fontSize: '0.8rem', padding: '0.2rem 0.5rem', lineHeight: 1,
+            background: '#0a0a0fcc', border: '1px solid #c8a96e88',
+            borderRadius: 6, color: '#c8a96e', cursor: 'pointer',
+            fontSize: '1rem', padding: '0.35rem 0.75rem', lineHeight: 1,
+            boxShadow: '0 0 10px #c8a96e33',
           }}
         >{isFullscreen ? '⊡ Exit' : '⛶ Full'}</button>
       </div>
