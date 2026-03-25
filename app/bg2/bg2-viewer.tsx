@@ -213,13 +213,16 @@ export default function BG2Viewer() {
   return (
     <div ref={outerRef} style={{ width: '100%', height: '100%', display: 'flex', background: '#000', position: 'relative' }}>
 
-      {/* Left sidebar — party chat controls + left video tiles */}
+      {/* Left sidebar — left video tiles + party chat controls pinned to bottom */}
       <div
         style={sideStyle}
         onDragOver={e => e.preventDefault()}
         onDrop={e => onSidebarDrop?.('left', e.clientY, leftSidebarRef.current)}
       >
-        <div style={{ padding: '0.5rem 0.6rem', borderBottom: '1px solid #c8a96e22', flexShrink: 0 }}>
+        {/* Left video tiles portalled here */}
+        <div ref={leftSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
+        {/* Party Chat controls pinned to bottom */}
+        <div style={{ padding: '0.5rem 0.6rem', borderTop: '1px solid #c8a96e22', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
             <span style={{ color: '#c8a96e', fontFamily: 'serif', fontSize: '0.8rem' }}>🎙 Party Chat</span>
             {!chatOpen && (
@@ -232,8 +235,6 @@ export default function BG2Viewer() {
           {/* Controls portalled here when connected */}
           <div ref={controlsRef} />
         </div>
-        {/* Left video tiles portalled here */}
-        <div ref={leftSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
       </div>
 
       {/* Center — Neko iframe locked to 4:3, no black bars */}
