@@ -50,6 +50,7 @@ function ConnectedLayout({
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [draggingSid, setDraggingSid] = useState<string | null>(null);
+  const [expandedSid, setExpandedSid] = useState<string | null>(null);
 
   // Sync assignments as participants join/leave
   useEffect(() => {
@@ -119,6 +120,7 @@ function ConnectedLayout({
             onDragStart={() => { _draggingSid = a.sid; setDraggingSid(a.sid); }}
             onDragEnd={() => { _draggingSid = null; setDraggingSid(null); }}
             onDragOver={e => e.preventDefault()}
+            onDoubleClick={() => setExpandedSid(a.sid)}
             style={{
               position: 'relative', aspectRatio: '4/3', borderRadius: 4,
               overflow: 'hidden', background: '#111',
@@ -152,8 +154,39 @@ function ConnectedLayout({
 
   if (!mounted) return null;
 
+  const expandedTrack = expandedSid ? getTrack(expandedSid) : null;
+
   return (
     <>
+      {/* Fullscreen tile overlay */}
+      {expandedTrack && createPortal(
+        <div
+          onDoubleClick={() => setExpandedSid(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: '#000',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'zoom-out',
+          }}
+        >
+          <VideoTrack
+            trackRef={expandedTrack}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+          />
+          <span style={{
+            position: 'absolute', bottom: 16, left: 20,
+            color: '#c8a96e', fontFamily: 'serif', fontSize: '1rem',
+            textShadow: '0 1px 4px #000', pointerEvents: 'none',
+          }}>
+            {expandedTrack.participant.name || expandedTrack.participant.identity}
+          </span>
+          <span style={{
+            position: 'absolute', top: 12, right: 16,
+            color: '#c8a96e88', fontSize: '0.75rem', pointerEvents: 'none',
+          }}>double-click to close</span>
+        </div>,
+        document.body
+      )}
       {controlsRef.current && createPortal(
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0.3rem 0', flexWrap: 'wrap' }}>
           <span style={{ color: '#c8a96e88', fontSize: '0.7rem' }}>👥 {participants.length}</span>
