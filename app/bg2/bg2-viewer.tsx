@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   LiveKitRoom,
   useLocalParticipant,
@@ -26,108 +27,67 @@ function isTrackReference(t: TrackReferenceOrPlaceholder): t is TrackReference {
   return t.publication !== undefined;
 }
 
-// Individual draggable video tile overlaid on top of the game
-function DraggableTile({ track, startX, startY }: { track: TrackReference; startX: number; startY: number }) {
-  const [pos, setPos] = useState({ x: startX, y: startY });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef({ mouseX: 0, mouseY: 0, tileX: 0, tileY: 0 });
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      setPos({
-        x: dragStart.current.tileX + (e.clientX - dragStart.current.mouseX),
-        y: dragStart.current.tileY + (e.clientY - dragStart.current.mouseY),
-      });
-    };
-    const onUp = () => setIsDragging(false);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-  }, [isDragging]);
-
-  useEffect(() => {
-    const onMove = (e: TouchEvent) => {
-      if (!isDragging) return;
-      const t = e.touches[0];
-      setPos({
-        x: dragStart.current.tileX + (t.clientX - dragStart.current.mouseX),
-        y: dragStart.current.tileY + (t.clientY - dragStart.current.mouseY),
-      });
-    };
-    const onEnd = () => setIsDragging(false);
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onEnd);
-    return () => { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
-  }, [isDragging]);
-
-  const startDrag = (clientX: number, clientY: number) => {
-    dragStart.current = { mouseX: clientX, mouseY: clientY, tileX: pos.x, tileY: pos.y };
-    setIsDragging(true);
-  };
-
+function VideoTile({ track }: { track: TrackReference }) {
   return (
-    <div
-      onMouseDown={e => { e.preventDefault(); startDrag(e.clientX, e.clientY); }}
-      onTouchStart={e => { startDrag(e.touches[0].clientX, e.touches[0].clientY); }}
-      style={{
-        position: 'absolute', left: pos.x, top: pos.y,
-        width: 160, zIndex: 40,
-        cursor: isDragging ? 'grabbing' : 'grab',
-        borderRadius: 6, overflow: 'hidden',
-        boxShadow: '0 2px 16px #000c',
-        border: '1px solid #c8a96e66',
-        background: '#111',
-        userSelect: 'none',
-      }}
-    >
-      <VideoTrack trackRef={track} style={{ width: '100%', aspectRatio: '4/3', display: 'block', objectFit: 'cover' }} />
-      <div style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
+    <div style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 4, overflow: 'hidden', background: '#111' }}>
+      <VideoTrack trackRef={track} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <span style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
         {track.participant.name || track.participant.identity}
-      </div>
+      </span>
     </div>
   );
 }
 
-// Renders controls + draggable tiles overlaid on the game; must be inside LiveKitRoom
-function ConnectedOverlay({ onLeave }: { onLeave: () => void }) {
+function ConnectedLayout({
+  leftRef, rightRef, controlsRef, onLeave,
+}: {
+  leftRef: React.RefObject<HTMLDivElement | null>;
+  rightRef: React.RefObject<HTMLDivElement | null>;
+  controlsRef: React.RefObject<HTMLDivElement | null>;
+  onLeave: () => void;
+}) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
-  const videoTracks = useTracks([Track.Source.Camera], { onlySubscribed: true }).filter(isTrackReference);
+  const videoTracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const leftTracks = videoTracks.filter((_, i) => i % 2 === 0).filter(isTrackReference);
+  const rightTracks = videoTracks.filter((_, i) => i % 2 !== 0).filter(isTrackReference);
 
   const btn = (active: boolean, bg: string, label: string, onClick: () => void) => (
     <button onClick={onClick} style={{
       background: active ? bg : '#2a2a3a',
       border: '1px solid #c8a96e44', borderRadius: 4,
-      color: '#fff', cursor: 'pointer', fontSize: '0.9rem',
+      color: '#fff', cursor: 'pointer', fontSize: '1rem',
       padding: '0.25rem 0.5rem', lineHeight: 1,
     }}>{label}</button>
   );
 
+  if (!mounted) return null;
+
   return (
     <>
-      {/* Controls bar — top-left corner */}
-      <div style={{
-        position: 'absolute', top: 8, left: 8, zIndex: 40,
-        display: 'flex', gap: '0.4rem', alignItems: 'center',
-        background: '#0a0a0fcc', border: '1px solid #c8a96e44',
-        borderRadius: 6, padding: '0.3rem 0.5rem',
-        pointerEvents: 'auto',
-      }}>
-        <span style={{ color: '#c8a96e88', fontSize: '0.7rem' }}>👥 {videoTracks.length + 1}</span>
-        {btn(isMicrophoneEnabled, '#2d5a2d', isMicrophoneEnabled ? '🎙' : '🔇', () => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled))}
-        {btn(isCameraEnabled, '#2d4a6a', isCameraEnabled ? '📷' : '📵', () => localParticipant.setCameraEnabled(!isCameraEnabled))}
-        {btn(false, '#5a2d2d', '✕ Leave', onLeave)}
-      </div>
-
-      {/* One draggable tile per remote participant, stacked top-left below controls by default */}
-      {videoTracks.map((track, i) => (
-        <DraggableTile
-          key={track.participant.sid}
-          track={track}
-          startX={8}
-          startY={56 + i * 128}
-        />
-      ))}
+      {controlsRef.current && createPortal(
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0.3rem 0', flexWrap: 'wrap' }}>
+          <span style={{ color: '#c8a96e88', fontSize: '0.7rem' }}>👥 {videoTracks.length + 1}</span>
+          {btn(isMicrophoneEnabled, '#2d5a2d', isMicrophoneEnabled ? '🎙' : '🔇', () => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled))}
+          {btn(isCameraEnabled, '#2d4a6a', isCameraEnabled ? '📷' : '📵', () => localParticipant.setCameraEnabled(!isCameraEnabled))}
+          {btn(false, '#5a2d2d', '✕ Leave', onLeave)}
+        </div>,
+        controlsRef.current
+      )}
+      {leftRef.current && createPortal(
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {leftTracks.map(t => <VideoTile key={t.participant.sid} track={t} />)}
+        </div>,
+        leftRef.current
+      )}
+      {rightRef.current && createPortal(
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {rightTracks.map(t => <VideoTile key={t.participant.sid} track={t} />)}
+        </div>,
+        rightRef.current
+      )}
     </>
   );
 }
@@ -137,7 +97,12 @@ export default function BG2Viewer() {
   const [token, setToken] = useState('');
   const [username] = useState(randomName);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
   const outerRef = useRef<HTMLDivElement>(null);
+  const nekoIframeRef = useRef<HTMLIFrameElement>(null);
+  const leftSidebarRef = useRef<HTMLDivElement>(null);
+  const rightSidebarRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -163,51 +128,62 @@ export default function BG2Viewer() {
 
   const handleLeave = () => { setChatOpen(false); setToken(''); };
 
+  const sideStyle: React.CSSProperties = {
+    flex: 1, minWidth: 0, background: '#0a0a0f',
+    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+  };
+
   return (
-    <div
-      ref={outerRef}
-      style={{ width: '100%', height: '100%', position: 'relative', background: '#000', overflow: 'hidden' }}
-    >
-      {/* Game stream — fills the container */}
-      <iframe
-        src={NEKO_URL}
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block', cursor: 'none' }}
-        allow="pointer-lock; microphone; camera; fullscreen; autoplay"
-      />
+    <div ref={outerRef} style={{ width: '100%', height: '100%', display: 'flex', background: '#000', position: 'relative' }}>
 
-      {/* Overlay — pointer-events: none so the game still receives mouse input;
-          individual interactive elements re-enable it */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+      {/* Left sidebar — party chat controls + left video tiles */}
+      <div style={sideStyle}>
+        <div style={{ padding: '0.5rem 0.6rem', borderBottom: '1px solid #c8a96e22', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+            <span style={{ color: '#c8a96e', fontFamily: 'serif', fontSize: '0.8rem' }}>🎙 Party Chat</span>
+            {!chatOpen && (
+              <button
+                onClick={() => setChatOpen(true)}
+                style={{ background: '#1a2a1a', border: '1px solid #c8a96e55', borderRadius: 4, color: '#c8a96e', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
+              >Join</button>
+            )}
+          </div>
+          {/* Controls portalled here when connected */}
+          <div ref={controlsRef} />
+        </div>
+        {/* Left video tiles portalled here */}
+        <div ref={leftSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
+      </div>
 
-        {/* Party Chat join button (before connecting) */}
-        {!chatOpen && (
-          <button
-            onClick={() => setChatOpen(true)}
-            style={{
-              position: 'absolute', top: 8, left: 8,
-              background: '#1a2a1acc', border: '1px solid #c8a96e66',
-              borderRadius: 6, color: '#c8a96e', cursor: 'pointer',
-              fontSize: '0.75rem', padding: '0.3rem 0.7rem',
-              pointerEvents: 'auto',
-            }}
-          >🎙 Party Chat</button>
-        )}
-
-        {/* Fullscreen toggle */}
+      {/* Center — Neko iframe locked to 4:3, no black bars */}
+      <div style={{ height: '100%', aspectRatio: '4/3', maxWidth: '100%', flexShrink: 0, position: 'relative' }}>
+        <iframe
+          ref={nekoIframeRef}
+          src={NEKO_URL}
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block', cursor: 'none' }}
+          allow="pointer-lock; microphone; camera; fullscreen; autoplay"
+        />
+        {/* Fullscreen button */}
         <button
           onClick={toggleFullscreen}
           title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           style={{
             position: 'absolute', bottom: 8, right: 8,
-            background: '#0a0a0fcc', border: '1px solid #c8a96e66',
-            borderRadius: 6, color: '#c8a96e', cursor: 'pointer',
-            fontSize: '1rem', padding: '0.3rem 0.7rem', lineHeight: 1,
-            pointerEvents: 'auto',
+            background: '#0a0a0faa', border: '1px solid #c8a96e55',
+            borderRadius: 4, color: '#c8a96e', cursor: 'pointer',
+            fontSize: '0.8rem', padding: '0.2rem 0.5rem', lineHeight: 1,
           }}
         >{isFullscreen ? '⊡ Exit' : '⛶ Full'}</button>
+      </div>
 
-        {/* LiveKit — audio renderer + draggable tiles + controls */}
-        {chatOpen && token && (
+      {/* Right sidebar — right video tiles */}
+      <div style={sideStyle}>
+        <div ref={rightSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
+      </div>
+
+      {/* LiveKit — hidden from layout, portals content into sidebars */}
+      {chatOpen && token && (
+        <div style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
           <LiveKitRoom
             token={token}
             serverUrl={LIVEKIT_URL}
@@ -215,14 +191,17 @@ export default function BG2Viewer() {
             audio={true}
             video={true}
             onDisconnected={handleLeave}
-            style={{ position: 'absolute', inset: 0 }}
           >
             <RoomAudioRenderer />
-            <ConnectedOverlay onLeave={handleLeave} />
+            <ConnectedLayout
+              leftRef={leftSidebarRef}
+              rightRef={rightSidebarRef}
+              controlsRef={controlsRef}
+              onLeave={handleLeave}
+            />
           </LiveKitRoom>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
-
