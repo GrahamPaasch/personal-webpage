@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
 const A2AChat = dynamic(() => import('./A2AChat'), { ssr: false });
@@ -8,6 +9,10 @@ const A2AChat = dynamic(() => import('./A2AChat'), { ssr: false });
 export default function FullScreenChat() {
   const [open, setOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const pathname = usePathname();
+
+  // Don't show on the BG2 page — it clutters the Neko control panel
+  if (pathname === '/bg2') return null;
 
   useEffect(() => {
     if (!open) return;
