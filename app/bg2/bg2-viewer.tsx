@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import {
   LiveKitRoom,
   useLocalParticipant,
+  useParticipants,
   RoomAudioRenderer,
   useTracks,
   VideoTrack,
@@ -47,6 +48,7 @@ function ConnectedLayout({
   onLeave: () => void;
 }) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+  const participants = useParticipants(); // includes local participant
   const videoTracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -69,7 +71,7 @@ function ConnectedLayout({
     <>
       {controlsRef.current && createPortal(
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0.3rem 0', flexWrap: 'wrap' }}>
-          <span style={{ color: '#c8a96e88', fontSize: '0.7rem' }}>👥 {videoTracks.length + 1}</span>
+          <span style={{ color: '#c8a96e88', fontSize: '0.7rem' }}>👥 {participants.length}</span>
           {btn(isMicrophoneEnabled, '#2d5a2d', isMicrophoneEnabled ? '🎙' : '🔇', () => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled))}
           {btn(isCameraEnabled, '#2d4a6a', isCameraEnabled ? '📷' : '📵', () => localParticipant.setCameraEnabled(!isCameraEnabled))}
           {btn(false, '#5a2d2d', '✕ Leave', onLeave)}
