@@ -107,17 +107,9 @@ export default function BG2Viewer() {
   const controlsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onChange = () => {
-      // If Neko's internal button fullscreened only the iframe, redirect to our outer
-      // container so the sidebars stay visible.
-      if (nekoIframeRef.current && document.fullscreenElement === nekoIframeRef.current) {
-        document.exitFullscreen().then(() => outerRef.current?.requestFullscreen());
-        return;
-      }
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
+    const onChange = () => setIsFullscreen(document.fullscreenElement === outerRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
   const toggleFullscreen = () => {
