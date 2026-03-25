@@ -30,9 +30,9 @@ function isTrackReference(t: TrackReferenceOrPlaceholder): t is TrackReference {
 
 type Assignment = { sid: string; side: 'left' | 'right' };
 
-// Module-level drag state — ephemeral, shared between ConnectedLayout and BG2Viewer
-const dragState = { sid: null as string | null, overSid: null as string | null };
-let onSidebarDrop: ((side: 'left' | 'right') => void) | null = null;
+// Module-level: dragging SID + drop callback registered by ConnectedLayout
+let _draggingSid: string | null = null;
+let onSidebarDrop: ((side: 'left' | 'right', clientY: number, sidebarEl: HTMLElement | null) => void) | null = null;
 
 function ConnectedLayout({
   leftRef, rightRef, controlsRef, onLeave,
@@ -50,7 +50,6 @@ function ConnectedLayout({
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [draggingSid, setDraggingSid] = useState<string | null>(null);
-  const [dragOverSid, setDragOverSid] = useState<string | null>(null);
 
   // Sync assignments as participants join/leave
   useEffect(() => {
@@ -69,26 +68,37 @@ function ConnectedLayout({
     });
   }, [videoTracks]);
 
-  // Register drop handler for outer sidebar containers in BG2Viewer.
-  // Runs every render so the closure always has fresh state.
+  // Register drop handler — runs every render so closure has fresh setAssignments
   useEffect(() => {
-    onSidebarDrop = (side: 'left' | 'right') => {
-      const { sid, overSid } = dragState;
+    onSidebarDrop = (side, clientY, sidebarEl) => {
+      const sid = _draggingSid;
       if (!sid) return;
+
+      // Find which tile to insert before using mouse Y vs tile midpoints
+      let insertBeforeSid: string | null = null;
+      if (sidebarEl) {
+        const tiles = Array.from(sidebarEl.querySelectorAll<HTMLElement>('[data-tile-sid]'));
+        for (const tile of tiles) {
+          const rect = tile.getBoundingClientRect();
+          if (clientY < rect.top + rect.height / 2) {
+            insertBeforeSid = tile.dataset.tileSid ?? null;
+            break;
+          }
+        }
+      }
+
       setAssignments(prev => {
         const without = prev.filter(a => a.sid !== sid);
         const item: Assignment = { sid, side };
-        if (!overSid) return [...without, item];
-        const idx = without.findIndex(a => a.sid === overSid);
+        if (!insertBeforeSid) return [...without, item];
+        const idx = without.findIndex(a => a.sid === insertBeforeSid);
         if (idx === -1) return [...without, item];
         const result = [...without];
         result.splice(idx, 0, item);
         return result;
       });
-      dragState.sid = null;
-      dragState.overSid = null;
+      _draggingSid = null;
       setDraggingSid(null);
-      setDragOverSid(null);
     };
     return () => { onSidebarDrop = null; };
   });
@@ -101,39 +111,30 @@ function ConnectedLayout({
       {assignments.filter(a => a.side === side).map(a => {
         const track = getTrack(a.sid);
         if (!track) return null;
-        const isBeingDragged = draggingSid === a.sid;
-        const isDropTarget = dragOverSid === a.sid && !isBeingDragged;
         return (
           <div
             key={a.sid}
             draggable
-            onDragStart={() => { dragState.sid = a.sid; setDraggingSid(a.sid); }}
-            onDragEnd={() => { dragState.sid = null; dragState.overSid = null; setDraggingSid(null); setDragOverSid(null); }}
-            onDragOver={e => {
-              e.preventDefault();
-              dragState.overSid = a.sid;
-              if (dragOverSid !== a.sid) setDragOverSid(a.sid);
-            }}
+            data-tile-sid={a.sid}
+            onDragStart={() => { _draggingSid = a.sid; setDraggingSid(a.sid); }}
+            onDragEnd={() => { _draggingSid = null; setDraggingSid(null); }}
+            onDragOver={e => e.preventDefault()}
             style={{
               position: 'relative', aspectRatio: '4/3', borderRadius: 4,
               overflow: 'hidden', background: '#111',
-              opacity: isBeingDragged ? 0.35 : 1,
+              opacity: draggingSid === a.sid ? 0.35 : 1,
               cursor: 'grab',
-              borderTop: isDropTarget ? '3px solid #c8a96e' : '3px solid transparent',
-              transition: 'opacity 0.15s, border-top-color 0.1s',
-            }}
-            onDragLeave={() => {
-              if (dragState.overSid === a.sid) {
-                dragState.overSid = null;
-                setDragOverSid(null);
-              }
+              transition: 'opacity 0.15s',
             }}
           >
-            <VideoTrack trackRef={track} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            <span style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000' }}>
+            <VideoTrack
+              trackRef={track}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+            />
+            <span style={{ position: 'absolute', bottom: 2, left: 4, fontSize: '0.6rem', color: '#c8a96ecc', textShadow: '0 1px 2px #000', pointerEvents: 'none' }}>
               {track.participant.name || track.participant.identity}
             </span>
-            <span style={{ position: 'absolute', top: 2, right: 4, fontSize: '0.6rem', color: '#c8a96e66', userSelect: 'none' }}>⠿</span>
+            <span style={{ position: 'absolute', top: 2, right: 4, fontSize: '0.6rem', color: '#c8a96e66', userSelect: 'none', pointerEvents: 'none' }}>⠿</span>
           </div>
         );
       })}
@@ -216,7 +217,7 @@ export default function BG2Viewer() {
       <div
         style={sideStyle}
         onDragOver={e => e.preventDefault()}
-        onDrop={() => onSidebarDrop?.('left')}
+        onDrop={e => onSidebarDrop?.('left', e.clientY, leftSidebarRef.current)}
       >
         <div style={{ padding: '0.5rem 0.6rem', borderBottom: '1px solid #c8a96e22', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
@@ -261,7 +262,7 @@ export default function BG2Viewer() {
       <div
         style={sideStyle}
         onDragOver={e => e.preventDefault()}
-        onDrop={() => onSidebarDrop?.('right')}
+        onDrop={e => onSidebarDrop?.('right', e.clientY, rightSidebarRef.current)}
       >
         <div ref={rightSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
       </div>
