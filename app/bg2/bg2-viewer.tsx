@@ -108,9 +108,12 @@ function ConnectedLayout({
             key={a.sid}
             draggable
             onDragStart={() => { dragState.sid = a.sid; setDraggingSid(a.sid); }}
-            onDragEnter={() => { dragState.overSid = a.sid; setDragOverSid(a.sid); }}
             onDragEnd={() => { dragState.sid = null; dragState.overSid = null; setDraggingSid(null); setDragOverSid(null); }}
-            onDragOver={e => e.preventDefault()}
+            onDragOver={e => {
+              e.preventDefault();
+              dragState.overSid = a.sid;
+              if (dragOverSid !== a.sid) setDragOverSid(a.sid);
+            }}
             style={{
               position: 'relative', aspectRatio: '4/3', borderRadius: 4,
               overflow: 'hidden', background: '#111',
@@ -118,6 +121,12 @@ function ConnectedLayout({
               cursor: 'grab',
               borderTop: isDropTarget ? '3px solid #c8a96e' : '3px solid transparent',
               transition: 'opacity 0.15s, border-top-color 0.1s',
+            }}
+            onDragLeave={() => {
+              if (dragState.overSid === a.sid) {
+                dragState.overSid = null;
+                setDragOverSid(null);
+              }
             }}
           >
             <VideoTrack trackRef={track} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
