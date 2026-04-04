@@ -116,14 +116,14 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
     const container = containerRef.current;
     if (!container) return;
 
-    // Double-click → fullscreen
+    // Double-click → fullscreen the whole container so overlays remain visible
     function onDblClick(e: MouseEvent) {
       const tile = findTile(e.target as HTMLElement, container);
       if (!tile) return;
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
       } else {
-        tile.requestFullscreen().catch(() => {});
+        container.requestFullscreen().catch(() => {});
       }
     }
 
@@ -256,20 +256,14 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
   }, [ctxMenu]);
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-gray-950">
+    <div ref={containerRef} className="meet-container min-h-screen bg-gray-950">
       <style>{`
-        [data-lk-source="screen_share"]:fullscreen,
-        .lk-participant-tile:fullscreen {
+        .meet-container:fullscreen {
           background: #000;
-          display: flex;
-          align-items: center;
-          justify-content: center;
         }
-        [data-lk-source="screen_share"]:fullscreen video,
-        .lk-participant-tile:fullscreen video {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
+        .meet-container:fullscreen .lk-grid-layout,
+        .meet-container:fullscreen .lk-focus-layout {
+          height: 100vh;
         }
       `}</style>
 
@@ -379,8 +373,8 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
             onClick={() => {
               if (document.fullscreenElement) {
                 document.exitFullscreen().catch(() => {});
-              } else if (ctxMenu.tile) {
-                ctxMenu.tile.requestFullscreen().catch(() => {});
+              } else {
+                containerRef.current?.requestFullscreen().catch(() => {});
               }
               closeMenu();
             }}
