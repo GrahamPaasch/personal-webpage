@@ -14,10 +14,23 @@ interface MeetRoomProps {
   onLeave: () => void;
 }
 
-interface ZoomState {
+interface TileZoom {
   scale: number;
   tx: number;
   ty: number;
+}
+
+const MIN_SCALE = 1;
+const MAX_SCALE = 10;
+const ZOOM_FACTOR = 1.2;
+
+function findTile(target: HTMLElement, container: HTMLElement): HTMLElement | null {
+  let el: HTMLElement | null = target;
+  while (el && el !== container) {
+    if (el.classList.contains('lk-participant-tile')) return el;
+    el = el.parentElement;
+  }
+  return null;
 }
 
 export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
@@ -28,49 +41,36 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
     const container = containerRef.current;
     if (!container) return;
 
-    const zoomStates = new WeakMap<Element, ZoomState>();
+    const zooms = new Map<HTMLElement, TileZoom>();
 
-    function getState(tile: Element): ZoomState {
-      if (!zoomStates.has(tile)) {
-        zoomStates.set(tile, { scale: 1, tx: 0, ty: 0 });
-      }
-      return zoomStates.get(tile)!;
+    function getZoom(tile: HTMLElement): TileZoom {
+      if (!zooms.has(tile)) zooms.set(tile, { scale: 1, tx: 0, ty: 0 });
+      return zooms.get(tile)!;
     }
 
-    function applyZoom(tile: HTMLElement, state: ZoomState) {
+    function applyZoom(tile: HTMLElement, z: TileZoom) {
       const video = tile.querySelector('video') as HTMLVideoElement | null;
       if (!video) return;
-      if (state.scale <= 1) {
+      if (z.scale <= 1) {
         video.style.transform = '';
         video.style.transformOrigin = '';
-        video.style.cursor = '';
         tile.style.overflow = '';
-        tile.removeAttribute('data-zoomed');
       } else {
         tile.style.overflow = 'hidden';
         video.style.transformOrigin = '0 0';
-        video.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
-        video.style.cursor = 'grab';
-        tile.setAttribute('data-zoomed', 'true');
+        video.style.transform = `translate(${z.tx}px, ${z.ty}px) scale(${z.scale})`;
       }
     }
 
-    function clamp(tile: HTMLElement, state: ZoomState) {
-      const video = tile.querySelector('video') as HTMLVideoElement | null;
-      if (!video) return;
-      const rect = tile.getBoundingClientRect();
-      const maxTx = 0;
-      const minTx = Math.min(0, rect.width - video.offsetWidth * state.scale);
-      const maxTy = 0;
-      const minTy = Math.min(0, rect.height - video.offsetHeight * state.scale);
-      state.tx = Math.max(minTx, Math.min(maxTx, state.tx));
-      state.ty = Math.max(minTy, Math.min(maxTy, state.ty));
+    function resetTile(tile: HTMLElement) {
+      const z = { scale: 1, tx: 0, ty: 0 };
+      zooms.set(tile, z);
+      applyZoom(tile, z);
     }
 
-    // ── Double-click → fullscreen ──────────────────────────────────
-    function handleDblClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      const tile = target.closest('[data-lk-source], .lk-participant-tile') as HTMLElement | null;
+    // Double-click → fullscreen
+    function onDblClick(e: MouseEvent) {
+      const tile = findTile(e.target as HTMLElement, container);
       if (!tile) return;
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
@@ -79,114 +79,67 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
       }
     }
 
-    // ── Scroll wheel → zoom centered on cursor ─────────────────────
-    function handleWheel(e: WheelEvent) {
-      const target = e.target as HTMLElement;
-      const tile = target.closest('[data-lk-source], .lk-participant-tile') as HTMLElement | null;
+    // Scroll wheel → zoom centered exactly on cursor
+    function onWheel(e: WheelEvent) {
+      const tile = findTile(e.target as HTMLElement, container);
       if (!tile) return;
 
       e.preventDefault();
+      e.stopPropagation();
 
       const rect = tile.getBoundingClientRect();
+      // Cursor position in tile-local space (stable — tile itself is never transformed)
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
 
-      const state = getState(tile);
-      const oldScale = state.scale;
-      const factor = e.deltaY < 0 ? 1.25 : 1 / 1.25;
-      const newScale = Math.max(1, Math.min(10, oldScale * factor));
+      const z = getZoom(tile);
+      const factor = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, z.scale * factor));
 
-      if (newScale === 1) {
-        state.scale = 1;
-        state.tx = 0;
-        state.ty = 0;
-      } else {
-        // Keep the point under the cursor fixed as scale changes
-        const ex = (mx - state.tx) / oldScale;
-        const ey = (my - state.ty) / oldScale;
-        state.tx = mx - ex * newScale;
-        state.ty = my - ey * newScale;
-        state.scale = newScale;
-        clamp(tile, state);
+      if (newScale <= 1) {
+        resetTile(tile);
+        return;
       }
 
-      applyZoom(tile, state);
-    }
+      // Keep the point under the cursor fixed:
+      // newTx = mx - (mx - tx) * newScale / oldScale
+      const ratio = newScale / z.scale;
+      const newTx = mx - (mx - z.tx) * ratio;
+      const newTy = my - (my - z.ty) * ratio;
 
-    // ── Drag to pan ────────────────────────────────────────────────
-    let dragTile: HTMLElement | null = null;
-    let dragLastX = 0;
-    let dragLastY = 0;
-
-    function handleMouseDown(e: MouseEvent) {
-      if (e.button !== 0) return;
-      const target = e.target as HTMLElement;
-      const tile = target.closest('[data-lk-source], .lk-participant-tile') as HTMLElement | null;
-      if (!tile) return;
-      const state = getState(tile);
-      if (state.scale <= 1) return;
-      dragTile = tile;
-      dragLastX = e.clientX;
-      dragLastY = e.clientY;
+      // Clamp so the video never leaves a gap at the tile edges
       const video = tile.querySelector('video') as HTMLVideoElement | null;
-      if (video) video.style.cursor = 'grabbing';
-      e.preventDefault();
+      const vw = video?.offsetWidth ?? rect.width;
+      const vh = video?.offsetHeight ?? rect.height;
+      const clampedTx = Math.min(0, Math.max(rect.width - vw * newScale, newTx));
+      const clampedTy = Math.min(0, Math.max(rect.height - vh * newScale, newTy));
+
+      const zNew: TileZoom = { scale: newScale, tx: clampedTx, ty: clampedTy };
+      zooms.set(tile, zNew);
+      applyZoom(tile, zNew);
     }
 
-    function handleMouseMove(e: MouseEvent) {
-      if (!dragTile) return;
-      const state = getState(dragTile);
-      state.tx += e.clientX - dragLastX;
-      state.ty += e.clientY - dragLastY;
-      dragLastX = e.clientX;
-      dragLastY = e.clientY;
-      clamp(dragTile, state);
-      applyZoom(dragTile, state);
-    }
-
-    function handleMouseUp() {
-      if (!dragTile) return;
-      const state = getState(dragTile);
-      const video = dragTile.querySelector('video') as HTMLVideoElement | null;
-      if (video) video.style.cursor = 'grab';
-      dragTile = null;
-    }
-
-    // ── Escape → reset zoom on all tiles ──────────────────────────
-    function handleKeyDown(e: KeyboardEvent) {
+    // Escape → reset all zoomed tiles
+    function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
-      container.querySelectorAll<HTMLElement>('[data-zoomed="true"]').forEach(tile => {
-        const state = getState(tile);
-        state.scale = 1;
-        state.tx = 0;
-        state.ty = 0;
-        applyZoom(tile, state);
-      });
+      container.querySelectorAll<HTMLElement>('.lk-participant-tile').forEach(resetTile);
     }
 
-    container.addEventListener('dblclick', handleDblClick);
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    container.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('keydown', handleKeyDown);
+    // capture:true so we intercept before LiveKit's own wheel handlers
+    container.addEventListener('dblclick', onDblClick);
+    container.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    window.addEventListener('keydown', onKeyDown);
 
     return () => {
-      container.removeEventListener('dblclick', handleDblClick);
-      container.removeEventListener('wheel', handleWheel);
-      container.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('keydown', handleKeyDown);
+      container.removeEventListener('dblclick', onDblClick);
+      container.removeEventListener('wheel', onWheel, { capture: true });
+      window.removeEventListener('keydown', onKeyDown);
     };
   }, []);
 
   return (
     <div ref={containerRef} className="min-h-screen bg-gray-950">
       <style>{`
-        [data-lk-source="screen_share"] video {
-          cursor: zoom-in;
-        }
         [data-lk-source="screen_share"]:fullscreen,
         .lk-participant-tile:fullscreen {
           background: #000;
