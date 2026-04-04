@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
     });
 
     const token = await at.toJwt();
-    return NextResponse.json({ token });
+    const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || '';
+    return NextResponse.json({ token, serverUrl });
   } catch (error) {
     console.error('Token generation error:', error);
     return NextResponse.json({ error: 'Failed to generate token' }, { status: 500 });
