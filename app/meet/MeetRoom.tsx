@@ -119,6 +119,51 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
       applyZoom(tile, zNew);
     }
 
+    // Drag to pan while zoomed
+    let dragTile: HTMLElement | null = null;
+    let dragLastX = 0;
+    let dragLastY = 0;
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return;
+      const tile = findTile(e.target as HTMLElement, container);
+      if (!tile) return;
+      const z = getZoom(tile);
+      if (z.scale <= 1) return;
+      dragTile = tile;
+      dragLastX = e.clientX;
+      dragLastY = e.clientY;
+      tile.style.cursor = 'grabbing';
+      e.preventDefault();
+    }
+
+    function onMouseMove(e: MouseEvent) {
+      if (!dragTile) return;
+      const z = getZoom(dragTile);
+      const dx = e.clientX - dragLastX;
+      const dy = e.clientY - dragLastY;
+      dragLastX = e.clientX;
+      dragLastY = e.clientY;
+
+      const rect = dragTile.getBoundingClientRect();
+      const video = dragTile.querySelector('video') as HTMLVideoElement | null;
+      const vw = video?.offsetWidth ?? rect.width;
+      const vh = video?.offsetHeight ?? rect.height;
+
+      const newTx = Math.min(0, Math.max(rect.width - vw * z.scale, z.tx + dx));
+      const newTy = Math.min(0, Math.max(rect.height - vh * z.scale, z.ty + dy));
+
+      const zNew: TileZoom = { scale: z.scale, tx: newTx, ty: newTy };
+      zooms.set(dragTile, zNew);
+      applyZoom(dragTile, zNew);
+    }
+
+    function onMouseUp() {
+      if (!dragTile) return;
+      dragTile.style.cursor = '';
+      dragTile = null;
+    }
+
     // Escape → reset all zoomed tiles
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
@@ -128,11 +173,17 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
     // capture:true so we intercept before LiveKit's own wheel handlers
     container.addEventListener('dblclick', onDblClick);
     container.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    container.addEventListener('mousedown', onMouseDown, { capture: true });
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
       container.removeEventListener('dblclick', onDblClick);
       container.removeEventListener('wheel', onWheel, { capture: true });
+      container.removeEventListener('mousedown', onMouseDown, { capture: true });
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, []);
