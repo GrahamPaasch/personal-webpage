@@ -382,6 +382,17 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
             <span>{document.fullscreenElement ? '⊠' : '⛶'}</span>
             {document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen'}
           </button>
+
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"
+            onClick={() => {
+              const url = `/meet/overlay?room=${encodeURIComponent(roomName)}&username=overlay-viewer`;
+              window.open(url, 'meet-overlay', 'width=800,height=500,menubar=no,toolbar=no,location=no,status=no');
+              closeMenu();
+            }}
+          >
+            <span>🪟</span> Open annotation overlay
+          </button>
         </div>
       )}
 
