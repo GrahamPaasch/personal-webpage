@@ -55,6 +55,10 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
   const [clearTrigger, setClearTrigger] = useState(0);
   const [annotationColor, setAnnotationColor] = useState(ANNOTATION_COLORS[0]);
 
+  // Pause state
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+
   // Context menu
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
   const closeMenu = useCallback(() => setCtxMenu(null), []);
@@ -203,8 +207,21 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
       setCtxMenu({ x: e.clientX, y: e.clientY, tile: tile ?? null });
     }
 
-    // Escape → close menu + reset zoom
+    // Keyboard shortcuts
     function onKeyDown(e: KeyboardEvent) {
+      // Ignore Space when focus is in an input/button/textarea
+      const tag = (e.target as HTMLElement).tagName;
+      if (e.key === ' ' && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'BUTTON') {
+        e.preventDefault();
+        const nowPaused = !pausedRef.current;
+        pausedRef.current = nowPaused;
+        setPaused(nowPaused);
+        container.querySelectorAll<HTMLVideoElement>('video').forEach(v => {
+          if (nowPaused) v.pause();
+          else v.play().catch(() => {});
+        });
+        return;
+      }
       if (e.key !== 'Escape') return;
       setCtxMenu(null);
       container.querySelectorAll<HTMLElement>('.lk-participant-tile').forEach(resetTile);
@@ -266,6 +283,16 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
             style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: annotationColor }}
           />
           Draw mode — right-click to change color or stop
+        </div>
+      )}
+
+      {/* Paused badge */}
+      {paused && (
+        <div
+          style={{ position: 'fixed', top: annotating ? 56 : 12, left: '50%', transform: 'translateX(-50%)', zIndex: 200 }}
+          className="bg-yellow-500/90 text-black text-sm font-semibold px-4 py-1.5 rounded-full flex items-center gap-2 select-none"
+        >
+          ⏸ Paused — press Space to resume
         </div>
       )}
 
