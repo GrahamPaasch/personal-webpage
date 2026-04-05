@@ -25,6 +25,7 @@ interface ContextMenuState {
   x: number;
   y: number;
   tile: HTMLElement | null;
+  selectedText: string;
 }
 
 const MIN_SCALE = 1;
@@ -204,7 +205,8 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
     function onContextMenu(e: MouseEvent) {
       e.preventDefault();
       const tile = findTile(e.target as HTMLElement, container);
-      setCtxMenu({ x: e.clientX, y: e.clientY, tile: tile ?? null });
+      const selectedText = window.getSelection()?.toString() ?? '';
+      setCtxMenu({ x: e.clientX, y: e.clientY, tile: tile ?? null, selectedText });
     }
 
     // Keyboard shortcuts
@@ -392,6 +394,44 @@ export default function MeetRoom({ token, roomName, onLeave }: MeetRoomProps) {
             }}
           >
             <span>🪟</span> Open annotation overlay
+          </button>
+
+          {/* Divider */}
+          <div className="border-t border-gray-700 my-1" />
+          <div className="px-3 py-1 text-xs text-gray-500 uppercase tracking-wider">Clipboard</div>
+
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2 disabled:opacity-40"
+            disabled={!ctxMenu.selectedText}
+            onClick={() => {
+              navigator.clipboard.writeText(ctxMenu.selectedText).catch(() => {});
+              closeMenu();
+            }}
+          >
+            <span>📋</span> Copy{ctxMenu.selectedText ? ` "${ctxMenu.selectedText.slice(0, 24)}${ctxMenu.selectedText.length > 24 ? '…' : ''}"` : ''}
+          </button>
+
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"
+            onClick={() => {
+              navigator.clipboard.readText()
+                .then(text => { if (text) document.execCommand('insertText', false, text); })
+                .catch(() => {});
+              closeMenu();
+            }}
+          >
+            <span>📄</span> Paste
+          </button>
+
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2"
+            onClick={() => {
+              const url = `${window.location.origin}/meet?room=${encodeURIComponent(roomName)}`;
+              navigator.clipboard.writeText(url).catch(() => {});
+              closeMenu();
+            }}
+          >
+            <span>🔗</span> Copy room link
           </button>
         </div>
       )}
