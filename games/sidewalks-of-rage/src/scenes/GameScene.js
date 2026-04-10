@@ -131,7 +131,7 @@ export default class GameScene extends Phaser.Scene {
   setupPlayer(width, height) {
     const playerBodyWidth = 28;
     const playerBodyHeight = 48;
-    this.player = this.physics.add.sprite(width / 2, height * 0.88, 'fauci-right', 0);
+    this.player = this.physics.add.sprite(width / 2, height * 0.92, 'fauci-right', 0);
     this.player.setOrigin(0.5, 1);
     this.player.setScale(0.5);
     this.player.body.setAllowGravity(false);
@@ -461,8 +461,8 @@ export default class GameScene extends Phaser.Scene {
     const bottom = this.player.displayHeight * (1 - originY);
     const minX = left + pad;
     const maxX = width - right - pad;
-    const minY = Math.max(top + pad, height * 0.85);
-    const maxY = height - bottom - pad;
+    const minY = Math.max(top + pad, height * 0.87);
+    const maxY = height * 0.97 - bottom;
 
     this.player.x = Phaser.Math.Clamp(this.player.x, minX, maxX);
     this.player.y = Phaser.Math.Clamp(this.player.y, minY, maxY);
@@ -518,8 +518,8 @@ export default class GameScene extends Phaser.Scene {
     const halfWidth = ENEMY_WIDTH / 2;
     const minX = pad + halfWidth;
     const maxX = width - pad - halfWidth;
-    const minY = Math.max(pad + ENEMY_HEIGHT, height * 0.85);
-    const maxY = height - pad;
+    const minY = Math.max(pad + ENEMY_HEIGHT, height * 0.87);
+    const maxY = height * 0.97;
 
     const edge = Phaser.Math.Between(0, 3);
     let x = width / 2;
@@ -828,7 +828,7 @@ export default class GameScene extends Phaser.Scene {
     this.isJumping = false;
     this.jumpTween = null;
 
-    this.player.setPosition(width / 2, height * 0.75);
+    this.player.setPosition(width / 2, height * 0.92);
     this.player.setVisible(true);
     this.player.body.enable = true;
     this.applyPlayerFactionTint();
