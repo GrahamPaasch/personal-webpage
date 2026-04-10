@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
-const ENEMY_TEXTURE_RIGHT = 'enemy-sprite';
-const ENEMY_TEXTURE_LEFT = 'enemy-sprite-left';
+const ENEMY_TEXTURE_RIGHT = 'enemy-sprite-left';
+const ENEMY_TEXTURE_LEFT = 'enemy-sprite';
 const ENEMY_WIDTH = 24;
 const ENEMY_HEIGHT = 48;
 
@@ -93,7 +93,13 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     // Create animations if they don't exist yet
     Enemy.createAnimations(scene);
 
-    this.play('enemy-walk-right');
+    // Start facing toward the player
+    if (target && target.x < x) {
+      this.facing = 'left';
+    } else {
+      this.facing = 'right';
+    }
+    this.play(`enemy-walk-${this.facing}`);
 
     // Spawn the archetype label
     this.nameLabel = scene.add.text(x, y - this.displayHeight - 4, this.archetypeName, {
