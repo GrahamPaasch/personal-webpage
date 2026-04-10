@@ -1,35 +1,137 @@
 import Phaser from 'phaser';
 import Enemy, { ENEMY_HEIGHT, ENEMY_WIDTH } from '../entities/Enemy.js';
-// import createCityBackground from '../background/CityBackground.js'; // Replaced with background.png
 import Client from '../network/Client.js';
 import { MESSAGE_TYPES } from '../network/protocol.js';
 import VirtualDPad from '../ui/VirtualDPad.js';
-import { COMBAT, canHitTarget, applyHitstop, applyKnockback } from '../utils/CombatSystem.js';
+import {
+  COMBAT,
+  canHitTarget,
+  applyHitstop,
+  applyKnockback,
+  spawnDamageNumber,
+  spawnHitParticles,
+  spawnDeathExplosion,
+  ComboTracker
+} from '../utils/CombatSystem.js';
+
+// ─── Humor Content ──────────────────────────────────────────────────────────
+
+const KILL_MESSAGES = [
+  "You've been educated!",
+  'Trust the science!',
+  'Peer reviewed!',
+  'Citation needed!',
+  'Read the study!',
+  "You've been vaccinated!",
+  "That's Dr. Fauci to you!",
+  "Science doesn't care about your feelings!",
+  'Another case study!',
+  'Boosted!',
+  'Flattened that curve!',
+  'Mask off... permanently!',
+  'Your immune system needed backup!',
+  'Double-blind, double-KO!',
+  'Herd immunity achieved!',
+  'Published in Nature!',
+  'FDA approved beatdown!',
+  'Clinical trial: SUCCESS!',
+  'Fact-checked into oblivion!',
+  'Prescription: pain!',
+];
+
+const DEATH_MESSAGES = [
+  "You've done your own research!",
+  "You've questioned everything!",
+  'The internet was right all along!',
+  "Should've taken the horse paste!",
+  'Facebook University wins again!',
+  "Essential oils weren't enough!",
+  "Thoughts and prayers didn't work!",
+  'Mercury retrograde strikes again!',
+  'The crystals have failed you!',
+  "Your chiropractor can't fix this!",
+  'Should have used essential oils!',
+  'The healing crystals shattered!',
+  'Your YouTube degree was revoked!',
+  'Turns out Google is not a doctor!',
+  'The conspiracy was... your health plan!',
+];
+
+const WAVE_ANNOUNCEMENTS = [
+  'WAVE {n}: More truthers incoming!',
+  'WAVE {n}: The skeptics are multiplying!',
+  'WAVE {n}: They read a blog post!',
+  'WAVE {n}: Facebook group activated!',
+  'WAVE {n}: Substack army approaches!',
+  'WAVE {n}: Podcast listeners unite!',
+  'WAVE {n}: The comments section is here!',
+  'WAVE {n}: They watched a documentary!',
+];
+
+// ─── GameScene ──────────────────────────────────────────────────────────────
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super('GameScene');
   }
 
+  // ── Asset Loading ─────────────────────────────────────────────────────────
+
   preload() {
     const baseUrl = import.meta.env.BASE_URL;
     this.load.image('background', `${baseUrl}assets/background.png`);
     this.load.spritesheet('enemy-sprite', `${baseUrl}assets/enemy1.png`, { frameWidth: 240, frameHeight: 240 });
+    this.load.spritesheet('enemy-sprite-left', `${baseUrl}assets/enemy1-left.png`, { frameWidth: 240, frameHeight: 240 });
     this.load.spritesheet('fauci-right', `${baseUrl}assets/fauci-sheet-fixed.png`, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet('fauci-left', `${baseUrl}assets/fauci-sheet-fixed-left.png`, { frameWidth: 64, frameHeight: 64 });
   }
 
+  // ── Scene Setup ───────────────────────────────────────────────────────────
+
   create() {
-    // Add background image scaled to fit
     const { width, height } = this.scale;
+
+    this.setupBackground(width, height);
+    this.setupPlayer(width, height);
+    this.setupPlayerAnimations();
+    this.setupPlayerState(width, height);
+    this.setupHealthBar();
+    this.setupInput();
+    this.setupEnemies();
+    this.setupScoreUI(width);
+    this.setupBattleLine(width);
+    this.setupRoundEndBanner(width, height);
+    this.setupKillMessageUI(width);
+    this.setupDeathOverlay(width, height);
+    this.setupWaveSystem(width, height);
+    this.setupComboTracker();
+    this.setupNetwork(width);
+
+    this.clampPlayerToBounds();
+    this.player.setDepth(this.player.y + this.player.displayHeight * (1 - this.player.originY));
+    this.updatePlayerLabel();
+
+    // Fade in from title screen
+    this.cameras.main.fadeIn(500, 0, 0, 0);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.client?.disconnect();
+      this.scale?.off('resize', this.updateBattleLineUI, this);
+      this.scale?.off('resize', this.updateRoundEndBannerLayout, this);
+      this.roundEndBannerTween?.stop();
+    });
+  }
+
+  setupBackground(width, height) {
     const bg = this.add.image(width / 2, height / 2, 'background');
     bg.setDisplaySize(width, height);
     bg.setDepth(-100);
+  }
 
-
+  setupPlayer(width, height) {
     const playerBodyWidth = 28;
     const playerBodyHeight = 48;
-    this.player = this.physics.add.sprite(width / 2, height * 0.75, 'fauci-right', 0);
+    this.player = this.physics.add.sprite(width / 2, height * 0.88, 'fauci-right', 0);
     this.player.setOrigin(0.5, 1);
     this.player.body.setAllowGravity(false);
     this.player.body.setSize(playerBodyWidth, playerBodyHeight);
@@ -37,42 +139,48 @@ export default class GameScene extends Phaser.Scene {
       (this.player.displayWidth - playerBodyWidth) / 2,
       this.player.displayHeight - playerBodyHeight
     );
+  }
 
-    if (!this.anims.exists('fauci-idle-right')) {
-      this.anims.create({
-        key: 'fauci-idle-right',
-        frames: [{ key: 'fauci-right', frame: 0 }]
-      });
-      this.anims.create({
-        key: 'fauci-idle-left',
-        frames: [{ key: 'fauci-left', frame: 0 }]
-      });
-      this.anims.create({
-        key: 'fauci-walk-right',
-        frames: this.anims.generateFrameNumbers('fauci-right', { start: 0, end: 2 }),
-        frameRate: 8,
-        repeat: -1
-      });
-      this.anims.create({
-        key: 'fauci-walk-left',
-        frames: this.anims.generateFrameNumbers('fauci-left', { start: 0, end: 2 }),
-        frameRate: 8,
-        repeat: -1
-      });
-      this.anims.create({
-        key: 'fauci-attack-right',
-        frames: this.anims.generateFrameNumbers('fauci-right', { start: 3, end: 5 }),
-        frameRate: 12,
-        repeat: 0
-      });
-      this.anims.create({
-        key: 'fauci-attack-left',
-        frames: this.anims.generateFrameNumbers('fauci-left', { start: 3, end: 5 }),
-        frameRate: 12,
-        repeat: 0
-      });
+  setupPlayerAnimations() {
+    if (this.anims.exists('fauci-idle-right')) {
+      return;
     }
 
+    this.anims.create({
+      key: 'fauci-idle-right',
+      frames: [{ key: 'fauci-right', frame: 0 }]
+    });
+    this.anims.create({
+      key: 'fauci-idle-left',
+      frames: [{ key: 'fauci-left', frame: 0 }]
+    });
+    this.anims.create({
+      key: 'fauci-walk-right',
+      frames: this.anims.generateFrameNumbers('fauci-right', { start: 0, end: 2 }),
+      frameRate: 8,
+      repeat: -1
+    });
+    this.anims.create({
+      key: 'fauci-walk-left',
+      frames: this.anims.generateFrameNumbers('fauci-left', { start: 0, end: 2 }),
+      frameRate: 8,
+      repeat: -1
+    });
+    this.anims.create({
+      key: 'fauci-attack-right',
+      frames: this.anims.generateFrameNumbers('fauci-right', { start: 3, end: 5 }),
+      frameRate: 12,
+      repeat: 0
+    });
+    this.anims.create({
+      key: 'fauci-attack-left',
+      frames: this.anims.generateFrameNumbers('fauci-left', { start: 3, end: 5 }),
+      frameRate: 12,
+      repeat: 0
+    });
+  }
+
+  setupPlayerState(width, height) {
     this.facing = 'right';
     this.playerFaction = null;
     this.playerBaseTint = null;
@@ -93,21 +201,28 @@ export default class GameScene extends Phaser.Scene {
     this.lastPlayerHitTime = -this.playerHitCooldownMs;
     this.isPlayerDead = false;
 
-    this.killMessages = [
-      "You've been educated!",
-      'Trust the science!',
-      'Peer reviewed!',
-      'Citation needed!',
-      'Read the study!'
-    ];
-    this.deathMessages = [
-      "You've done your own research!",
-      "You've questioned everything!",
-      'The internet was right all along!',
-      "Should've taken the horse paste!",
-      'Facebook University wins again!'
-    ];
+    this.playerSpeed = 200;
+    this.isAttacking = false;
+    this.attackTween = null;
+    this.attackStartTime = -1;
+    this.attackHitEnemies = new Set();
+    this.isMoving = false;
+    this.attackLungeDistance = 18;
+    this.attackDuration = 140;
+    this.attackActiveStartMs = Math.floor(this.attackDuration * 0.22);
+    this.attackActiveEndMs = Math.floor(this.attackDuration * 0.78);
+    this.playerAttackRecoveryMs = 110;
+    this.nextAttackAllowedAt = 0;
+    this.isJumping = false;
+    this.jumpHeight = 28;
+    this.jumpDuration = 240;
+    this.jumpTween = null;
 
+    // Track total kills for this session
+    this.totalKills = 0;
+  }
+
+  setupHealthBar() {
     this.healthBarConfig = { x: 48, y: 44, width: 170, height: 12 };
     this.healthLabel = this.add.text(16, 34, 'HP', {
       fontFamily: 'Verdana',
@@ -133,36 +248,23 @@ export default class GameScene extends Phaser.Scene {
     this.healthBar = this.add.graphics();
     this.healthBar.setDepth(999);
     this.updateHealthBar();
+  }
 
-    this.playerSpeed = 200;
-    this.isAttacking = false;
-    this.attackTween = null;
-    this.attackStartTime = -1;
-    this.attackHitEnemies = new Set();
-    this.isMoving = false;
-    this.attackLungeDistance = 18;
-    this.attackDuration = 140;
-    // Startup + recovery so attacks feel less like permanent i-frames/trades.
-    this.attackActiveStartMs = Math.floor(this.attackDuration * 0.22);
-    this.attackActiveEndMs = Math.floor(this.attackDuration * 0.78);
-    this.playerAttackRecoveryMs = 110;
-    this.nextAttackAllowedAt = 0;
-    this.isJumping = false;
-    this.jumpHeight = 28;
-    this.jumpDuration = 240;
-    this.jumpTween = null;
-
+  setupInput() {
     this.keys = this.input.keyboard.addKeys({
       up: 'W',
       down: 'S',
       left: 'A',
       right: 'D',
-      attack: Phaser.Input.Keyboard.KeyCodes.SPACE
+      attack: Phaser.Input.Keyboard.KeyCodes.SPACE,
+      jump: Phaser.Input.Keyboard.KeyCodes.SHIFT
     });
     this.cursors = this.input.keyboard.createCursorKeys();
     const hasTouch = typeof window !== 'undefined' && 'ontouchstart' in window;
     this.virtualDPad = hasTouch ? new VirtualDPad(this, { enabled: hasTouch }) : null;
+  }
 
+  setupEnemies() {
     this.enemies = this.physics.add.group();
     this.maxEnemies = 8;
     this.scheduleNextEnemySpawn();
@@ -174,7 +276,9 @@ export default class GameScene extends Phaser.Scene {
       this.canEnemyHitPlayer,
       this
     );
+  }
 
+  setupScoreUI(width) {
     this.score = 0;
     this.scoreText = this.add.text(16, 16, 'Score: 0', {
       fontFamily: 'Verdana',
@@ -196,7 +300,9 @@ export default class GameScene extends Phaser.Scene {
     this.globalScoreText.setOrigin(1, 0);
     this.globalScoreText.setDepth(1000);
     this.updateGlobalScoreText();
+  }
 
+  setupBattleLine(width) {
     this.factionCounts = { fauci: 0, rogan: 0 };
     this.battleLinePosition = 50;
     this.battleLineGraphics = this.add.graphics();
@@ -216,7 +322,9 @@ export default class GameScene extends Phaser.Scene {
     this.battleLineCountText.setDepth(1001);
     this.scale.on('resize', this.updateBattleLineUI, this);
     this.updateBattleLineUI();
+  }
 
+  setupRoundEndBanner(width, height) {
     const roundEndTextStyle = {
       fontFamily: 'Verdana',
       fontSize: '20px',
@@ -238,7 +346,9 @@ export default class GameScene extends Phaser.Scene {
     this.roundEndBannerTween = null;
     this.scale.on('resize', this.updateRoundEndBannerLayout, this);
     this.updateRoundEndBannerLayout();
+  }
 
+  setupKillMessageUI(width) {
     this.killMessageText = this.add.text(width / 2, 90, '', {
       fontFamily: 'Verdana',
       fontSize: '20px',
@@ -250,10 +360,12 @@ export default class GameScene extends Phaser.Scene {
     this.killMessageText.setDepth(1000);
     this.killMessageText.setAlpha(0);
     this.killMessageTween = null;
+  }
 
+  setupDeathOverlay(width, height) {
     this.deathOverlay = this.add.container(width / 2, height / 2);
     const deathBg = this.add.rectangle(0, 0, width, height, 0x000000, 0.65);
-    this.deathMessageText = this.add.text(0, -20, '', {
+    this.deathMessageText = this.add.text(0, -30, '', {
       fontFamily: 'Verdana',
       fontSize: '28px',
       color: '#ffffff',
@@ -262,7 +374,15 @@ export default class GameScene extends Phaser.Scene {
       align: 'center',
       wordWrap: { width: width * 0.8 }
     });
-    const respawnText = this.add.text(0, 40, 'Respawning...', {
+    this.deathScoreText = this.add.text(0, 20, '', {
+      fontFamily: 'Verdana',
+      fontSize: '16px',
+      color: '#aaaaaa',
+      stroke: '#000000',
+      strokeThickness: 3,
+      align: 'center'
+    });
+    const respawnText = this.add.text(0, 55, 'Respawning...', {
       fontFamily: 'Verdana',
       fontSize: '18px',
       color: '#ffffff',
@@ -271,15 +391,43 @@ export default class GameScene extends Phaser.Scene {
     });
     deathBg.setOrigin(0.5);
     this.deathMessageText.setOrigin(0.5, 0.5);
+    this.deathScoreText.setOrigin(0.5, 0.5);
     respawnText.setOrigin(0.5, 0.5);
-    this.deathOverlay.add([deathBg, this.deathMessageText, respawnText]);
+    this.deathOverlay.add([deathBg, this.deathMessageText, this.deathScoreText, respawnText]);
     this.deathOverlay.setDepth(2000);
     this.deathOverlay.setVisible(false);
+  }
 
-    this.clampPlayerToBounds();
-    this.player.setDepth(this.player.y + this.player.displayHeight * (1 - this.player.originY));
-    this.updatePlayerLabel();
+  setupWaveSystem(width, height) {
+    this.currentWave = 1;
+    this.enemiesKilledThisWave = 0;
+    this.enemiesPerWave = 5;
+    this.waveActive = true;
 
+    this.waveText = this.add.text(width / 2, height * 0.35, '', {
+      fontFamily: 'Verdana',
+      fontSize: '22px',
+      fontStyle: 'bold',
+      color: '#ff8800',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      wordWrap: { width: width * 0.8 }
+    });
+    this.waveText.setOrigin(0.5, 0.5);
+    this.waveText.setDepth(1500);
+    this.waveText.setAlpha(0);
+    this.waveTween = null;
+
+    // Show first wave announcement
+    this.showWaveAnnouncement();
+  }
+
+  setupComboTracker() {
+    this.comboTracker = new ComboTracker(this);
+  }
+
+  setupNetwork(width) {
     this.playerId = null;
     this.remotePlayers = new Map();
     this.networkSendInterval = 1000 / 15;
@@ -297,14 +445,9 @@ export default class GameScene extends Phaser.Scene {
     });
     this.registerNetworkHandlers();
     this.client.connect();
-
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.client?.disconnect();
-      this.scale?.off('resize', this.updateBattleLineUI, this);
-      this.scale?.off('resize', this.updateRoundEndBannerLayout, this);
-      this.roundEndBannerTween?.stop();
-    });
   }
+
+  // ── Player Bounds & Movement ──────────────────────────────────────────────
 
   clampPlayerToBounds() {
     const { width, height } = this.scale;
@@ -317,7 +460,7 @@ export default class GameScene extends Phaser.Scene {
     const bottom = this.player.displayHeight * (1 - originY);
     const minX = left + pad;
     const maxX = width - right - pad;
-    const minY = Math.max(top + pad, height * 0.85); // Keep player on street (bottom ~15% of screen)
+    const minY = Math.max(top + pad, height * 0.85);
     const maxY = height - bottom - pad;
 
     this.player.x = Phaser.Math.Clamp(this.player.x, minX, maxX);
@@ -350,15 +493,20 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  // ── Enemy Spawning & Waves ────────────────────────────────────────────────
+
   scheduleNextEnemySpawn() {
-    this.time.delayedCall(Phaser.Math.Between(2000, 4000), () => {
+    const minDelay = Math.max(800, 2000 - this.currentWave * 100);
+    const maxDelay = Math.max(1500, 4000 - this.currentWave * 150);
+    this.time.delayedCall(Phaser.Math.Between(minDelay, maxDelay), () => {
       this.spawnEnemy();
       this.scheduleNextEnemySpawn();
     });
   }
 
   spawnEnemy() {
-    if (this.enemies.countActive(true) >= this.maxEnemies) {
+    const currentMax = Math.min(this.maxEnemies + Math.floor(this.currentWave / 3), 14);
+    if (this.enemies.countActive(true) >= currentMax) {
       return;
     }
 
@@ -367,7 +515,7 @@ export default class GameScene extends Phaser.Scene {
     const halfWidth = ENEMY_WIDTH / 2;
     const minX = pad + halfWidth;
     const maxX = width - pad - halfWidth;
-    const minY = Math.max(pad + ENEMY_HEIGHT, height * 0.85); // Keep enemies on street
+    const minY = Math.max(pad + ENEMY_HEIGHT, height * 0.85);
     const maxY = height - pad;
 
     const edge = Phaser.Math.Between(0, 3);
@@ -392,6 +540,45 @@ export default class GameScene extends Phaser.Scene {
     this.enemies.add(enemy);
   }
 
+  advanceWave() {
+    this.currentWave += 1;
+    this.enemiesKilledThisWave = 0;
+    this.enemiesPerWave = 5 + Math.floor(this.currentWave * 1.5);
+    this.showWaveAnnouncement();
+  }
+
+  showWaveAnnouncement() {
+    if (!this.waveText) {
+      return;
+    }
+
+    const template = Phaser.Utils.Array.GetRandom(WAVE_ANNOUNCEMENTS);
+    const message = template.replace('{n}', this.currentWave);
+    this.waveText.setText(message);
+    this.waveText.setAlpha(0);
+    this.waveText.setScale(0.8);
+    this.waveTween?.stop();
+    this.waveTween = this.tweens.add({
+      targets: this.waveText,
+      alpha: 1,
+      scale: 1,
+      duration: 300,
+      ease: 'Back.out',
+      onComplete: () => {
+        this.waveTween = this.tweens.add({
+          targets: this.waveText,
+          alpha: 0,
+          scale: 1.1,
+          duration: 2000,
+          delay: 1200,
+          ease: 'Quad.in'
+        });
+      }
+    });
+  }
+
+  // ── Combat Logic ──────────────────────────────────────────────────────────
+
   isPlayerAttackActive(now = this.time.now) {
     if (!this.isAttacking || this.isPlayerDead) {
       return false;
@@ -399,7 +586,6 @@ export default class GameScene extends Phaser.Scene {
 
     const start = typeof this.attackStartTime === 'number' ? this.attackStartTime : -1;
     if (start < 0) {
-      // Shouldn't happen, but keep attacks functional if state gets out of sync.
       return true;
     }
 
@@ -430,14 +616,36 @@ export default class GameScene extends Phaser.Scene {
 
     applyHitstop(this, player, enemy);
     applyKnockback(this, player, enemy);
-    this.cameras.main.shake(60, 0.003);
+
+    // Spawn hit particles and damage number
+    const hitX = (player.x + enemy.x) / 2;
+    const hitY = Math.min(player.y, enemy.y) - 10;
+    spawnHitParticles(this, hitX, hitY, 0xffff00, 8);
+    spawnDamageNumber(this, enemy.x, enemy.y - enemy.displayHeight, 1);
+
+    // Register combo hit
+    const comboCount = this.comboTracker.registerHit();
+
+    // Scale screen shake with combo
+    const shakeIntensity = Math.min(0.003 + comboCount * 0.001, 0.012);
+    this.cameras.main.shake(60, shakeIntensity);
 
     if (defeated) {
-      this.score += 1;
+      this.score += 1 * Math.max(1, Math.floor(comboCount / 3));
+      this.totalKills += 1;
+      this.enemiesKilledThisWave += 1;
       this.scoreText.setText(`Score: ${this.score}`);
-      // this.cameras.main.flash(90, 255, 255, 255); // disabled - too flashy
       this.showKillMessage();
       this.reportKill();
+
+      // Death explosion
+      spawnDeathExplosion(this, enemy.x, enemy.y - enemy.displayHeight / 2, 14);
+      this.comboTracker.registerKill();
+
+      // Check wave advancement
+      if (this.enemiesKilledThisWave >= this.enemiesPerWave) {
+        this.advanceWave();
+      }
     }
 
     return true;
@@ -473,23 +681,18 @@ export default class GameScene extends Phaser.Scene {
 
     const now = this.time.now;
 
-    // Classic brawler rule: you can only be hit if you're in the same lane.
     if (Math.abs(player.y - enemy.y) > COMBAT.DEPTH_TOLERANCE) {
       return false;
     }
 
-    // Jump is a dodge. (Also helps because jump moves Y and could still overlap tall bodies.)
     if (this.isJumping) {
       return false;
     }
 
-    // Don't let enemies deal contact damage while they're in hitstun/knockback.
     if (now < (enemy.knockbackUntil ?? 0) || enemy.inHitstop) {
       return false;
     }
 
-    // If the player is swinging and this enemy is inside the hitbox, give the player priority.
-    // This prevents "forced trades" where attacking requires taking contact damage.
     if (this.isAttacking) {
       const facing = this.facing === 'left' ? -1 : 1;
       if (canHitTarget(player, enemy, facing)) {
@@ -515,6 +718,10 @@ export default class GameScene extends Phaser.Scene {
 
     enemy.lastAttackTime = now;
     this.lastPlayerHitTime = now;
+
+    // Play enemy attack animation
+    enemy.playAttackAnim();
+
     this.damagePlayer(enemy.attackDamage ?? 10, enemy);
   }
 
@@ -525,6 +732,13 @@ export default class GameScene extends Phaser.Scene {
 
     this.playerHealth = Phaser.Math.Clamp(this.playerHealth - amount, 0, this.playerMaxHealth);
     this.updateHealthBar();
+
+    // Damage number on player
+    spawnDamageNumber(this, this.player.x, this.player.y - this.player.displayHeight, amount);
+    spawnHitParticles(this, this.player.x, this.player.y - this.player.displayHeight / 2, 0xff4444, 5);
+
+    // Reset combo on taking damage
+    this.comboTracker.reset();
 
     this.player.setTint(0xffb3b3);
     this.time.delayedCall(120, () => {
@@ -538,7 +752,6 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.cameras.main.shake(120, 0.006);
-    // this.cameras.main.flash(120, 255, 80, 80); // disabled - too flashy
 
     if (source) {
       const knockback = new Phaser.Math.Vector2(this.player.x - source.x, this.player.y - source.y);
@@ -562,6 +775,8 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  // ── Player Death & Respawn ────────────────────────────────────────────────
+
   triggerPlayerDeath() {
     if (this.isPlayerDead) {
       return;
@@ -583,9 +798,11 @@ export default class GameScene extends Phaser.Scene {
     this.playerLabel.setVisible(false);
 
     this.cameras.main.shake(180, 0.01);
-    // this.cameras.main.flash(180, 255, 120, 120); // disabled - too flashy
     this.showDeathOverlay();
     this.setEnemyTargets(null);
+
+    // Reset combo
+    this.comboTracker.reset();
 
     const respawnDelay = Phaser.Math.Between(2000, 3000);
     this.time.delayedCall(respawnDelay, () => {
@@ -616,16 +833,31 @@ export default class GameScene extends Phaser.Scene {
     this.clampPlayerToBounds();
     this.hideDeathOverlay();
     this.setEnemyTargets(this.player);
+
+    // Brief invincibility flash
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0.3,
+      duration: 100,
+      yoyo: true,
+      repeat: 5,
+      onComplete: () => {
+        if (this.player.active) {
+          this.player.setAlpha(1);
+        }
+      }
+    });
   }
+
+  // ── UI Updates ────────────────────────────────────────────────────────────
 
   showKillMessage() {
     if (!this.killMessageText) {
       return;
     }
 
-    const message = Phaser.Utils.Array.GetRandom(this.killMessages);
+    const message = Phaser.Utils.Array.GetRandom(KILL_MESSAGES);
     this.killMessageText.setText(message);
-    // Position above player head
     this.killMessageText.setPosition(this.player.x, this.player.y - this.player.displayHeight - 20);
     this.killMessageText.setAlpha(1);
     this.killMessageText.setScale(1);
@@ -644,8 +876,11 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const message = Phaser.Utils.Array.GetRandom(this.deathMessages);
+    const message = Phaser.Utils.Array.GetRandom(DEATH_MESSAGES);
     this.deathMessageText.setText(message);
+    if (this.deathScoreText) {
+      this.deathScoreText.setText(`Score: ${this.score} | Kills: ${this.totalKills} | Wave: ${this.currentWave}`);
+    }
     this.deathOverlay.setAlpha(0);
     this.deathOverlay.setVisible(true);
     this.tweens.add({
@@ -709,13 +944,31 @@ export default class GameScene extends Phaser.Scene {
     const { x, y, width, height } = this.healthBarConfig;
     const ratio = Phaser.Math.Clamp(this.playerHealth / this.playerMaxHealth, 0, 1);
     this.healthBar.clear();
+
+    // Background
     this.healthBar.fillStyle(0x000000, 0.6);
     this.healthBar.fillRect(x - 2, y - 2, width + 4, height + 4);
     this.healthBar.fillStyle(0x3a3a3a, 1);
     this.healthBar.fillRect(x, y, width, height);
-    const barColor = ratio > 0.35 ? 0x3bd16f : 0xd63b3b;
+
+    // Health bar with gradient color based on health
+    let barColor;
+    if (ratio > 0.6) {
+      barColor = 0x3bd16f;
+    } else if (ratio > 0.35) {
+      barColor = 0xf5a623;
+    } else {
+      barColor = 0xd63b3b;
+    }
     this.healthBar.fillStyle(barColor, 1);
     this.healthBar.fillRect(x, y, width * ratio, height);
+
+    // Highlight line on top of health bar
+    if (ratio > 0) {
+      this.healthBar.fillStyle(0xffffff, 0.2);
+      this.healthBar.fillRect(x, y, width * ratio, 2);
+    }
+
     if (this.healthValueText) {
       this.healthValueText.setText(`${Math.ceil(this.playerHealth)}/${this.playerMaxHealth}`);
     }
@@ -798,6 +1051,8 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  // ── Network Handlers ──────────────────────────────────────────────────────
+
   registerNetworkHandlers() {
     this.client.on(MESSAGE_TYPES.PLAYER_ID, ({ payload }) => {
       this.playerId = payload?.id || null;
@@ -875,6 +1130,8 @@ export default class GameScene extends Phaser.Scene {
       }
     });
   }
+
+  // ── Remote Player Management ──────────────────────────────────────────────
 
   normalizeFacing(facing) {
     return facing === 'left' ? 'left' : 'right';
@@ -1122,6 +1379,8 @@ export default class GameScene extends Phaser.Scene {
     this.remotePlayers.delete(id);
   }
 
+  // ── Main Game Loop ────────────────────────────────────────────────────────
+
   update(_, delta) {
     const dpadState = this.virtualDPad ? this.virtualDPad.getInputState() : null;
     if (this.isPlayerDead) {
@@ -1130,7 +1389,7 @@ export default class GameScene extends Phaser.Scene {
 
     const now = this.time.now;
 
-    const jumpPressed = dpadState?.jumpJustPressed;
+    const jumpPressed = dpadState?.jumpJustPressed || Phaser.Input.Keyboard.JustDown(this.keys.jump);
     if (jumpPressed && !this.isJumping && !this.isAttacking) {
       this.startJump();
     }
@@ -1192,7 +1451,6 @@ export default class GameScene extends Phaser.Scene {
 
       const facing = this.facing === 'left' ? -1 : 1;
       const lungeDir = new Phaser.Math.Vector2(facing, 0);
-      // Tiny lane drift if the player is holding up/down at the moment of the attack.
       if (moveY !== 0) {
         lungeDir.y = moveY * 0.35;
         lungeDir.normalize();
