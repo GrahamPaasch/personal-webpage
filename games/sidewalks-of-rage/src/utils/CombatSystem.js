@@ -3,11 +3,11 @@ import Phaser from 'phaser';
 // Combat constants based on classic brawler research
 export const COMBAT = {
   // Depth/lane tolerance (in pixels) - how close in Y you need to be to hit
-  DEPTH_TOLERANCE: 24,
+  DEPTH_TOLERANCE: 30,
 
-  // Hitbox extends in front of attacker
-  ATTACK_REACH_X: 50,
-  ATTACK_REACH_Y: 20,
+  // Hitbox extends in front of attacker (extended for giant syringe)
+  ATTACK_REACH_X: 70,
+  ATTACK_REACH_Y: 24,
 
   // Hitstop frames (at 60fps, 1 frame ~ 16.7ms)
   HITSTOP_LIGHT: 50,

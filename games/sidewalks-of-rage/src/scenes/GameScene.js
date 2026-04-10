@@ -82,8 +82,8 @@ export default class GameScene extends Phaser.Scene {
     this.load.image('background', `${baseUrl}assets/background.png`);
     this.load.spritesheet('enemy-sprite', `${baseUrl}assets/enemy1.png`, { frameWidth: 240, frameHeight: 240 });
     this.load.spritesheet('enemy-sprite-left', `${baseUrl}assets/enemy1-left.png`, { frameWidth: 240, frameHeight: 240 });
-    this.load.spritesheet('fauci-right', `${baseUrl}assets/fauci-sheet-fixed.png`, { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet('fauci-left', `${baseUrl}assets/fauci-sheet-fixed-left.png`, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('fauci-right', `${baseUrl}assets/fauci-sheet-fixed.png`, { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('fauci-left', `${baseUrl}assets/fauci-sheet-fixed-left.png`, { frameWidth: 128, frameHeight: 128 });
   }
 
   // ── Scene Setup ───────────────────────────────────────────────────────────
@@ -97,14 +97,14 @@ export default class GameScene extends Phaser.Scene {
     this.setupPlayerState(width, height);
     this.setupHealthBar();
     this.setupInput();
+    this.setupWaveSystem(width, height);
+    this.setupComboTracker();
     this.setupEnemies();
     this.setupScoreUI(width);
     this.setupBattleLine(width);
     this.setupRoundEndBanner(width, height);
     this.setupKillMessageUI(width);
     this.setupDeathOverlay(width, height);
-    this.setupWaveSystem(width, height);
-    this.setupComboTracker();
     this.setupNetwork(width);
 
     this.clampPlayerToBounds();
@@ -133,11 +133,12 @@ export default class GameScene extends Phaser.Scene {
     const playerBodyHeight = 48;
     this.player = this.physics.add.sprite(width / 2, height * 0.88, 'fauci-right', 0);
     this.player.setOrigin(0.5, 1);
+    this.player.setScale(0.5);
     this.player.body.setAllowGravity(false);
-    this.player.body.setSize(playerBodyWidth, playerBodyHeight);
+    this.player.body.setSize(playerBodyWidth * 2, playerBodyHeight * 2);
     this.player.body.setOffset(
-      (this.player.displayWidth - playerBodyWidth) / 2,
-      this.player.displayHeight - playerBodyHeight
+      (128 - playerBodyWidth * 2) / 2,
+      128 - playerBodyHeight * 2
     );
   }
 
@@ -496,8 +497,9 @@ export default class GameScene extends Phaser.Scene {
   // ── Enemy Spawning & Waves ────────────────────────────────────────────────
 
   scheduleNextEnemySpawn() {
-    const minDelay = Math.max(800, 2000 - this.currentWave * 100);
-    const maxDelay = Math.max(1500, 4000 - this.currentWave * 150);
+    const wave = this.currentWave || 1;
+    const minDelay = Math.max(800, 2000 - wave * 100);
+    const maxDelay = Math.max(1500, 4000 - wave * 150);
     this.time.delayedCall(Phaser.Math.Between(minDelay, maxDelay), () => {
       this.spawnEnemy();
       this.scheduleNextEnemySpawn();
@@ -505,7 +507,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   spawnEnemy() {
-    const currentMax = Math.min(this.maxEnemies + Math.floor(this.currentWave / 3), 14);
+    const wave = this.currentWave || 1;
+    const currentMax = Math.min(this.maxEnemies + Math.floor(wave / 3), 14);
     if (this.enemies.countActive(true) >= currentMax) {
       return;
     }
@@ -536,8 +539,12 @@ export default class GameScene extends Phaser.Scene {
       y = Phaser.Math.Between(minY, maxY);
     }
 
-    const enemy = new Enemy(this, x, y, this.isPlayerDead ? null : this.player);
-    this.enemies.add(enemy);
+    try {
+      const enemy = new Enemy(this, x, y, this.isPlayerDead ? null : this.player);
+      this.enemies.add(enemy);
+    } catch (err) {
+      console.error('Failed to spawn enemy:', err);
+    }
   }
 
   advanceWave() {
