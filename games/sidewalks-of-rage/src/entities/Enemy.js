@@ -48,7 +48,7 @@ const SPEECH_PHRASES = [
 ];
 
 export default class Enemy extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y, target, archetypeIndex = -1) {
+  constructor(scene, x, y, target, archetypeIndex = -1, difficultyMod = 1.0) {
     Enemy.ensureTexture(scene);
     super(scene, x, y, ENEMY_TEXTURE_RIGHT);
 
@@ -61,15 +61,19 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
       : Phaser.Math.Between(0, ENEMY_ARCHETYPES.length - 1);
     const archetype = ENEMY_ARCHETYPES[idx];
 
+    // Apply invisible rubber-banding difficulty modifier to enemy stats.
+    // difficultyMod > 1 means harder enemies (winning team), < 1 means easier (losing team).
+    const mod = Number.isFinite(difficultyMod) ? difficultyMod : 1.0;
+
     this.archetypeName = archetype.name;
-    this.speed = archetype.speed;
-    this.maxHealth = archetype.maxHealth;
-    this.health = archetype.maxHealth;
-    this.attackDamage = archetype.attackDamage;
+    this.speed = archetype.speed * mod;
+    this.maxHealth = Math.max(1, Math.round(archetype.maxHealth * mod));
+    this.health = this.maxHealth;
+    this.attackDamage = Math.max(1, Math.round(archetype.attackDamage * mod));
     this.baseTint = archetype.tint;
     this.baseScale = archetype.scale;
 
-    this.attackCooldownMs = 850;
+    this.attackCooldownMs = Math.max(300, Math.round(850 / mod));
     this.lastAttackTime = -this.attackCooldownMs;
     this.hitCooldownMs = 200;
     this.lastHitTime = -this.hitCooldownMs;

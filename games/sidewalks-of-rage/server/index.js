@@ -92,7 +92,23 @@ const getFactionCounts = () => {
 
 const chooseFaction = () => {
   const { fauciPlayers, roganPlayers } = getFactionCounts();
-  return fauciPlayers <= roganPlayers ? 'fauci' : 'rogan';
+
+  // If one team has fewer players, assign to that team for roster balance
+  if (fauciPlayers !== roganPlayers) {
+    return fauciPlayers < roganPlayers ? 'fauci' : 'rogan';
+  }
+
+  // If rosters are equal, assign to the team that is currently losing
+  // battleLinePosition > 50 means Fauci is winning, so assign to Rogan
+  // battleLinePosition < 50 means Rogan is winning, so assign to Fauci
+  if (roundState.battleLinePosition > 50) {
+    return 'rogan';
+  } else if (roundState.battleLinePosition < 50) {
+    return 'fauci';
+  }
+
+  // Perfectly tied: random
+  return FACTIONS[Math.floor(Math.random() * FACTIONS.length)];
 };
 
 const chooseArchetype = (faction) => {

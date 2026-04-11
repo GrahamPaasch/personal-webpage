@@ -496,10 +496,55 @@ export default class GameScene extends Phaser.Scene {
 
   // ── Enemy Spawning & Waves ────────────────────────────────────────────────
 
+  /**
+   * Compute an invisible difficulty modifier based on the battle line position
+   * and the player's faction. Returns a value where:
+   *   > 1.0 = harder enemies (player's faction is winning)
+   *   < 1.0 = easier enemies (player's faction is losing)
+   *   = 1.0 = neutral (no faction, or perfectly tied)
+   *
+   * The modifier scales linearly from 0.6 (max buff) to 1.4 (max debuff)
+   * based on how far the battle line has shifted in the player's favor.
+   */
+  getDifficultyModifier() {
+    if (!this.playerFaction) {
+      return 1.0;
+    }
+
+    const line = this.battleLinePosition ?? 50;
+
+    // How far the player's faction is winning, from -50 (losing hard) to +50 (winning hard)
+    // battleLine > 50 means Fauci is ahead; battleLine < 50 means Rogan is ahead
+    const fauciAdvantage = line - 50;
+    const playerAdvantage = this.playerFaction === 'fauci' ? fauciAdvantage : -fauciAdvantage;
+
+    // Map playerAdvantage (-50..+50) to difficulty modifier (0.6..1.4)
+    // Winning by 50 -> 1.4 (enemies 40% harder)
+    // Losing by 50 -> 0.6 (enemies 40% easier)
+    const modifier = 1.0 + (playerAdvantage / 50) * 0.4;
+    return Phaser.Math.Clamp(modifier, 0.6, 1.4);
+  }
+
+  /**
+   * Compute a spawn rate modifier from the difficulty.
+   * When difficulty is high (winning), enemies spawn faster.
+   * When difficulty is low (losing), enemies spawn slower.
+   * Returns a multiplier for spawn delay (inverse of difficulty).
+   */
+  getSpawnDelayModifier() {
+    const diff = this.getDifficultyModifier();
+    // Invert: harder difficulty -> shorter delays (faster spawns)
+    // diff 1.4 -> delay * 0.71 (faster), diff 0.6 -> delay * 1.67 (slower)
+    return 1.0 / diff;
+  }
+
   scheduleNextEnemySpawn() {
     const wave = this.currentWave || 1;
-    const minDelay = Math.max(800, 2000 - wave * 100);
-    const maxDelay = Math.max(1500, 4000 - wave * 150);
+    const baseMinDelay = Math.max(800, 2000 - wave * 100);
+    const baseMaxDelay = Math.max(1500, 4000 - wave * 150);
+    const spawnMod = this.getSpawnDelayModifier();
+    const minDelay = Math.round(baseMinDelay * spawnMod);
+    const maxDelay = Math.round(baseMaxDelay * spawnMod);
     this.time.delayedCall(Phaser.Math.Between(minDelay, maxDelay), () => {
       this.spawnEnemy();
       this.scheduleNextEnemySpawn();
@@ -508,7 +553,10 @@ export default class GameScene extends Phaser.Scene {
 
   spawnEnemy() {
     const wave = this.currentWave || 1;
-    const currentMax = Math.min(this.maxEnemies + Math.floor(wave / 3), 14);
+    const diffMod = this.getDifficultyModifier();
+    // Winning team faces more enemies on screen at once
+    const maxBonus = Math.round((diffMod - 1.0) * 5);
+    const currentMax = Math.min(this.maxEnemies + Math.floor(wave / 3) + maxBonus, 16);
     if (this.enemies.countActive(true) >= currentMax) {
       return;
     }
@@ -540,7 +588,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     try {
-      const enemy = new Enemy(this, x, y, this.isPlayerDead ? null : this.player);
+      const enemy = new Enemy(this, x, y, this.isPlayerDead ? null : this.player, -1, diffMod);
       this.enemies.add(enemy);
     } catch (err) {
       console.error('Failed to spawn enemy:', err);
