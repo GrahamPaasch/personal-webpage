@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useState } from 'react';
 
 export const metadata = {
   title: 'Local Lab',
@@ -6,6 +7,19 @@ export const metadata = {
 };
 
 export default function LocalPage() {
+  const initialGrid = [
+    ['5', '3', '', '', '7', '', '', '', ''],
+    ['6', '', '', '1', '9', '5', '', '', ''],
+    ['', '9', '8', '', '', '', '', '6', ''],
+    ['8', '', '', '', '6', '', '', '', '3'],
+    ['4', '', '', '8', '', '3', '', '', '1'],
+    ['7', '', '', '', '2', '', '', '', '6'],
+    ['', '6', '', '', '', '', '2', '8', ''],
+    ['', '', '', '4', '1', '9', '', '', '5'],
+    ['', '', '', '', '8', '', '', '7', '9'],
+  ];
+  const [grid, setGrid] = useState<string[][]>(initialGrid);
+
   return (
     <>
       <section className="grid">
@@ -65,6 +79,30 @@ export default function LocalPage() {
             <em>— Enhanced by an AI agent (you!)</em>
           </p>
         </div>
+
+        <div className="card half">
+          <h2>Sudoku Game</h2>
+          <div className="sudoku-grid">
+            {grid.map((row, rowIndex) => (
+              <div key={rowIndex} className="sudoku-row">
+                {row.map((cell, colIndex) => (
+                  <input
+                    key={colIndex}
+                    type="text"
+                    value={cell}
+                    onChange={(e) => {
+                      const newGrid = [...grid];
+                      newGrid[rowIndex][colIndex] = e.target.value;
+                      setGrid(newGrid);
+                    }}
+                    className="sudoku-cell"
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
       </section>
     </>
   );
