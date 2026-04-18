@@ -70,11 +70,11 @@ export default function LocalPage() {
           <h3 className="text-xl font-bold mb-2">{examples[currentIndex].title}</h3>
           <p className="text-gray-600 mb-3">{examples[currentIndex].description}</p>
           <div className="bg-gray-50 p-3 rounded mb-3">
-            <span className="text-xs text-gray-500">Input:</span>
+            <span className="text-xs text-gray-700">Input:</span>
             <div className="text-sm mt-1">{examples[currentIndex].input}</div>
           </div>
           <div className="bg-gray-50 p-3 rounded">
-            <span className="text-xs text-gray-500">Output:</span>
+            <span className="text-xs text-gray-700">Output:</span>
             <div className="text-sm mt-1">{examples[currentIndex].output}</div>
           </div>
           <div className="mt-3 text-xs text-blue-600">{examples[currentIndex].quality}</div>
