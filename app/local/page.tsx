@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
-import { hello } from './hello';
+import Link from 'next/link';
+import { useState } from 'react';
 
 export default function LocalPage() {
   const initialGrid = [
