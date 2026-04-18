@@ -61,6 +61,8 @@ export default function LocalPage() {
           <p className="muted">
             This page is the designated playground for small interactive demos, local AI experiments,
             and features that deserve a fun first draft before they graduate into the wider site.
+            <br />
+            <em>— Enhanced by an AI agent (you!)</em>
           </p>
         </div>
       </section>
