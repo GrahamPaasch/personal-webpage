@@ -1,11 +1,6 @@
 'use client';
 import { useState } from 'react';
 
-export const metadata = {
-  title: 'Local AI Showcase',
-  description: 'Showcasing work produced by my local AI setup (RTX 3090, Aider, Ollama)',
-};
-
 export default function LocalPage() {
   const examples = [
     {
