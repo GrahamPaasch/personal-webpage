@@ -1,3 +1,3 @@
-import { hello } from './local/hello';
+import { hello } from './app/local/hello';
 
 hello();
