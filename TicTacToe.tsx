@@ -1,7 +1,61 @@
 import React, { useState } from 'react';
 
+import React, { useState } from 'react';
+
+const [board, setBoard] = useState<Array<string | null>>(Array(9).fill(null));
+const [currentPlayer, setCurrentPlayer] = useState<'X' | 'O'>('X');
+const [winner, setWinner] = useState<'X' | 'O' | 'draw' | null>(null);
+const [winningLine, setWinningLine] = useState<number[] | null>(null);
+
+const calculateWinner = (board: Array<string | null>) => {
+  const lines = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+  ];
+  
+  for (const line of lines) {
+    const [a, b, c] = line;
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      return { winner: board[a], winningLine: line };
+    }
+  }
+  
+  if (board.every(cell => cell !== null)) {
+    return { winner: 'draw' };
+  }
+  
+  return null;
+};
+
+const handleClick = (index: number) => {
+  if (board[index] || winner) return;
+  
+  const newBoard = [...board];
+  newBoard[index] = currentPlayer;
+  setBoard(newBoard);
+  
+  const result = calculateWinner(newBoard);
+  if (result) {
+    setWinner(result.winner);
+    if (result.winningLine) {
+      setWinningLine(result.winningLine);
+    } else {
+      setWinningLine(null);
+    }
+  } else {
+    setCurrentPlayer(currentPlayer === 'X' ? 'O' : 'X');
+  }
+};
+
+const resetGame = () => {
+  setBoard(Array(9).fill(null));
+  setCurrentPlayer('X');
+  setWinner(null);
+  setWinningLine(null);
+};
+
 export default function TicTacToe() {
-  // Your existing code here
 
   return (
     <section className="min-h-[70vh] p-8 flex flex-col items-center justify-center gap-8">
