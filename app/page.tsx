@@ -143,6 +143,20 @@ export default function HomePage() {
         </div>
 
         <div className="card">
+          <div className="prompt-header">
+            <h2>
+              <span aria-hidden="true">&#x1F5A5;</span> Local AI Lab
+            </h2>
+            <span className="prompt-header-badge">3090</span>
+          </div>
+          <p className="muted">
+            A dedicated playground for experiments built locally with Aider, Ollama, and my RTX 3090 setup.
+            This is the safe corner of the site where local coding ideas can get weird, useful, and shippable.
+          </p>
+          <Link className="button primary" href="/local">Enter the lab &rarr;</Link>
+        </div>
+
+        <div className="card">
           <h2>Professional</h2>
           <p>
             10 years blending network engineering with Python development. Earned

@@ -15,6 +15,7 @@ export default async function sitemap() {
     '/hobbies/juggling',
     '/hobbies/shona-music',
     '/hobbies/viola',
+    '/local',
     '/naf-discovery',
     '/patternpals',
     '/professional',
