@@ -4,7 +4,15 @@ const SnakeGame: React.FC = () => {
   const [snake, setSnake] = useState([{ x: 10, y: 10 }]);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
-  const [food, setFood] = useState({ x: 15, y: 15 });
+  const [food, setFood] = useState(generateFood());
+
+  const generateFood = () => {
+    let newFood;
+    do {
+      newFood = { x: Math.floor(Math.random() * 20), y: Math.floor(Math.random() * 20) };
+    } while (snake.some(s => s.x === newFood.x && s.y === newFood.y));
+    return newFood;
+  };
   const [direction, setDirection] = useState({ x: 1, y: 0 });
 
   useEffect(() => {
