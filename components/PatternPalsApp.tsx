@@ -10,12 +10,14 @@ import {
   buildAtlasHealth,
   buildPatternAtlasEntry,
   buildWorkshopPlan,
+  getDifficultyClassification,
   getPatternAliases,
   getPatternJugglerCount,
   getPatternObjectCount,
   getPatternRhythm,
   getPatternSources,
   getPatternType,
+  getPatternTypeClassification,
   getVisualAidBrief,
   summarizeCommunityMemory,
 } from '@/lib/patternpals/atlas';
@@ -111,12 +113,14 @@ const isSubsequence = (needle: string, haystack: string) => {
 
 const buildPatternSearchFields = (pattern: Pattern) => {
   const sources = getPatternSources(pattern).sources.map((source) => source.title);
+  const difficultyClassification = getDifficultyClassification(pattern);
+  const patternTypeClassification = getPatternTypeClassification(pattern);
   return [
     pattern.id,
     pattern.name,
     pattern.description,
-    pattern.difficulty,
-    PATTERN_TYPE_LABELS[getPatternType(pattern)],
+    difficultyClassification.value ? difficultyClassification.displayName : '',
+    patternTypeClassification.displayName,
     getPatternRhythm(pattern) ?? '',
     String(getPatternJugglerCount(pattern)),
     String(getPatternObjectCount(pattern) ?? ''),
@@ -164,8 +168,10 @@ const scorePatternSearch = (pattern: Pattern, query: string) => {
 };
 
 const matchesPatternFilters = (pattern: Pattern, filters: PatternFilterState) => {
-  if (filters.difficulty !== 'all' && pattern.difficulty !== filters.difficulty) return false;
-  if (filters.patternType !== 'all' && getPatternType(pattern) !== filters.patternType) return false;
+  const difficultyClassification = getDifficultyClassification(pattern);
+  const patternTypeClassification = getPatternTypeClassification(pattern);
+  if (filters.difficulty !== 'all' && difficultyClassification.value !== filters.difficulty) return false;
+  if (filters.patternType !== 'all' && patternTypeClassification.value !== filters.patternType) return false;
   if (filters.jugglers !== 'all' && getPatternJugglerCount(pattern) !== Number(filters.jugglers)) return false;
   if (filters.objects !== 'all' && getPatternObjectCount(pattern) !== Number(filters.objects)) return false;
   return true;
@@ -299,7 +305,8 @@ type PatternRowProps = {
 };
 
 const PatternRow = memo(({ pattern, status, onSelect, onUpdateStatus }: PatternRowProps) => {
-  const patternType = getPatternType(pattern);
+  const difficultyClassification = getDifficultyClassification(pattern);
+  const patternTypeClassification = getPatternTypeClassification(pattern);
   const rhythm = getPatternRhythm(pattern);
   const objectCount = getPatternObjectCount(pattern);
   const jugglerCount = getPatternJugglerCount(pattern);
@@ -314,10 +321,15 @@ const PatternRow = memo(({ pattern, status, onSelect, onUpdateStatus }: PatternR
         >
           <span className="patternpals-pattern-title">{pattern.name}</span>
           <span className="muted small">
-            {pattern.difficulty} - {jugglerCount} jugglers - {pattern.props.join(', ')}
+            {difficultyClassification.displayName} - {jugglerCount} jugglers - {pattern.props.join(', ')}
           </span>
           <span className="patternpals-pattern-badges" aria-label="Pattern metadata">
-            <span>{PATTERN_TYPE_LABELS[patternType]}</span>
+            <span className={`patternpals-metadata-pill ${difficultyClassification.provenance.confidence}`}>
+              {difficultyClassification.sourceBacked ? 'Source-backed difficulty' : 'Difficulty needs review'}
+            </span>
+            <span className={`patternpals-metadata-pill ${patternTypeClassification.provenance.confidence}`}>
+              {patternTypeClassification.displayName} · {patternTypeClassification.provenance.confidence}
+            </span>
             {rhythm ? <span>{rhythm}</span> : null}
             {objectCount ? <span>{objectCount} objects</span> : null}
           </span>
@@ -623,7 +635,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   const selectedPatternMetadata = useMemo(() => {
     if (!selectedPattern) return null;
     return {
+      difficultyClassification: getDifficultyClassification(selectedPattern),
       patternType: getPatternType(selectedPattern),
+      patternTypeClassification: getPatternTypeClassification(selectedPattern),
       rhythm: getPatternRhythm(selectedPattern),
       objectCount: getPatternObjectCount(selectedPattern),
       jugglerCount: getPatternJugglerCount(selectedPattern),
@@ -1856,7 +1870,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
             </div>
             <div className="patternpals-filter-grid" aria-label="Pattern filters">
               <label>
-                Difficulty
+                Verified difficulty
                 <select
                   value={patternFilters.difficulty}
                   onChange={(event) =>
@@ -1866,7 +1880,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                     }))
                   }
                 >
-                  <option value="all">Any</option>
+                  <option value="all">Any / unclassified</option>
                   {EXPERIENCE_OPTIONS.map((level) => (
                     <option key={level} value={level}>
                       {level}
@@ -1875,7 +1889,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 </select>
               </label>
               <label>
-                Pattern type
+                Pattern type (includes inferred)
                 <select
                   value={patternFilters.patternType}
                   onChange={(event) =>
@@ -1926,6 +1940,10 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 </select>
               </label>
             </div>
+            <p className="muted small patternpals-filter-note">
+              Difficulty filters only use source-backed classifications. Legacy AI difficulty labels are hidden as unclassified until reviewed.
+              Pattern type filters may include inferred or maintainer-curated families and are marked in each entry.
+            </p>
             {patternFiltersActive ? (
               <button type="button" className="patternpals-mini-button ghost" onClick={resetPatternBrowser}>
                 Reset search and filters
@@ -1983,19 +2001,34 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               </div>
             </div>
             <div className="patternpals-detail-meta">
-              <span>{selectedPattern.difficulty}</span>
+              <span className={`patternpals-metadata-pill ${selectedPatternMetadata?.difficultyClassification.provenance.confidence ?? 'unset'}`}>
+                {selectedPatternMetadata?.difficultyClassification.displayName ?? 'Difficulty unclassified'}
+              </span>
               <span>{selectedPatternMetadata?.jugglerCount ?? selectedPattern.requiredJugglers} jugglers</span>
               <span>{selectedPattern.props.join(', ')}</span>
               {selectedPatternMetadata?.objectCount ? (
                 <span>{selectedPatternMetadata.objectCount} objects</span>
               ) : null}
               {selectedPatternMetadata ? (
-                <span>{PATTERN_TYPE_LABELS[selectedPatternMetadata.patternType]}</span>
+                <span className={`patternpals-metadata-pill ${selectedPatternMetadata.patternTypeClassification.provenance.confidence}`}>
+                  {selectedPatternMetadata.patternTypeClassification.displayName} · {selectedPatternMetadata.patternTypeClassification.provenance.confidence}
+                </span>
               ) : null}
               {selectedPatternMetadata?.rhythm ? <span>{selectedPatternMetadata.rhythm}</span> : null}
             </div>
             {shareStatus ? <p className="patternpals-share-status muted small">{shareStatus}</p> : null}
             <p className="muted">{selectedAtlasEntry?.summary ?? selectedPattern.description}</p>
+            {selectedPatternMetadata ? (
+              <div className="patternpals-detail-section patternpals-metadata-integrity">
+                <h4>Metadata integrity</h4>
+                <p className="muted small">
+                  Difficulty: {selectedPatternMetadata.difficultyClassification.provenance.note}
+                </p>
+                <p className="muted small">
+                  Pattern type: {selectedPatternMetadata.patternTypeClassification.provenance.note}
+                </p>
+              </div>
+            ) : null}
             {selectedPatternMetadata?.aliases.length ? (
               <div className="patternpals-detail-section">
                 <h4>Aliases and search terms</h4>

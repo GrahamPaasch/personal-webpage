@@ -1,4 +1,4 @@
-import type { Pattern } from './types';
+import type { MetadataProvenance, Pattern } from './types';
 
 export const PATTERN_LIBRARY: Pattern[] = [
   {
@@ -10621,11 +10621,34 @@ const PATTERN_METADATA_OVERRIDES: Record<string, Partial<Pattern>> = {
   },
 };
 
+const LEGACY_AI_DIFFICULTY_PROVENANCE: MetadataProvenance = {
+  confidence: 'unverified',
+  source: 'legacy-ai',
+  note: 'Generated during the original catalog import; retained only as legacy data until a source citation or maintainer review verifies it.',
+};
+
+const CURATED_PATTERN_TYPE_PROVENANCE: MetadataProvenance = {
+  confidence: 'curated',
+  source: 'maintainer',
+  note: 'Maintainer-provided atlas override for browsing; useful but not yet tied to a source citation.',
+};
+
+const INFERRED_PATTERN_TYPE_PROVENANCE: MetadataProvenance = {
+  confidence: 'inferred',
+  source: 'heuristic',
+  note: 'Not stored as canonical metadata; derived by atlas helpers from pattern name, tags, or juggler count when needed.',
+};
+
 PATTERN_LIBRARY.forEach((pattern) => {
   const metadata = PATTERN_METADATA_OVERRIDES[pattern.id];
   if (metadata) {
     Object.assign(pattern, metadata);
   }
+
+  pattern.difficultyProvenance ??= LEGACY_AI_DIFFICULTY_PROVENANCE;
+  pattern.patternTypeProvenance ??= pattern.patternType
+    ? CURATED_PATTERN_TYPE_PROVENANCE
+    : INFERRED_PATTERN_TYPE_PROVENANCE;
 });
 
 export const getPatternById = (id: string) =>

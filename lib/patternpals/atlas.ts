@@ -2,6 +2,7 @@ import { getPatternExcerpt } from './excerpts';
 import { getPatternById } from './patterns';
 import type {
   ExperienceLevel,
+  MetadataProvenance,
   Pattern,
   PatternCurationEntry,
   PatternStatus,
@@ -42,6 +43,8 @@ export type PatternAtlasEntry = {
   canonicalName: string;
   summary: string;
   family: PatternType;
+  difficultyProvenance: MetadataProvenance;
+  patternTypeProvenance: MetadataProvenance;
   sourceCitations: AtlasSourceCitation[];
   aliases: string[];
   localNames: string[];
@@ -133,8 +136,35 @@ export const PATTERN_TYPE_LABELS: Record<PatternType, string> = {
   other: 'Other',
 };
 
-export const getPatternType = (pattern: Pattern): PatternType => {
-  if (pattern.patternType) return pattern.patternType;
+export type MetadataClassification<T> = {
+  value: T | null;
+  provenance: MetadataProvenance;
+  displayName: string;
+  sourceBacked: boolean;
+};
+
+const LEGACY_DIFFICULTY_PROVENANCE: MetadataProvenance = {
+  confidence: 'unverified',
+  source: 'legacy-ai',
+  note: 'Legacy catalog difficulty was generated during import and has not been checked against a source citation or reviewer.',
+};
+
+const CURATED_PATTERN_TYPE_PROVENANCE: MetadataProvenance = {
+  confidence: 'curated',
+  source: 'maintainer',
+  note: 'Maintainer-provided atlas override for browsing; useful but not yet tied to a source citation.',
+};
+
+const INFERRED_PATTERN_TYPE_PROVENANCE: MetadataProvenance = {
+  confidence: 'inferred',
+  source: 'heuristic',
+  note: 'Derived from the pattern name, tags, or juggler count; requires human review before becoming canonical.',
+};
+
+const isSourceBacked = (provenance: MetadataProvenance) =>
+  provenance.confidence === 'verified' && provenance.source === 'source';
+
+const inferPatternType = (pattern: Pattern): PatternType => {
   const searchable = `${pattern.name} ${pattern.tags.join(' ')}`.toLowerCase();
   if (searchable.includes('feed')) return 'feed';
   if (searchable.includes('line')) return 'line';
@@ -144,6 +174,32 @@ export const getPatternType = (pattern: Pattern): PatternType => {
   if (pattern.requiredJugglers <= 1) return 'solo';
   return 'passing';
 };
+
+export const getDifficultyClassification = (pattern: Pattern): MetadataClassification<ExperienceLevel> => {
+  const provenance = pattern.difficultyProvenance ?? LEGACY_DIFFICULTY_PROVENANCE;
+  const sourceBacked = isSourceBacked(provenance);
+  return {
+    value: sourceBacked ? pattern.difficulty : null,
+    provenance,
+    displayName: sourceBacked ? pattern.difficulty : 'Difficulty unclassified',
+    sourceBacked,
+  };
+};
+
+export const getPatternTypeClassification = (pattern: Pattern): MetadataClassification<PatternType> => {
+  const value = pattern.patternType ?? inferPatternType(pattern);
+  const provenance = pattern.patternType
+    ? (pattern.patternTypeProvenance ?? CURATED_PATTERN_TYPE_PROVENANCE)
+    : INFERRED_PATTERN_TYPE_PROVENANCE;
+  return {
+    value,
+    provenance,
+    displayName: PATTERN_TYPE_LABELS[value],
+    sourceBacked: isSourceBacked(provenance),
+  };
+};
+
+export const getPatternType = (pattern: Pattern): PatternType => getPatternTypeClassification(pattern).value ?? 'other';
 
 export const getPatternJugglerCount = (pattern: Pattern) => pattern.numJugglers ?? pattern.requiredJugglers;
 
@@ -202,13 +258,21 @@ const deriveKeySkills = (pattern: Pattern) => {
 };
 
 const buildAtlasSummary = (pattern: Pattern) => {
-  const type = PATTERN_TYPE_LABELS[getPatternType(pattern)].toLowerCase();
+  const typeClassification = getPatternTypeClassification(pattern);
+  const type = typeClassification.displayName.toLowerCase();
+  const difficultyClassification = getDifficultyClassification(pattern);
   const jugglerCount = getPatternJugglerCount(pattern);
   const objectCount = getPatternObjectCount(pattern);
   const objects = objectCount ? `${objectCount} objects` : pattern.props.join(', ');
   const rhythm = getPatternRhythm(pattern);
   const rhythmPhrase = rhythm ? ` It is organized around ${rhythm}.` : '';
-  return `${pattern.name} is a ${pattern.difficulty.toLowerCase()} ${type} pattern for ${jugglerCount} juggler${jugglerCount === 1 ? '' : 's'} using ${objects}.${rhythmPhrase}`;
+  const difficultyPhrase = difficultyClassification.sourceBacked
+    ? ` Its source-backed difficulty is ${difficultyClassification.displayName.toLowerCase()}.`
+    : ' Its difficulty is not yet source-classified.';
+  const typePhrase = typeClassification.sourceBacked
+    ? `source-backed ${type}`
+    : `${type} (${typeClassification.provenance.confidence})`;
+  return `${pattern.name} is a ${typePhrase} pattern for ${jugglerCount} juggler${jugglerCount === 1 ? '' : 's'} using ${objects}.${rhythmPhrase}${difficultyPhrase}`;
 };
 
 const buildTeachingProgression = (pattern: Pattern): TeachingProgressionStep[] => {
@@ -260,8 +324,13 @@ export const buildPatternAtlasEntry = (pattern: Pattern, communityNotes: Pattern
     .map((entry) => entry.note.split(/[.;]/)[0]?.trim())
     .filter(Boolean)
     .slice(0, 5);
+  const difficultyClassification = getDifficultyClassification(pattern);
+  const patternTypeClassification = getPatternTypeClassification(pattern);
   const knowledgeGaps = [
     sourceCitations.length === 0 ? 'Needs verified source citation' : '',
+    !difficultyClassification.sourceBacked ? 'Needs source-backed difficulty classification' : '',
+    patternTypeClassification.provenance.confidence === 'inferred' ? 'Needs reviewed pattern-family classification' : '',
+    patternTypeClassification.provenance.confidence === 'curated' && !patternTypeClassification.sourceBacked ? 'Needs source-backed pattern-family citation' : '',
     !excerpt ? 'Needs source-page visual excerpt or diagram' : '',
     aliases.length === 0 ? 'Needs aliases or local names from clubs' : '',
     !(pattern.commonMistakes?.length) ? 'Needs common failure modes' : '',
@@ -269,11 +338,14 @@ export const buildPatternAtlasEntry = (pattern: Pattern, communityNotes: Pattern
     ...missing.map((tag) => `Unmapped source tag: ${tag}`),
   ].filter(Boolean);
 
+
   return {
     pattern,
     canonicalName: pattern.name,
     summary: buildAtlasSummary(pattern),
-    family: getPatternType(pattern),
+    family: patternTypeClassification.value ?? 'other',
+    difficultyProvenance: difficultyClassification.provenance,
+    patternTypeProvenance: patternTypeClassification.provenance,
     sourceCitations,
     aliases,
     localNames,
@@ -338,8 +410,10 @@ export const summarizeCommunityMemory = (entries: PatternCurationEntry[]): Commu
 
 const byDifficulty = (pattern: Pattern, experience: ExperienceLevel | undefined) => {
   if (!experience) return true;
-  if (experience === 'Beginner') return pattern.difficulty === 'Beginner';
-  if (experience === 'Intermediate') return pattern.difficulty !== 'Advanced';
+  const difficultyClassification = getDifficultyClassification(pattern);
+  if (!difficultyClassification.value) return true;
+  if (experience === 'Beginner') return difficultyClassification.value === 'Beginner';
+  if (experience === 'Intermediate') return difficultyClassification.value !== 'Advanced';
   return true;
 };
 

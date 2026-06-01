@@ -1,5 +1,15 @@
 export type ExperienceLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 
+export type MetadataConfidence = 'verified' | 'curated' | 'inferred' | 'unverified' | 'unset';
+
+export type MetadataSourceKind = 'source' | 'community' | 'maintainer' | 'heuristic' | 'legacy-ai' | 'unset';
+
+export type MetadataProvenance = {
+  confidence: MetadataConfidence;
+  source: MetadataSourceKind;
+  note: string;
+};
+
 export type PropType = 'clubs' | 'balls' | 'rings';
 
 export type PatternStatus = 'known' | 'working' | 'curious';
@@ -21,12 +31,14 @@ export type Pattern = {
   id: string;
   name: string;
   difficulty: ExperienceLevel;
+  difficultyProvenance?: MetadataProvenance;
   requiredJugglers: number;
   props: PropType[];
   description: string;
   tags: string[];
   prerequisites: string[];
   patternType?: PatternType;
+  patternTypeProvenance?: MetadataProvenance;
   rhythm?: string;
   numObjects?: number;
   numJugglers?: number;

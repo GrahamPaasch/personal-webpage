@@ -1,3 +1,4 @@
+import { getDifficultyClassification } from './atlas';
 import type {
   JugglerProfile,
   Pattern,
@@ -61,16 +62,21 @@ export const recommendPatterns = (
       reasons.push('Needs prerequisites');
     }
 
-    const diffDelta = rankDifficulty(pattern.difficulty) - rankDifficulty(myProfile.experience);
-    if (diffDelta === 0) {
-      score += 2;
-      reasons.push('Matches your level');
-    } else if (diffDelta === 1) {
-      score += 1;
-      reasons.push('Stretch goal');
-    } else if (diffDelta >= 2) {
-      score -= 1.5;
-      reasons.push('Very advanced');
+    const difficultyClassification = getDifficultyClassification(pattern);
+    if (difficultyClassification.value) {
+      const diffDelta = rankDifficulty(difficultyClassification.value) - rankDifficulty(myProfile.experience);
+      if (diffDelta === 0) {
+        score += 2;
+        reasons.push('Matches your verified level');
+      } else if (diffDelta === 1) {
+        score += 1;
+        reasons.push('Verified stretch goal');
+      } else if (diffDelta >= 2) {
+        score -= 1.5;
+        reasons.push('Verified advanced pattern');
+      }
+    } else {
+      reasons.push('Difficulty not yet verified');
     }
 
     const sharedProps = pattern.props.filter((prop) => myProfile.props.includes(prop));
