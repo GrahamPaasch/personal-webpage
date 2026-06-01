@@ -46,7 +46,48 @@ type StorageImpl = {
   updateSession: (id: string, input: Partial<CreateSessionInput>) => Promise<SessionEntry | null>;
 };
 
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+type StorageInfo = {
+  mode: 'postgres' | 'memory' | 'memory-fallback';
+  persistent: boolean;
+  fallbackReason: string | null;
+};
+
+const connectionString =
+  process.env.PATTERNPALS_DATABASE_URL ||
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL_NON_POOLING;
+
+let storageInfo: StorageInfo = connectionString
+  ? { mode: 'postgres', persistent: true, fallbackReason: null }
+  : { mode: 'memory', persistent: false, fallbackReason: 'No database connection string is configured.' };
+
+function formatStorageError(error: unknown) {
+  if (error instanceof Error) {
+    const code = 'code' in error ? String((error as Error & { code?: unknown }).code) : null;
+    return code ? `${error.message} (${code})` : error.message;
+  }
+  return String(error);
+}
+
+function activateFallback(reason: string) {
+  if (storageInfo.mode === 'memory-fallback' && storageInfo.fallbackReason === reason) {
+    return;
+  }
+
+  storageInfo = {
+    mode: connectionString ? 'memory-fallback' : 'memory',
+    persistent: false,
+    fallbackReason: reason,
+  };
+
+  console.warn(`PatternPals storage using non-persistent fallback: ${reason}`);
+}
+
+export function getPatternPalsStorageInfo(): StorageInfo {
+  return storageInfo;
+}
 
 function createPgStorage(conn: string): StorageImpl {
   const sslOption = process.env.DATABASE_SSL === 'false'
@@ -303,8 +344,6 @@ function createPgStorage(conn: string): StorageImpl {
 }
 
 function createMemoryStorage(): StorageImpl {
-  console.warn('PatternPals storage using in-memory fallback.');
-
   const jugglers: JugglerProfile[] = [];
   const progress: ProgressEntry[] = [];
   const sessions: SessionEntry[] = [];
@@ -393,7 +432,61 @@ function createMemoryStorage(): StorageImpl {
   };
 }
 
-const storage = connectionString ? createPgStorage(connectionString) : createMemoryStorage();
+function createResilientStorage(conn: string | undefined): StorageImpl {
+  const memory = createMemoryStorage();
+
+  if (!conn) {
+    activateFallback('No database connection string is configured.');
+    return memory;
+  }
+
+  let postgres: StorageImpl | null = null;
+  let postgresDisabled = false;
+
+  function getPostgres() {
+    if (postgresDisabled) return null;
+    if (postgres) return postgres;
+
+    try {
+      postgres = createPgStorage(conn);
+      storageInfo = { mode: 'postgres', persistent: true, fallbackReason: null };
+      return postgres;
+    } catch (error) {
+      postgresDisabled = true;
+      activateFallback(`Database configuration could not be parsed: ${formatStorageError(error)}`);
+      return null;
+    }
+  }
+
+  async function run<T>(operation: keyof StorageImpl, fromMemory: () => Promise<T>, fromPostgres: (store: StorageImpl) => Promise<T>) {
+    const store = getPostgres();
+    if (!store) {
+      return fromMemory();
+    }
+
+    try {
+      return await fromPostgres(store);
+    } catch (error) {
+      postgresDisabled = true;
+      activateFallback(`Database operation "${operation}" failed: ${formatStorageError(error)}`);
+      return fromMemory();
+    }
+  }
+
+  return {
+    listJugglers: () => run('listJugglers', () => memory.listJugglers(), (store) => store.listJugglers()),
+    createJuggler: (input) => run('createJuggler', () => memory.createJuggler(input), (store) => store.createJuggler(input)),
+    updateJuggler: (id, input) => run('updateJuggler', () => memory.updateJuggler(id, input), (store) => store.updateJuggler(id, input)),
+    listProgress: (jugglerId) => run('listProgress', () => memory.listProgress(jugglerId), (store) => store.listProgress(jugglerId)),
+    upsertProgress: (input) => run('upsertProgress', () => memory.upsertProgress(input), (store) => store.upsertProgress(input)),
+    deleteProgress: (jugglerId, patternId) => run('deleteProgress', () => memory.deleteProgress(jugglerId, patternId), (store) => store.deleteProgress(jugglerId, patternId)),
+    listSessions: (hostId) => run('listSessions', () => memory.listSessions(hostId), (store) => store.listSessions(hostId)),
+    createSession: (input) => run('createSession', () => memory.createSession(input), (store) => store.createSession(input)),
+    updateSession: (id, input) => run('updateSession', () => memory.updateSession(id, input), (store) => store.updateSession(id, input)),
+  };
+}
+
+const storage = createResilientStorage(connectionString);
 
 export const {
   listJugglers,

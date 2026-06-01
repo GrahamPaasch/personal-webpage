@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { createSession, listSessions, updateSession } from '@/lib/patternpals/storage';
 import type { SessionStatus } from '@/lib/patternpals/types';
 import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
+import { patternPalsApiError, patternPalsJson } from '../_utils';
 
 export const runtime = 'nodejs';
 
@@ -14,23 +15,28 @@ const isStatus = (value: any): value is SessionStatus => STATUSES.includes(value
 export async function GET(request: NextRequest) {
   const hostId = request.nextUrl.searchParams.get('hostId');
   if (!hostId) {
-    return NextResponse.json({ error: 'hostId is required.' }, { status: 400 });
+    return patternPalsJson({ error: 'hostId is required.' }, { status: 400 });
   }
-  const items = await listSessions(hostId);
-  return NextResponse.json({ items });
+
+  try {
+    const items = await listSessions(hostId);
+    return patternPalsJson({ items });
+  } catch (error) {
+    return patternPalsApiError(error, 'sessions.GET');
+  }
 }
 
 export async function POST(request: NextRequest) {
   const rl = rateLimit(request, { id: 'patternpals:sessions:write', limit: 60, windowMs: 60_000 });
   if (!rl.ok) {
-    return NextResponse.json(
+    return patternPalsJson(
       { error: 'Rate limit exceeded.' },
       { status: 429, headers: rateLimitHeaders(rl) },
     );
   }
   const contentLength = Number(request.headers.get('content-length') || 0);
   if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
-    return NextResponse.json(
+    return patternPalsJson(
       { error: 'Payload too large.' },
       { status: 413, headers: rateLimitHeaders(rl) },
     );
@@ -38,12 +44,12 @@ export async function POST(request: NextRequest) {
 
   const data = await request.json().catch(() => null);
   if (!data || typeof data.hostId !== 'string' || typeof data.scheduledFor !== 'string') {
-    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
+    return patternPalsJson({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const scheduled = new Date(data.scheduledFor);
   if (Number.isNaN(scheduled.getTime())) {
-    return NextResponse.json({ error: 'Invalid scheduledFor date.' }, { status: 400, headers: rateLimitHeaders(rl) });
+    return patternPalsJson({ error: 'Invalid scheduledFor date.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const focusPatterns = Array.isArray(data.focusPatterns)
@@ -52,35 +58,39 @@ export async function POST(request: NextRequest) {
 
   const status: SessionStatus = isStatus(data.status) ? data.status : 'scheduled';
 
-  const entry = await createSession({
-    hostId: data.hostId,
-    partnerId: typeof data.partnerId === 'string' ? data.partnerId : null,
-    partnerName: typeof data.partnerName === 'string' ? data.partnerName : null,
-    scheduledFor: scheduled.toISOString(),
-    durationMinutes:
-      typeof data.durationMinutes === 'number' && Number.isFinite(data.durationMinutes)
-        ? Math.round(data.durationMinutes)
-        : null,
-    location: typeof data.location === 'string' ? data.location.trim() : null,
-    focusPatterns,
-    status,
-    outcome: typeof data.outcome === 'string' ? data.outcome.trim() : null,
-  });
+  try {
+    const entry = await createSession({
+      hostId: data.hostId,
+      partnerId: typeof data.partnerId === 'string' ? data.partnerId : null,
+      partnerName: typeof data.partnerName === 'string' ? data.partnerName : null,
+      scheduledFor: scheduled.toISOString(),
+      durationMinutes:
+        typeof data.durationMinutes === 'number' && Number.isFinite(data.durationMinutes)
+          ? Math.round(data.durationMinutes)
+          : null,
+      location: typeof data.location === 'string' ? data.location.trim() : null,
+      focusPatterns,
+      status,
+      outcome: typeof data.outcome === 'string' ? data.outcome.trim() : null,
+    });
 
-  return NextResponse.json(entry, { status: 201, headers: rateLimitHeaders(rl) });
+    return patternPalsJson(entry, { status: 201, headers: rateLimitHeaders(rl) });
+  } catch (error) {
+    return patternPalsApiError(error, 'sessions.POST');
+  }
 }
 
 export async function PATCH(request: NextRequest) {
   const rl = rateLimit(request, { id: 'patternpals:sessions:write', limit: 60, windowMs: 60_000 });
   if (!rl.ok) {
-    return NextResponse.json(
+    return patternPalsJson(
       { error: 'Rate limit exceeded.' },
       { status: 429, headers: rateLimitHeaders(rl) },
     );
   }
   const contentLength = Number(request.headers.get('content-length') || 0);
   if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
-    return NextResponse.json(
+    return patternPalsJson(
       { error: 'Payload too large.' },
       { status: 413, headers: rateLimitHeaders(rl) },
     );
@@ -88,7 +98,7 @@ export async function PATCH(request: NextRequest) {
 
   const data = await request.json().catch(() => null);
   if (!data || typeof data.id !== 'string') {
-    return NextResponse.json({ error: 'Session id is required.' }, { status: 400, headers: rateLimitHeaders(rl) });
+    return patternPalsJson({ error: 'Session id is required.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   const updates = {
@@ -107,9 +117,13 @@ export async function PATCH(request: NextRequest) {
     outcome: typeof data.outcome === 'string' ? data.outcome.trim() : undefined,
   };
 
-  const updated = await updateSession(data.id, updates);
-  if (!updated) {
-    return NextResponse.json({ error: 'Session not found.' }, { status: 404, headers: rateLimitHeaders(rl) });
+  try {
+    const updated = await updateSession(data.id, updates);
+    if (!updated) {
+      return patternPalsJson({ error: 'Session not found.' }, { status: 404, headers: rateLimitHeaders(rl) });
+    }
+    return patternPalsJson(updated, { headers: rateLimitHeaders(rl) });
+  } catch (error) {
+    return patternPalsApiError(error, 'sessions.PATCH');
   }
-  return NextResponse.json(updated, { headers: rateLimitHeaders(rl) });
 }
