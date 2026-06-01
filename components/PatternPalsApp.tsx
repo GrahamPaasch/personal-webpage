@@ -15,6 +15,13 @@ import type {
   SessionEntry,
 } from '@/lib/patternpals/types';
 
+const PATTERNPALS_TAGLINE =
+  'Given who is at practice today, help us choose, learn, and remember good passing patterns.';
+
+type PatternPalsAppProps = {
+  initialPatternId?: string;
+};
+
 const EXPERIENCE_OPTIONS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
 const PROP_OPTIONS: PropType[] = ['clubs', 'balls', 'rings'];
 const DEFAULT_PATTERN_LIMIT = 60;
@@ -191,7 +198,7 @@ const PatternList = memo(
 
 PatternList.displayName = 'PatternList';
 
-export default function PatternPalsApp() {
+export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps = {}) {
   const [jugglers, setJugglers] = useState<JugglerProfile[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [partnerId, setPartnerId] = useState<string | null>(null);
@@ -205,7 +212,10 @@ export default function PatternPalsApp() {
   const [patternSearch, setPatternSearch] = useState('');
   const deferredPatternSearch = useDeferredValue(patternSearch);
   const [patternLimit, setPatternLimit] = useState(DEFAULT_PATTERN_LIMIT);
-  const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
+  const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(() =>
+    initialPatternId ? getPatternById(initialPatternId) ?? null : null,
+  );
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const deferredProgress = useDeferredValue(progress);
   const deferredPartnerProgress = useDeferredValue(partnerProgress);
 
@@ -340,6 +350,8 @@ export default function PatternPalsApp() {
     return getPatternExcerpt(selectedPattern.id);
   }, [selectedPattern]);
 
+  const selectedPatternPath = selectedPattern ? `/patternpals/patterns/${selectedPattern.id}` : '/patternpals';
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -401,6 +413,10 @@ export default function PatternPalsApp() {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSelectedPattern(null);
+        setShareStatus(null);
+        if (window.location.pathname.startsWith('/patternpals/patterns/')) {
+          window.history.pushState({}, '', '/patternpals');
+        }
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -676,7 +692,30 @@ export default function PatternPalsApp() {
 
   const handleSelectPattern = useCallback((pattern: Pattern) => {
     setSelectedPattern(pattern);
+    setShareStatus(null);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', `/patternpals/patterns/${pattern.id}`);
+    }
   }, []);
+
+  const closePatternDetail = useCallback(() => {
+    setSelectedPattern(null);
+    setShareStatus(null);
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/patternpals/patterns/')) {
+      window.history.pushState({}, '', '/patternpals');
+    }
+  }, []);
+
+  const copySelectedPatternLink = useCallback(async () => {
+    if (!selectedPattern || typeof window === 'undefined') return;
+    const url = `${window.location.origin}/patternpals/patterns/${selectedPattern.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareStatus('Pattern link copied.');
+    } catch {
+      setShareStatus(url);
+    }
+  }, [selectedPattern]);
 
   const handleLoadMorePatterns = useCallback(() => {
     setPatternLimit((prev) => prev + PATTERN_PAGE_SIZE);
@@ -742,8 +781,7 @@ export default function PatternPalsApp() {
           <div>
             <h1>PatternPals</h1>
             <p className="muted">
-              Track passing progress, schedule sessions, and surface pattern recommendations tailored
-              to who you are juggling with right now.
+              {PATTERNPALS_TAGLINE}
             </p>
             <div className="patternpals-hero-actions">
               <a className="button primary" href="#patternpals-profile">
@@ -1178,9 +1216,9 @@ export default function PatternPalsApp() {
           aria-modal="true"
           aria-labelledby="patternpals-detail-title"
           onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setSelectedPattern(null);
-            }
+              if (event.target === event.currentTarget) {
+                closePatternDetail();
+              }
           }}
         >
           <div className="patternpals-detail-card">
@@ -1189,19 +1227,32 @@ export default function PatternPalsApp() {
                 <p className="patternpals-detail-label">Pattern details</p>
                 <h3 id="patternpals-detail-title">{selectedPattern.name}</h3>
               </div>
-              <button
-                type="button"
-                className="patternpals-mini-button ghost"
-                onClick={() => setSelectedPattern(null)}
-              >
-                Close
-              </button>
+              <div className="patternpals-detail-actions">
+                <a className="patternpals-mini-button" href={selectedPatternPath}>
+                  Share link
+                </a>
+                <button
+                  type="button"
+                  className="patternpals-mini-button ghost"
+                  onClick={copySelectedPatternLink}
+                >
+                  Copy link
+                </button>
+                <button
+                  type="button"
+                  className="patternpals-mini-button ghost"
+                  onClick={closePatternDetail}
+                >
+                  Close
+                </button>
+              </div>
             </div>
             <div className="patternpals-detail-meta">
               <span>{selectedPattern.difficulty}</span>
               <span>{selectedPattern.requiredJugglers} jugglers</span>
               <span>{selectedPattern.props.join(', ')}</span>
             </div>
+            {shareStatus ? <p className="patternpals-share-status muted small">{shareStatus}</p> : null}
             <p className="muted">{selectedPattern.description}</p>
             {selectedPattern.prerequisites.length > 0 ? (
               <div className="patternpals-detail-section">
