@@ -1,9 +1,13 @@
 import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import type {
+  CurationSignal,
+  CurationStatus,
   ExperienceLevel,
   JugglerProfile,
+  PatternCurationEntry,
   PatternStatus,
+  PatternVisualAid,
   PracticeMode,
   PropType,
   ProgressEntry,
@@ -41,6 +45,16 @@ type ProgressUpdateInput = {
   status: PatternStatus;
 };
 
+type CreateCurationInput = {
+  patternId: string;
+  authorId: string | null;
+  authorName: string;
+  signal: CurationSignal;
+  note: string;
+  visualAid: Omit<PatternVisualAid, 'id' | 'patternId' | 'status' | 'createdAt'> | null;
+  status?: CurationStatus;
+};
+
 type StorageImpl = {
   listJugglers: () => Promise<JugglerProfile[]>;
   createJuggler: (input: CreateJugglerInput) => Promise<JugglerProfile>;
@@ -51,6 +65,8 @@ type StorageImpl = {
   listSessions: (hostId: string) => Promise<SessionEntry[]>;
   createSession: (input: CreateSessionInput) => Promise<SessionEntry>;
   updateSession: (id: string, input: Partial<CreateSessionInput>) => Promise<SessionEntry | null>;
+  listCuration: (patternId?: string) => Promise<PatternCurationEntry[]>;
+  createCuration: (input: CreateCurationInput) => Promise<PatternCurationEntry>;
 };
 
 type StorageInfo = {
@@ -164,6 +180,23 @@ function createPgStorage(conn: string): StorageImpl {
           ADD COLUMN IF NOT EXISTS readiness_snapshot JSONB NOT NULL DEFAULT '[]'::jsonb,
           ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
       `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS patternpals_curation (
+          id UUID PRIMARY KEY,
+          pattern_id TEXT NOT NULL,
+          author_id TEXT,
+          author_name TEXT NOT NULL,
+          signal TEXT NOT NULL,
+          note TEXT NOT NULL,
+          visual_aid JSONB,
+          status TEXT NOT NULL DEFAULT 'pending',
+          created_at TIMESTAMPTZ NOT NULL
+        );
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS patternpals_curation_pattern_idx
+        ON patternpals_curation (pattern_id, created_at DESC);
+      `);
     } finally {
       client.release();
     }
@@ -187,6 +220,39 @@ function createPgStorage(conn: string): StorageImpl {
     status: row.status,
     updatedAt: row.updated_at.toISOString?.() ?? new Date(row.updated_at).toISOString(),
   });
+
+  const mapVisualAid = (patternId: string, createdAt: string, raw: any): PatternVisualAid | null => {
+    if (!raw || typeof raw !== 'object') return null;
+    return {
+      id: String(raw.id || randomUUID()),
+      patternId,
+      kind: raw.kind === 'community-diagram' || raw.kind === 'video-reference' || raw.kind === 'source-excerpt' ? raw.kind : 'diagram-needed',
+      title: String(raw.title || 'Visual aid suggestion'),
+      description: String(raw.description || ''),
+      href: raw.href ? String(raw.href) : null,
+      image: raw.image ? String(raw.image) : null,
+      sourceTitle: raw.sourceTitle ? String(raw.sourceTitle) : null,
+      page: typeof raw.page === 'number' ? raw.page : null,
+      alt: raw.alt ? String(raw.alt) : null,
+      status: raw.status === 'reviewed' ? 'reviewed' : 'pending',
+      createdAt: raw.createdAt || createdAt,
+    };
+  };
+
+  const mapCuration = (row: any): PatternCurationEntry => {
+    const createdAt = row.created_at.toISOString?.() ?? new Date(row.created_at).toISOString();
+    return {
+      id: row.id,
+      patternId: row.pattern_id,
+      authorId: row.author_id,
+      authorName: row.author_name,
+      signal: row.signal,
+      note: row.note,
+      visualAid: mapVisualAid(row.pattern_id, createdAt, row.visual_aid),
+      status: row.status === 'reviewed' ? 'reviewed' : 'pending',
+      createdAt,
+    };
+  };
 
   const mapSession = (row: any): SessionEntry => ({
     id: row.id,
@@ -387,6 +453,52 @@ function createPgStorage(conn: string): StorageImpl {
       );
       return res.rows[0] ? mapSession(res.rows[0]) : null;
     },
+    async listCuration(patternId) {
+      await ready;
+      const res = patternId
+        ? await pool.query(
+            'SELECT * FROM patternpals_curation WHERE pattern_id = $1 ORDER BY created_at DESC LIMIT 50',
+            [patternId],
+          )
+        : await pool.query('SELECT * FROM patternpals_curation ORDER BY created_at DESC LIMIT 100');
+      return res.rows.map(mapCuration);
+    },
+    async createCuration(input) {
+      await ready;
+      const id = randomUUID();
+      const createdAt = new Date().toISOString();
+      const status = input.status ?? 'pending';
+      const visualAid = input.visualAid
+        ? {
+            ...input.visualAid,
+            id: randomUUID(),
+            patternId: input.patternId,
+            status,
+            createdAt,
+          }
+        : null;
+      const res = await pool.query(
+        `
+        INSERT INTO patternpals_curation (
+          id, pattern_id, author_id, author_name, signal, note, visual_aid, status, created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
+        RETURNING *
+        `,
+        [
+          id,
+          input.patternId,
+          input.authorId,
+          input.authorName,
+          input.signal,
+          input.note,
+          visualAid ? JSON.stringify(visualAid) : null,
+          status,
+          createdAt,
+        ],
+      );
+      return mapCuration(res.rows[0]);
+    },
   };
 }
 
@@ -394,6 +506,7 @@ function createMemoryStorage(): StorageImpl {
   const jugglers: JugglerProfile[] = [];
   const progress: ProgressEntry[] = [];
   const sessions: SessionEntry[] = [];
+  const curationEntries: PatternCurationEntry[] = [];
 
   return {
     async listJugglers() {
@@ -476,6 +589,38 @@ function createMemoryStorage(): StorageImpl {
       };
       return sessions[idx];
     },
+    async listCuration(patternId) {
+      const rows = patternId
+        ? curationEntries.filter((entry) => entry.patternId === patternId)
+        : curationEntries;
+      return [...rows].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, patternId ? 50 : 100);
+    },
+    async createCuration(input) {
+      const createdAt = new Date().toISOString();
+      const status = input.status ?? 'pending';
+      const visualAid: PatternVisualAid | null = input.visualAid
+        ? {
+            ...input.visualAid,
+            id: randomUUID(),
+            patternId: input.patternId,
+            status,
+            createdAt,
+          }
+        : null;
+      const entry: PatternCurationEntry = {
+        id: randomUUID(),
+        patternId: input.patternId,
+        authorId: input.authorId,
+        authorName: input.authorName,
+        signal: input.signal,
+        note: input.note,
+        visualAid,
+        status,
+        createdAt,
+      };
+      curationEntries.push(entry);
+      return entry;
+    },
   };
 }
 
@@ -530,6 +675,8 @@ function createResilientStorage(conn: string | undefined): StorageImpl {
     listSessions: (hostId) => run('listSessions', () => memory.listSessions(hostId), (store) => store.listSessions(hostId)),
     createSession: (input) => run('createSession', () => memory.createSession(input), (store) => store.createSession(input)),
     updateSession: (id, input) => run('updateSession', () => memory.updateSession(id, input), (store) => store.updateSession(id, input)),
+    listCuration: (patternId) => run('listCuration', () => memory.listCuration(patternId), (store) => store.listCuration(patternId)),
+    createCuration: (input) => run('createCuration', () => memory.createCuration(input), (store) => store.createCuration(input)),
   };
 }
 
@@ -545,4 +692,6 @@ export const {
   listSessions,
   createSession,
   updateSession,
+  listCuration,
+  createCuration,
 } = storage;

@@ -5,9 +5,11 @@ import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 import { recommendPatterns } from '@/lib/patternpals/recommendations';
 import { getPatternExcerpt } from '@/lib/patternpals/excerpts';
 import type {
+  CurationSignal,
   ExperienceLevel,
   JugglerProfile,
   Pattern,
+  PatternCurationEntry,
   PatternStatus,
   PatternType,
   PracticeMode,
@@ -53,6 +55,14 @@ const PATTERN_TYPE_LABELS: Record<PatternType, string> = {
 const DEFAULT_PATTERN_LIMIT = 60;
 const PATTERN_PAGE_SIZE = 60;
 const SEARCH_PATTERN_LIMIT = 200;
+
+const CURATION_SIGNAL_OPTIONS: { value: CurationSignal; label: string; description: string }[] = [
+  { value: 'tip', label: 'Teaching tip', description: 'A cue that helped your group learn the pattern.' },
+  { value: 'variation', label: 'Variation', description: 'A local name, easier entry, harder version, or compatible twist.' },
+  { value: 'warning', label: 'Common trap', description: 'A mistake or safety issue future groups should watch for.' },
+  { value: 'source', label: 'Source note', description: 'A correction, citation, or page-reference improvement.' },
+  { value: 'diagram', label: 'Visual aid request', description: 'A diagram, floor map, or video reference the pattern still needs.' },
+];
 
 type PatternFilterState = {
   difficulty: 'all' | ExperienceLevel;
@@ -194,6 +204,14 @@ const getPatternRhythm = (pattern: Pattern) => {
 };
 
 const getPatternAliases = (pattern: Pattern) => pattern.aliases ?? [];
+
+const getVisualAidBrief = (pattern: Pattern) => {
+  const patternType = PATTERN_TYPE_LABELS[getPatternType(pattern)].toLowerCase();
+  const jugglerCount = getPatternJugglerCount(pattern);
+  const objectCount = getPatternObjectCount(pattern);
+  const objectPhrase = objectCount ? `${objectCount} objects` : pattern.props.join(', ');
+  return `Create a ${patternType} diagram for ${pattern.name}: ${jugglerCount} jugglers, ${objectPhrase}, props ${pattern.props.join(', ')}, with handoff direction and role labels.`;
+};
 
 const buildPatternSearchFields = (pattern: Pattern) => {
   const sources = getPatternSources(pattern).sources.map((source) => source.title);
@@ -474,6 +492,14 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     initialPatternId ? getPatternById(initialPatternId) ?? null : null,
   );
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [curationEntries, setCurationEntries] = useState<PatternCurationEntry[]>([]);
+  const [curationStatus, setCurationStatus] = useState<string | null>(null);
+  const [curationForm, setCurationForm] = useState<{ signal: CurationSignal; note: string; visualAidTitle: string; visualAidUrl: string }>({
+    signal: 'tip',
+    note: '',
+    visualAidTitle: '',
+    visualAidUrl: '',
+  });
   const deferredProgress = useDeferredValue(progress);
   const deferredPartnerProgress = useDeferredValue(partnerProgress);
 
@@ -690,6 +716,15 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
   const selectedPatternPath = selectedPattern ? `/patternpals/patterns/${selectedPattern.id}` : '/patternpals';
 
+  const selectedVisualAidBrief = useMemo(() => {
+    if (!selectedPattern) return '';
+    return getVisualAidBrief(selectedPattern);
+  }, [selectedPattern]);
+
+  const selectedVisualAidContributions = useMemo(() => {
+    return curationEntries.filter((entry) => entry.visualAid);
+  }, [curationEntries]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -745,6 +780,36 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   useEffect(() => {
     setPatternLimit(DEFAULT_PATTERN_LIMIT);
   }, [deferredPatternSearch, patternFilters]);
+
+  useEffect(() => {
+    if (!selectedPattern) {
+      setCurationEntries([]);
+      setCurationStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+    setCurationStatus('Loading community notes...');
+    setCurationForm({ signal: 'tip', note: '', visualAidTitle: '', visualAidUrl: '' });
+    fetch(`/api/patternpals/curation?patternId=${encodeURIComponent(selectedPattern.id)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Could not load community notes.');
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setCurationEntries(data.items ?? []);
+          setCurationStatus(null);
+        }
+      })
+      .catch((err: any) => {
+        if (!cancelled) setCurationStatus(err?.message || 'Could not load community notes.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPattern]);
 
   useEffect(() => {
     if (!selectedPattern) return;
@@ -1073,6 +1138,66 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       setShareStatus(url);
     }
   }, [selectedPattern]);
+
+  const copyVisualAidBrief = useCallback(async () => {
+    if (!selectedVisualAidBrief) return;
+    try {
+      await navigator.clipboard.writeText(selectedVisualAidBrief);
+      setShareStatus('Visual-aid brief copied.');
+    } catch {
+      setShareStatus(selectedVisualAidBrief);
+    }
+  }, [selectedVisualAidBrief]);
+
+  const handleCurationSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedPattern) return;
+    if (curationForm.note.trim().length < 8) {
+      setCurationStatus('Add a note of at least 8 characters before submitting.');
+      return;
+    }
+
+    const visualAid = curationForm.signal === 'diagram' || curationForm.visualAidTitle.trim() || curationForm.visualAidUrl.trim()
+      ? {
+          kind: curationForm.signal === 'diagram' ? 'diagram-needed' : 'video-reference',
+          title: curationForm.visualAidTitle.trim() || `Visual aid for ${selectedPattern.name}`,
+          description: selectedVisualAidBrief,
+          href: curationForm.visualAidUrl.trim() || null,
+          image: null,
+          sourceTitle: null,
+          page: null,
+          alt: null,
+        }
+      : null;
+
+    try {
+      setCurationStatus('Saving community note...');
+      const res = await fetch('/api/patternpals/curation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patternId: selectedPattern.id,
+          authorId: activeProfile?.id ?? null,
+          authorName: activeProfile?.name ?? 'PatternPals contributor',
+          signal: curationForm.signal,
+          note: curationForm.note,
+          visualAid,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not save community note.');
+      }
+
+      const data = await res.json();
+      setCurationEntries((prev) => [data.item, ...prev]);
+      setCurationForm({ signal: 'tip', note: '', visualAidTitle: '', visualAidUrl: '' });
+      setCurationStatus('Community note saved for review.');
+    } catch (err: any) {
+      setCurationStatus(err?.message || 'Could not save community note.');
+    }
+  };
 
   const handleLoadMorePatterns = useCallback(() => {
     setPatternLimit((prev) => prev + PATTERN_PAGE_SIZE);
@@ -1829,6 +1954,15 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               <p className="muted small">
                 See the relevant source-book notation directly here, with the original PDFs still available below.
               </p>
+              <div className="patternpals-visual-aid-plan">
+                <div>
+                  <strong>Diagram brief</strong>
+                  <p className="muted small">{selectedVisualAidBrief}</p>
+                </div>
+                <button type="button" className="patternpals-mini-button ghost" onClick={copyVisualAidBrief}>
+                  Copy brief
+                </button>
+              </div>
               {selectedExcerpt ? (
                 <div className="patternpals-excerpt-card">
                   <div className="patternpals-excerpt-header">
@@ -1889,6 +2023,93 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               {selectedSources.missing.length > 0 ? (
                 <p className="muted small">
                   Unmapped sources: {selectedSources.missing.join(', ')}
+                </p>
+              ) : null}
+            </div>
+            <div className="patternpals-detail-section">
+              <h4>Community curation</h4>
+              <p className="muted small">
+                Capture local teaching notes, source corrections, and visual-aid requests. New entries are marked pending so they can be reviewed before becoming canonical catalog metadata.
+              </p>
+              <div className="patternpals-curation-list">
+                {curationEntries.length === 0 ? (
+                  <p className="muted small">No community notes for this pattern yet.</p>
+                ) : (
+                  curationEntries.slice(0, 5).map((entry) => (
+                    <div key={entry.id} className="patternpals-curation-card">
+                      <div className="patternpals-curation-meta">
+                        <strong>{CURATION_SIGNAL_OPTIONS.find((option) => option.value === entry.signal)?.label ?? entry.signal}</strong>
+                        <span>{entry.status}</span>
+                        <span>{formatDateTime(entry.createdAt)}</span>
+                      </div>
+                      <p>{entry.note}</p>
+                      {entry.visualAid ? (
+                        <p className="muted small">
+                          Visual aid: {entry.visualAid.title}
+                          {entry.visualAid.href ? (
+                            <> · <a href={entry.visualAid.href} target="_blank" rel="noreferrer">Open reference</a></>
+                          ) : null}
+                        </p>
+                      ) : null}
+                      <p className="muted small">Contributed by {entry.authorName}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+              <form className="patternpals-form patternpals-curation-form" onSubmit={handleCurationSubmit}>
+                <label>
+                  Contribution type
+                  <select
+                    value={curationForm.signal}
+                    onChange={(event) =>
+                      setCurationForm((prev) => ({ ...prev, signal: event.target.value as CurationSignal }))
+                    }
+                  >
+                    {CURATION_SIGNAL_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="muted small">
+                  {CURATION_SIGNAL_OPTIONS.find((option) => option.value === curationForm.signal)?.description}
+                </p>
+                <label>
+                  Note
+                  <textarea
+                    value={curationForm.note}
+                    onChange={(event) => setCurationForm((prev) => ({ ...prev, note: event.target.value }))}
+                    placeholder="What should other jugglers know before practicing this pattern?"
+                    rows={4}
+                  />
+                </label>
+                <div className="patternpals-curation-visual-fields">
+                  <label>
+                    Visual-aid title or request
+                    <input
+                      value={curationForm.visualAidTitle}
+                      onChange={(event) => setCurationForm((prev) => ({ ...prev, visualAidTitle: event.target.value }))}
+                      placeholder="e.g. floor map with feeder path"
+                    />
+                  </label>
+                  <label>
+                    Reference URL
+                    <input
+                      value={curationForm.visualAidUrl}
+                      onChange={(event) => setCurationForm((prev) => ({ ...prev, visualAidUrl: event.target.value }))}
+                      placeholder="Optional video, diagram, or source link"
+                    />
+                  </label>
+                </div>
+                <button type="submit" className="patternpals-mini-button">
+                  Submit note
+                </button>
+                {curationStatus ? <p className="muted small">{curationStatus}</p> : null}
+              </form>
+              {selectedVisualAidContributions.length > 0 ? (
+                <p className="muted small">
+                  {selectedVisualAidContributions.length} community visual-aid hook{selectedVisualAidContributions.length === 1 ? '' : 's'} captured for this pattern.
                 </p>
               ) : null}
             </div>

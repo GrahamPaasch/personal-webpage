@@ -88,3 +88,36 @@ export type PatternRecommendation = {
   reasons: string[];
   readiness: ReadinessState;
 };
+
+export type CurationSignal = 'tip' | 'variation' | 'warning' | 'source' | 'diagram';
+
+export type CurationStatus = 'pending' | 'reviewed';
+
+export type VisualAidKind = 'source-excerpt' | 'diagram-needed' | 'community-diagram' | 'video-reference';
+
+export type PatternVisualAid = {
+  id: string;
+  patternId: string;
+  kind: VisualAidKind;
+  title: string;
+  description: string;
+  href: string | null;
+  image: string | null;
+  sourceTitle: string | null;
+  page: number | null;
+  alt: string | null;
+  status: CurationStatus;
+  createdAt: string;
+};
+
+export type PatternCurationEntry = {
+  id: string;
+  patternId: string;
+  authorId: string | null;
+  authorName: string;
+  signal: CurationSignal;
+  note: string;
+  visualAid: PatternVisualAid | null;
+  status: CurationStatus;
+  createdAt: string;
+};
