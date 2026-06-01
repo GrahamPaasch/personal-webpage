@@ -1,9 +1,9 @@
 import PatternPalsApp from '@/components/PatternPalsApp';
 
 export const metadata = {
-  title: 'PatternPals',
+  title: 'PatternPals Pattern Atlas',
   description:
-    'Given who is at practice today, PatternPals helps jugglers choose, learn, and remember good passing patterns.',
+    'A living atlas for passing jugglers: canonical pattern pages, teaching progressions, source citations, community memory, and practice planning.',
 };
 
 export default function PatternPalsPage() {

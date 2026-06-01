@@ -121,3 +121,7 @@ export type PatternCurationEntry = {
   status: CurationStatus;
   createdAt: string;
 };
+
+export type AtlasContributionTarget = 'alias' | 'teaching' | 'source' | 'diagram' | 'variant' | 'safety';
+
+export type AtlasContributionStatus = 'pending' | 'accepted' | 'needs-review';

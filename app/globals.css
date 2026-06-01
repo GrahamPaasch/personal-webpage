@@ -3264,3 +3264,116 @@ select:focus {
 .patternpals-history {
   align-self: start;
 }
+
+
+/* PatternPals atlas-first redesign */
+.patternpals-atlas-manifesto,
+.patternpals-workshop {
+  grid-column: 1 / -1;
+}
+
+.patternpals-pillar-grid,
+.patternpals-workshop-grid,
+.patternpals-atlas-entry-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.patternpals-pillar-card,
+.patternpals-workshop-card,
+.patternpals-progression-step,
+.patternpals-memory-row {
+  border: 1px solid color-mix(in srgb, var(--muted) 24%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--card) 92%, var(--background));
+  padding: 1rem;
+}
+
+.patternpals-pillar-card strong,
+.patternpals-workshop-card strong,
+.patternpals-facilitation-prompts strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.patternpals-atlas-health,
+.patternpals-memory-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.patternpals-atlas-health span,
+.patternpals-memory-stats span {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--foreground);
+  padding: 0.45rem 0.75rem;
+}
+
+.patternpals-chip-button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.patternpals-facilitation-prompts {
+  margin-top: 1rem;
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+}
+
+.patternpals-facilitation-prompts ul,
+.patternpals-progression-list,
+.patternpals-detail-list {
+  margin-bottom: 0;
+}
+
+.patternpals-progression-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+}
+
+.patternpals-progression-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+}
+
+.patternpals-progression-step > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--background);
+  font-weight: 700;
+}
+
+.patternpals-memory-row {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.patternpals-memory-row span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.patternpals-atlas-entry-summary {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 1rem;
+  padding: 1rem;
+}

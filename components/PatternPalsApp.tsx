@@ -4,6 +4,21 @@ import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState, type
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 import { recommendPatterns } from '@/lib/patternpals/recommendations';
 import { getPatternExcerpt } from '@/lib/patternpals/excerpts';
+import {
+  PATTERN_BOOKS,
+  PATTERN_TYPE_LABELS,
+  buildAtlasHealth,
+  buildPatternAtlasEntry,
+  buildWorkshopPlan,
+  getPatternAliases,
+  getPatternJugglerCount,
+  getPatternObjectCount,
+  getPatternRhythm,
+  getPatternSources,
+  getPatternType,
+  getVisualAidBrief,
+  summarizeCommunityMemory,
+} from '@/lib/patternpals/atlas';
 import type {
   CurationSignal,
   ExperienceLevel,
@@ -21,7 +36,12 @@ import type {
 } from '@/lib/patternpals/types';
 
 const PATTERNPALS_TAGLINE =
-  'Given who is at practice today, help us choose, learn, and remember good passing patterns.';
+  'A living atlas for passing jugglers: find, understand, teach, preserve, and improve the patterns the community already knows.';
+
+const LOCAL_KEYS = {
+  activeId: 'patternpals-active-juggler',
+  partnerId: 'patternpals-partner-juggler',
+};
 
 type PatternPalsAppProps = {
   initialPatternId?: string;
@@ -41,17 +61,6 @@ const PATTERN_TYPE_OPTIONS: PatternType[] = [
   'other',
 ];
 
-const PATTERN_TYPE_LABELS: Record<PatternType, string> = {
-  passing: 'Passing',
-  feed: 'Feed',
-  line: 'Line',
-  takeout: 'Takeout',
-  triangle: 'Triangle',
-  moving: 'Moving',
-  solo: 'Solo',
-  warmup: 'Warmup',
-  other: 'Other',
-};
 const DEFAULT_PATTERN_LIMIT = 60;
 const PATTERN_PAGE_SIZE = 60;
 const SEARCH_PATTERN_LIMIT = 200;
@@ -78,139 +87,26 @@ const DEFAULT_PATTERN_FILTERS: PatternFilterState = {
   objects: 'all',
 };
 
-type PatternBook = {
-  tag: string;
-  title: string;
-  file: string;
-};
-
-const PATTERN_BOOKS: PatternBook[] = [
-  {
-    tag: 'source:majbook_v3',
-    title: 'Madison Juggling Club Passing Book (v3)',
-    file: '/patternpals/books/majbook_v3.pdf',
-  },
-  {
-    tag: 'source:highgate2014-05-16',
-    title: 'Highgate Passing Patterns (2014)',
-    file: '/patternpals/books/highgate2014-05-16.pdf',
-  },
-  {
-    tag: 'source:passingpatternsaug06',
-    title: 'Passing Patterns Compendium (Aug 2006)',
-    file: '/patternpals/books/PassingPatternsAug06.pdf',
-  },
-  {
-    tag: 'source:willpatterns',
-    title: 'Will Murray Passing Patterns',
-    file: '/patternpals/books/WillPatterns.pdf',
-  },
-  {
-    tag: 'source:madison_patterns_v1_2',
-    title: 'Madison Patterns V1-2',
-    file: '/patternpals/books/Madison_Patterns_V1-2.pdf',
-  },
-  {
-    tag: 'source:takeouts',
-    title: 'Takeouts',
-    file: '/patternpals/books/takeouts.pdf',
-  },
-  {
-    tag: 'source:anthology',
-    title: 'Passing Pattern Anthology',
-    file: '/patternpals/books/anthology.pdf',
-  },
-  {
-    tag: 'source:curriculum_flowchart',
-    title: 'Passing Progression Flowchart',
-    file: '/patternpals/books/Curriculum-Flowchart.pdf',
-  },
-];
-
-const BOOKS_BY_TAG = new Map(PATTERN_BOOKS.map((book) => [book.tag, book]));
-
-const LOCAL_KEYS = {
-  activeId: 'patternpals.activeJugglerId',
-  partnerId: 'patternpals.activePartnerId',
-};
-
-const formatDateTime = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-};
-
-const formatPattern = (patternId: string) => getPatternById(patternId)?.name ?? patternId;
-
-const getPatternSources = (pattern: Pattern) => {
-  const tags = pattern.tags.filter((tag) => tag.startsWith('source:'));
-  const sources = tags
-    .map((tag) => BOOKS_BY_TAG.get(tag))
-    .filter((book): book is PatternBook => Boolean(book));
-  const missing = tags.filter((tag) => !BOOKS_BY_TAG.has(tag));
-  return { sources, missing };
-};
-
-
 const normalizeSearchText = (value: string) =>
   value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 
-const compactSearchText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+const compactSearchText = (value: string) => normalizeSearchText(value).replace(/\s+/g, '');
 
 const isSubsequence = (needle: string, haystack: string) => {
-  if (needle.length < 3 || haystack.length < needle.length) return false;
+  if (!needle) return true;
   let index = 0;
-  for (const character of haystack) {
-    if (character === needle[index]) index += 1;
+  for (const char of haystack) {
+    if (char === needle[index]) index += 1;
     if (index === needle.length) return true;
   }
   return false;
-};
-
-const getPatternType = (pattern: Pattern): PatternType => {
-  if (pattern.patternType) return pattern.patternType;
-  const searchable = `${pattern.name} ${pattern.tags.join(' ')}`.toLowerCase();
-  if (searchable.includes('feed')) return 'feed';
-  if (searchable.includes('line')) return 'line';
-  if (searchable.includes('takeout') || searchable.includes('scrambled')) return 'takeout';
-  if (searchable.includes('triangle')) return 'triangle';
-  if (searchable.includes('runaround') || searchable.includes('zap') || searchable.includes('zip')) return 'moving';
-  if (pattern.requiredJugglers <= 1) return 'solo';
-  return 'passing';
-};
-
-const getPatternJugglerCount = (pattern: Pattern) => pattern.numJugglers ?? pattern.requiredJugglers;
-
-const getPatternObjectCount = (pattern: Pattern) => {
-  if (typeof pattern.numObjects === 'number') return pattern.numObjects;
-  const fromName = pattern.name.match(/(\d+)[ -]?(clubs?|balls?|rings?)/i);
-  if (fromName) return Number(fromName[1]);
-  const fromId = pattern.id.match(/^(\d+)_clubs?/i);
-  if (fromId) return Number(fromId[1]);
-  return null;
-};
-
-const getPatternRhythm = (pattern: Pattern) => {
-  if (pattern.rhythm) return pattern.rhythm;
-  const count = pattern.name.match(/(\d+)[ -]?count/i);
-  if (count) return `${count[1]}-count`;
-  const acronym = pattern.name.match(/P[PSZ]{1,6}/i);
-  if (acronym) return acronym[0].toUpperCase();
-  if (pattern.tags.includes('count')) return 'count-based';
-  return null;
-};
-
-const getPatternAliases = (pattern: Pattern) => pattern.aliases ?? [];
-
-const getVisualAidBrief = (pattern: Pattern) => {
-  const patternType = PATTERN_TYPE_LABELS[getPatternType(pattern)].toLowerCase();
-  const jugglerCount = getPatternJugglerCount(pattern);
-  const objectCount = getPatternObjectCount(pattern);
-  const objectPhrase = objectCount ? `${objectCount} objects` : pattern.props.join(', ');
-  return `Create a ${patternType} diagram for ${pattern.name}: ${jugglerCount} jugglers, ${objectPhrase}, props ${pattern.props.join(', ')}, with handoff direction and role labels.`;
 };
 
 const buildPatternSearchFields = (pattern: Pattern) => {
@@ -290,6 +186,14 @@ const READINESS_LABELS: Record<ReadinessState, string> = {
   stretch: 'Stretch',
   blocked: 'Blocked',
 };
+
+const formatPattern = (patternId: string) => getPatternById(patternId)?.name ?? patternId.replace(/_/g, ' ');
+
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
 
 type PracticeReadiness = SessionReadinessSnapshot & {
   pattern: Pattern;
@@ -493,6 +397,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   );
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [curationEntries, setCurationEntries] = useState<PatternCurationEntry[]>([]);
+  const [allCurationEntries, setAllCurationEntries] = useState<PatternCurationEntry[]>([]);
   const [curationStatus, setCurationStatus] = useState<string | null>(null);
   const [curationForm, setCurationForm] = useState<{ signal: CurationSignal; note: string; visualAidTitle: string; visualAidUrl: string }>({
     signal: 'tip',
@@ -582,6 +487,20 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   const practiceMinutes = useMemo(() => {
     return completedSessions.reduce((total, session) => total + (session.durationMinutes ?? 0), 0);
   }, [completedSessions]);
+
+  const atlasHealth = useMemo(() => buildAtlasHealth(PATTERN_LIBRARY), []);
+
+  const communityMemory = useMemo(() => summarizeCommunityMemory(allCurationEntries), [allCurationEntries]);
+
+  const workshopPlan = useMemo(() =>
+    buildWorkshopPlan({
+      patterns: PATTERN_LIBRARY,
+      activeExperience: activeProfile?.experience,
+      progress: deferredProgress,
+      sessions,
+    }),
+    [activeProfile?.experience, deferredProgress, sessions],
+  );
 
   const recentPatternIds = useMemo(() => {
     const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 21;
@@ -714,6 +633,11 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     };
   }, [selectedPattern]);
 
+  const selectedAtlasEntry = useMemo(() => {
+    if (!selectedPattern) return null;
+    return buildPatternAtlasEntry(selectedPattern, curationEntries);
+  }, [curationEntries, selectedPattern]);
+
   const selectedPatternPath = selectedPattern ? `/patternpals/patterns/${selectedPattern.id}` : '/patternpals';
 
   const selectedVisualAidBrief = useMemo(() => {
@@ -744,6 +668,25 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/patternpals/curation')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Could not load community memory.');
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) setAllCurationEntries(data.items ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setAllCurationEntries([]);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -1192,6 +1135,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
       const data = await res.json();
       setCurationEntries((prev) => [data.item, ...prev]);
+      setAllCurationEntries((prev) => [data.item, ...prev.filter((entry) => entry.id !== data.item.id)]);
       setCurationForm({ signal: 'tip', note: '', visualAidTitle: '', visualAidUrl: '' });
       setCurationStatus('Community note saved for review.');
     } catch (err: any) {
@@ -1223,6 +1167,14 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     setSessionForm((prev) => ({
       ...prev,
       focusPatterns: prev.focusPatterns.filter((id) => id !== patternId),
+    }));
+  }, []);
+
+  const addWorkshopSectionToSession = useCallback((patternIds: string[]) => {
+    setSessionForm((prev) => ({
+      ...prev,
+      focusPatterns: Array.from(new Set([...prev.focusPatterns, ...patternIds])).slice(0, 12),
+      outcome: prev.outcome || 'Atlas-guided practice: teach one pattern deeply, review retention, and capture community memory.',
     }));
   }, []);
 
@@ -1280,36 +1232,76 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               {PATTERNPALS_TAGLINE}
             </p>
             <div className="patternpals-hero-actions">
-              <a className="button primary" href="#patternpals-profile">
-                Set up your profile
+              <a className="button primary" href="#patternpals-atlas">
+                Open the pattern atlas
               </a>
-              <a className="button" href="/hobbies/juggling">
-                Read my juggling notes
+              <a className="button" href="#patternpals-workshop">
+                Plan a workshop
               </a>
             </div>
           </div>
           <div className="patternpals-stat-grid">
             <div className="patternpals-stat">
-              <span className="patternpals-stat-label">Known patterns</span>
-              <strong>{progressCounts.known}</strong>
+              <span className="patternpals-stat-label">Atlas entries</span>
+              <strong>{atlasHealth.totalPatterns}</strong>
             </div>
             <div className="patternpals-stat">
-              <span className="patternpals-stat-label">Working now</span>
-              <strong>{progressCounts.working}</strong>
+              <span className="patternpals-stat-label">Source-backed</span>
+              <strong>{atlasHealth.sourceBackedPatterns}</strong>
             </div>
             <div className="patternpals-stat">
-              <span className="patternpals-stat-label">Upcoming sessions</span>
-              <strong>{upcomingSessions.length}</strong>
+              <span className="patternpals-stat-label">Visual excerpts</span>
+              <strong>{atlasHealth.excerptBackedPatterns}</strong>
             </div>
             <div className="patternpals-stat">
-              <span className="patternpals-stat-label">Practice minutes</span>
-              <strong>{practiceMinutes}</strong>
+              <span className="patternpals-stat-label">Community notes</span>
+              <strong>{communityMemory.total}</strong>
             </div>
           </div>
         </div>
         {statusMessage ? <p className="patternpals-note success">{statusMessage}</p> : null}
         {error ? <p className="patternpals-note error">{error}</p> : null}
       </article>
+
+      <article className="card patternpals-atlas-manifesto" id="patternpals-atlas">
+        <div className="patternpals-section-header">
+          <div>
+            <p className="patternpals-detail-label">Product center</p>
+            <h2>The Pattern Atlas</h2>
+            <p className="muted">
+              PatternPals now treats recommendations as one affordance of a deeper community asset: canonical, source-backed, teachable, and improvable pattern knowledge.
+            </p>
+          </div>
+          <a className="patternpals-mini-button" href="#patternpals-library">
+            Browse entries
+          </a>
+        </div>
+        <div className="patternpals-pillar-grid">
+          <div className="patternpals-pillar-card">
+            <strong>Find</strong>
+            <p className="muted small">Search names, aliases, roles, rhythms, source books, juggler counts, and object counts instead of guessing the catalog’s exact wording.</p>
+          </div>
+          <div className="patternpals-pillar-card">
+            <strong>Understand</strong>
+            <p className="muted small">Every atlas entry explains what the pattern is, where it comes from, what skills it uses, and what visual aid would make it clearer.</p>
+          </div>
+          <div className="patternpals-pillar-card">
+            <strong>Teach</strong>
+            <p className="muted small">Teaching progressions, prerequisites, readiness checks, and workshop plans help groups run practices rather than just pick patterns.</p>
+          </div>
+          <div className="patternpals-pillar-card">
+            <strong>Preserve</strong>
+            <p className="muted small">Local aliases, corrections, diagrams, warnings, and field-tested cues become pending community memory instead of disappearing after practice.</p>
+          </div>
+        </div>
+        <div className="patternpals-atlas-health">
+          <span><strong>{atlasHealth.sourceCount}</strong> mapped source books</span>
+          <span><strong>{atlasHealth.aliasedPatterns}</strong> entries with aliases</span>
+          <span><strong>{atlasHealth.teachablePatterns}</strong> entries with teaching structure</span>
+          <span><strong>{communityMemory.pending}</strong> pending community notes</span>
+        </div>
+      </article>
+
       <article className="card half" id="patternpals-profile">
         <h2>Your profile</h2>
         {activeProfile && !editingProfile ? (
@@ -1459,9 +1451,10 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       <article className="card patternpals-recommendations">
         <div className="patternpals-section-header">
           <div>
-            <h2>Recommendations</h2>
+            <p className="patternpals-detail-label">Supporting layer</p>
+            <h2>Practice assistant</h2>
             <p className="muted">
-              Ranked by your progress, recent sessions, and the partner you selected.
+              The ranked list is now a helper, not the product center: use it to seed a lesson plan after the atlas tells you what is teachable and worth preserving.
             </p>
           </div>
           <div className="patternpals-mode">
@@ -1520,8 +1513,62 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         </div>
       </article>
 
-      <article className="card half">
-        <h2>Schedule a session</h2>
+      <article className="card patternpals-workshop" id="patternpals-workshop">
+        <div className="patternpals-section-header">
+          <div>
+            <p className="patternpals-detail-label">Teaching companion</p>
+            <h2>{workshopPlan.title}</h2>
+            <p className="muted">{workshopPlan.framing}</p>
+          </div>
+          <span className="patternpals-mini-button ghost">{practiceMinutes} logged minutes</span>
+        </div>
+        <div className="patternpals-workshop-grid">
+          {workshopPlan.sections.map((section) => (
+            <div key={section.title} className="patternpals-workshop-card">
+              <div>
+                <strong>{section.title}</strong>
+                <p className="muted small">{section.intent}</p>
+              </div>
+              <div className="patternpals-chip-row">
+                {section.patterns.length === 0 ? (
+                  <span className="muted small">Add progress or search the atlas to seed this section.</span>
+                ) : (
+                  section.patterns.slice(0, 4).map((pattern) => (
+                    <button
+                      key={pattern.id}
+                      type="button"
+                      className="patternpals-chip patternpals-chip-button"
+                      onClick={() => handleSelectPattern(pattern)}
+                    >
+                      {pattern.name}
+                    </button>
+                  ))
+                )}
+              </div>
+              {section.patterns.length > 0 ? (
+                <button
+                  type="button"
+                  className="patternpals-mini-button ghost"
+                  onClick={() => addWorkshopSectionToSession(section.patterns.map((pattern) => pattern.id))}
+                >
+                  Add section to session
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <div className="patternpals-facilitation-prompts">
+          <strong>Facilitation prompts</strong>
+          <ul>
+            {workshopPlan.facilitationPrompts.map((prompt) => (
+              <li key={prompt}>{prompt}</li>
+            ))}
+          </ul>
+        </div>
+      </article>
+
+      <article className="card half" id="patternpals-session-planner">
+        <h2>Schedule a practice or workshop</h2>
         <form onSubmit={handleSessionCreate} className="patternpals-form">
           <label>
             When
@@ -1755,12 +1802,48 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         )}
       </article>
 
-      <article className="card patternpals-progress">
+      <article className="card half patternpals-community-memory">
         <div className="patternpals-section-header">
           <div>
-            <h2>Progress tracker</h2>
+            <p className="patternpals-detail-label">Community archive</p>
+            <h2>Community memory</h2>
+            <p className="muted">Pending notes, visual-aid requests, aliases, and source corrections turn local practice lore into reviewable atlas improvements.</p>
+          </div>
+        </div>
+        <div className="patternpals-memory-stats">
+          <span><strong>{communityMemory.total}</strong> notes</span>
+          <span><strong>{communityMemory.pending}</strong> pending</span>
+          <span><strong>{communityMemory.visualAidRequests}</strong> visual hooks</span>
+        </div>
+        <div className="patternpals-curation-list">
+          {communityMemory.recent.length === 0 ? (
+            <p className="muted small">Open any atlas entry and submit a teaching cue, alias, warning, source correction, or diagram request.</p>
+          ) : (
+            communityMemory.recent.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                className="patternpals-memory-row"
+                onClick={() => {
+                  const pattern = getPatternById(entry.patternId);
+                  if (pattern) handleSelectPattern(pattern);
+                }}
+              >
+                <strong>{formatPattern(entry.patternId)}</strong>
+                <span>{CURATION_SIGNAL_OPTIONS.find((option) => option.value === entry.signal)?.label ?? entry.signal} · {entry.status}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </article>
+
+      <article className="card patternpals-progress" id="patternpals-library">
+        <div className="patternpals-section-header">
+          <div>
+            <p className="patternpals-detail-label">Living knowledge base</p>
+            <h2>Pattern atlas browser</h2>
             <p className="muted">
-              Mark patterns as known, working, or curious to tune recommendations.
+              Browse canonical entries, source citations, aliases, teaching notes, visual aids, and community memory hooks. Mark progress only when it helps your practice plan.
             </p>
           </div>
           <div className="patternpals-search-panel">
@@ -1876,8 +1959,8 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
           <div className="patternpals-detail-card">
             <div className="patternpals-detail-header">
               <div>
-                <p className="patternpals-detail-label">Pattern details</p>
-                <h3 id="patternpals-detail-title">{selectedPattern.name}</h3>
+                <p className="patternpals-detail-label">Canonical atlas entry</p>
+                <h3 id="patternpals-detail-title">{selectedAtlasEntry?.canonicalName ?? selectedPattern.name}</h3>
               </div>
               <div className="patternpals-detail-actions">
                 <a className="patternpals-mini-button" href={selectedPatternPath}>
@@ -1912,7 +1995,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               {selectedPatternMetadata?.rhythm ? <span>{selectedPatternMetadata.rhythm}</span> : null}
             </div>
             {shareStatus ? <p className="patternpals-share-status muted small">{shareStatus}</p> : null}
-            <p className="muted">{selectedPattern.description}</p>
+            <p className="muted">{selectedAtlasEntry?.summary ?? selectedPattern.description}</p>
             {selectedPatternMetadata?.aliases.length ? (
               <div className="patternpals-detail-section">
                 <h4>Aliases and search terms</h4>
@@ -1922,6 +2005,31 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                       {alias}
                     </span>
                   ))}
+                </div>
+              </div>
+            ) : null}
+            {selectedAtlasEntry ? (
+              <div className="patternpals-detail-section patternpals-atlas-entry-summary">
+                <h4>Atlas teaching summary</h4>
+                <div className="patternpals-atlas-entry-grid">
+                  <div>
+                    <strong>Key skills</strong>
+                    <div className="patternpals-chip-row">
+                      {selectedAtlasEntry.keySkills.map((skill) => (
+                        <span key={skill} className="patternpals-chip">{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <strong>Knowledge gaps</strong>
+                    <ul className="patternpals-detail-list muted small">
+                      {selectedAtlasEntry.knowledgeGaps.length === 0 ? (
+                        <li>This entry has citations, visual support, teaching structure, and community memory.</li>
+                      ) : (
+                        selectedAtlasEntry.knowledgeGaps.slice(0, 5).map((gap) => <li key={gap}>{gap}</li>)
+                      )}
+                    </ul>
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -1937,6 +2045,25 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 <p className="muted small">
                   {selectedPattern.prerequisites.map(formatPattern).join(', ')}
                 </p>
+              </div>
+            ) : null}
+            {selectedAtlasEntry ? (
+              <div className="patternpals-detail-section">
+                <h4>Teaching progression</h4>
+                <div className="patternpals-progression-list">
+                  {selectedAtlasEntry.teachingProgression.map((step, index) => (
+                    <div key={`${step.label}-${index}`} className="patternpals-progression-step">
+                      <span>{index + 1}</span>
+                      <div>
+                        <strong>{step.label}</strong>
+                        <p className="muted small">{step.description}</p>
+                        {step.patternIds.length > 0 ? (
+                          <p className="muted small">Patterns: {step.patternIds.map(formatPattern).join(', ')}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : null}
             {selectedPatternMetadata?.commonMistakes.length ? (
@@ -1997,9 +2124,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               )}
             </div>
             <div className="patternpals-detail-section">
-              <h4>Source books</h4>
+              <h4>Source citations</h4>
               <p className="muted small">
-                Download the mapped source PDFs if you want the full surrounding context.
+                Source-backed entries are the backbone of the atlas. Download the mapped PDFs for surrounding context, and use curation notes for corrections.
               </p>
               {selectedSources.sources.length > 0 ? (
                 <div className="patternpals-book-list">
@@ -2027,9 +2154,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               ) : null}
             </div>
             <div className="patternpals-detail-section">
-              <h4>Community curation</h4>
+              <h4>Community memory</h4>
               <p className="muted small">
-                Capture local teaching notes, source corrections, and visual-aid requests. New entries are marked pending so they can be reviewed before becoming canonical catalog metadata.
+                Capture the local names, teaching cues, source corrections, variants, warnings, and diagram requests that make this atlas better for the next club. New entries remain pending review before becoming canonical metadata.
               </p>
               <div className="patternpals-curation-list">
                 {curationEntries.length === 0 ? (
