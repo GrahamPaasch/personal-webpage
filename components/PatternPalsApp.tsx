@@ -13,7 +13,9 @@ import type {
   PracticeMode,
   ProgressEntry,
   PropType,
+  ReadinessState,
   SessionEntry,
+  SessionReadinessSnapshot,
 } from '@/lib/patternpals/types';
 
 const PATTERNPALS_TAGLINE =
@@ -265,6 +267,97 @@ const buildStatusCounts = (entries: ProgressEntry[]) => {
   );
 };
 
+const READINESS_LABELS: Record<ReadinessState, string> = {
+  ready: 'Ready',
+  stretch: 'Stretch',
+  blocked: 'Blocked',
+};
+
+type PracticeReadiness = SessionReadinessSnapshot & {
+  pattern: Pattern;
+};
+
+const uniqueStrings = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+
+const assessPracticeReadiness = ({
+  focusPatternIds,
+  activeProfile,
+  participants,
+  manualParticipantNames,
+  progressMap,
+}: {
+  focusPatternIds: string[];
+  activeProfile: JugglerProfile | null;
+  participants: JugglerProfile[];
+  manualParticipantNames: string[];
+  progressMap: Map<string, PatternStatus>;
+}): PracticeReadiness[] => {
+  if (focusPatternIds.length === 0) return [];
+
+  const roster = activeProfile ? [activeProfile, ...participants] : participants;
+  const participantCount = roster.length + manualParticipantNames.length;
+
+  return focusPatternIds
+    .map((patternId) => getPatternById(patternId))
+    .filter((pattern): pattern is Pattern => Boolean(pattern))
+    .map((pattern) => {
+      const reasons: string[] = [];
+      let readiness: ReadinessState = 'ready';
+
+      if (!activeProfile) {
+        readiness = 'blocked';
+        reasons.push('Create or select your profile first.');
+      }
+
+      const neededJugglers = getPatternJugglerCount(pattern);
+      if (neededJugglers > participantCount) {
+        readiness = 'blocked';
+        reasons.push(`Needs ${neededJugglers} jugglers; this plan has ${participantCount}.`);
+      } else {
+        reasons.push(`${participantCount} juggler${participantCount === 1 ? '' : 's'} planned for a ${neededJugglers}-juggler pattern.`);
+      }
+
+      const missingPrerequisites = pattern.prerequisites.filter((prereq) => progressMap.get(prereq) !== 'known');
+      if (missingPrerequisites.length > 1) {
+        readiness = 'blocked';
+        reasons.push(`Missing prerequisites: ${missingPrerequisites.slice(0, 3).map(formatPattern).join(', ')}.`);
+      } else if (missingPrerequisites.length === 1 && readiness !== 'blocked') {
+        readiness = 'stretch';
+        reasons.push(`Warm up prerequisite first: ${formatPattern(missingPrerequisites[0])}.`);
+      }
+
+      const activeStatus = progressMap.get(pattern.id);
+      if (activeStatus === 'known') {
+        reasons.push('Already known; good for polishing or teaching.');
+      } else if (activeStatus === 'working') {
+        reasons.push('Currently marked working, so it is a strong practice candidate.');
+      } else if (activeStatus === 'curious' && readiness === 'ready') {
+        readiness = 'stretch';
+        reasons.push('Marked curious; try it after an easier warmup.');
+      } else if (!activeStatus && readiness === 'ready') {
+        readiness = 'stretch';
+        reasons.push('No progress recorded yet; treat the first run as exploratory.');
+      }
+
+      if (activeProfile && !pattern.props.some((prop) => activeProfile.props.includes(prop))) {
+        if (readiness !== 'blocked') readiness = 'stretch';
+        reasons.push(`Your profile does not list ${pattern.props.join(' or ')} yet.`);
+      }
+
+      if (reasons.length === 0) {
+        reasons.push('Prerequisites, props, and group size look aligned.');
+      }
+
+      return {
+        pattern,
+        patternId: pattern.id,
+        readiness,
+        reasons: reasons.slice(0, 5),
+        participantCount,
+      };
+    });
+};
+
 type PatternListProps = {
   patterns: Pattern[];
   total: number;
@@ -411,6 +504,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     location: string;
     partnerId: string;
     partnerName: string;
+    participantIds: string[];
+    participantNames: string;
+    practiceMode: PracticeMode;
     focusPatterns: string[];
     outcome: string;
   }>({
@@ -419,6 +515,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     location: '',
     partnerId: '',
     partnerName: '',
+    participantIds: [],
+    participantNames: '',
+    practiceMode: 'passing',
     focusPatterns: [],
     outcome: '',
   });
@@ -447,6 +546,16 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       return session.status === 'scheduled' && scheduled >= now;
     });
   }, [sessions]);
+
+  const completedSessions = useMemo(() => {
+    return sessions
+      .filter((session) => session.status === 'completed')
+      .sort((a, b) => new Date(b.completedAt ?? b.scheduledFor).getTime() - new Date(a.completedAt ?? a.scheduledFor).getTime());
+  }, [sessions]);
+
+  const practiceMinutes = useMemo(() => {
+    return completedSessions.reduce((total, session) => total + (session.durationMinutes ?? 0), 0);
+  }, [completedSessions]);
 
   const recentPatternIds = useMemo(() => {
     const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 21;
@@ -529,6 +638,32 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       .slice(0, 40)
       .map(({ pattern }) => pattern);
   }, [focusInput]);
+
+  const selectedParticipantProfiles = useMemo(() => {
+    return sessionForm.participantIds
+      .map((id) => jugglers.find((juggler) => juggler.id === id))
+      .filter((juggler): juggler is JugglerProfile => Boolean(juggler));
+  }, [jugglers, sessionForm.participantIds]);
+
+  const manualParticipantNames = useMemo(() => {
+    return uniqueStrings(sessionForm.participantNames.split(',').map((name) => name.trim()));
+  }, [sessionForm.participantNames]);
+
+  const practiceReadiness = useMemo(() => {
+    const participants = sessionForm.practiceMode === 'solo' ? [] : selectedParticipantProfiles;
+    const manualNames = sessionForm.practiceMode === 'solo' ? [] : manualParticipantNames;
+    return assessPracticeReadiness({
+      focusPatternIds: sessionForm.focusPatterns,
+      activeProfile,
+      participants,
+      manualParticipantNames: manualNames,
+      progressMap,
+    });
+  }, [activeProfile, manualParticipantNames, progressMap, selectedParticipantProfiles, sessionForm.focusPatterns, sessionForm.practiceMode]);
+
+  const readinessSnapshot = useMemo<SessionReadinessSnapshot[]>(() => {
+    return practiceReadiness.map(({ pattern: _pattern, ...snapshot }) => snapshot);
+  }, [practiceReadiness]);
 
   const selectedSources = useMemo(() => {
     if (!selectedPattern) return { sources: [], missing: [] as string[] };
@@ -698,6 +833,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         ...prev,
         partnerId: partnerProfile.id,
         partnerName: partnerProfile.name,
+        participantIds: prev.participantIds.includes(partnerProfile.id)
+          ? prev.participantIds
+          : [partnerProfile.id, ...prev.participantIds],
       }));
     }
   }, [partnerProfile, sessionForm.partnerId]);
@@ -830,19 +968,28 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       setError('Please choose a session time.');
       return;
     }
-    const partner =
-      jugglers.find((juggler) => juggler.id === sessionForm.partnerId) ??
-      (partnerProfile && partnerProfile.id === sessionForm.partnerId ? partnerProfile : null);
+    const participants = sessionForm.practiceMode === 'solo' ? [] : selectedParticipantProfiles;
+    const participantIds = participants.map((participant) => participant.id);
+    const participantNames = uniqueStrings([
+      ...participants.map((participant) => participant.name),
+      ...manualParticipantNames,
+    ]);
+    const partner = participants[0] ?? null;
     const payload = {
       hostId: activeProfile.id,
       partnerId: partner ? partner.id : null,
       partnerName: partner ? partner.name : sessionForm.partnerName.trim() || null,
+      participantIds,
+      participantNames,
+      practiceMode: sessionForm.practiceMode,
       scheduledFor: new Date(sessionForm.scheduledFor).toISOString(),
       durationMinutes: sessionForm.durationMinutes,
       location: sessionForm.location.trim() || null,
       focusPatterns: sessionForm.focusPatterns,
+      readinessSnapshot,
       status: 'scheduled',
       outcome: sessionForm.outcome.trim() || null,
+      completedAt: null,
     };
     try {
       const res = await fetch('/api/patternpals/sessions', {
@@ -862,6 +1009,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         location: '',
         partnerId: partner?.id ?? '',
         partnerName: partner?.name ?? '',
+        participantIds,
+        participantNames: manualParticipantNames.join(', '),
+        practiceMode: sessionForm.practiceMode,
         focusPatterns: [],
         outcome: '',
       });
@@ -879,7 +1029,11 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       const res = await fetch('/api/patternpals/sessions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: sessionId, status }),
+        body: JSON.stringify({
+          id: sessionId,
+          status,
+          completedAt: status === 'completed' ? new Date().toISOString() : undefined,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -947,6 +1101,20 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     }));
   }, []);
 
+  const toggleSessionParticipant = useCallback((jugglerId: string) => {
+    setSessionForm((prev) => {
+      const participantIds = prev.participantIds.includes(jugglerId)
+        ? prev.participantIds.filter((id) => id !== jugglerId)
+        : [...prev.participantIds, jugglerId];
+      return {
+        ...prev,
+        participantIds,
+        partnerId: participantIds[0] ?? '',
+        partnerName: jugglers.find((juggler) => juggler.id === participantIds[0])?.name ?? '',
+      };
+    });
+  }, [jugglers]);
+
   const renderPropPicker = (
     value: PropType[],
     onChange: (next: PropType[]) => void,
@@ -1007,6 +1175,10 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
             <div className="patternpals-stat">
               <span className="patternpals-stat-label">Upcoming sessions</span>
               <strong>{upcomingSessions.length}</strong>
+            </div>
+            <div className="patternpals-stat">
+              <span className="patternpals-stat-label">Practice minutes</span>
+              <strong>{practiceMinutes}</strong>
             </div>
           </div>
         </div>
@@ -1260,40 +1432,62 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               placeholder="Field, gym, or park"
             />
           </label>
-          <label>
-            Passing partner
-            <select
-              value={sessionForm.partnerId}
-              onChange={(event) =>
-                setSessionForm((prev) => ({
-                  ...prev,
-                  partnerId: event.target.value,
-                  partnerName:
-                    jugglers.find((juggler) => juggler.id === event.target.value)?.name ?? '',
-                }))
-              }
-            >
-              <option value="">Select partner</option>
-              {jugglers
-                .filter((juggler) => juggler.id !== activeId)
-                .map((juggler) => (
-                  <option key={juggler.id} value={juggler.id}>
-                    {juggler.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          {!sessionForm.partnerId ? (
-            <label>
-              Partner name (manual)
-              <input
-                value={sessionForm.partnerName}
-                onChange={(event) =>
-                  setSessionForm((prev) => ({ ...prev, partnerName: event.target.value }))
+          <div>
+            <p className="muted small">Practice type</p>
+            <div className="patternpals-mode">
+              <button
+                type="button"
+                className={`patternpals-mini-button${sessionForm.practiceMode === 'solo' ? ' active' : ''}`}
+                onClick={() =>
+                  setSessionForm((prev) => ({
+                    ...prev,
+                    practiceMode: 'solo',
+                    participantIds: [],
+                    partnerId: '',
+                    partnerName: '',
+                  }))
                 }
-                placeholder="Optional if partner is not on the roster"
-              />
-            </label>
+              >
+                Solo practice
+              </button>
+              <button
+                type="button"
+                className={`patternpals-mini-button${sessionForm.practiceMode === 'passing' ? ' active' : ''}`}
+                onClick={() => setSessionForm((prev) => ({ ...prev, practiceMode: 'passing' }))}
+              >
+                Group session
+              </button>
+            </div>
+          </div>
+          {sessionForm.practiceMode === 'passing' ? (
+            <div>
+              <p className="muted small">Who is at practice?</p>
+              <div className="patternpals-participant-grid">
+                {jugglers
+                  .filter((juggler) => juggler.id !== activeId)
+                  .map((juggler) => (
+                    <button
+                      key={juggler.id}
+                      type="button"
+                      className={`patternpals-participant-chip${sessionForm.participantIds.includes(juggler.id) ? ' active' : ''}`}
+                      onClick={() => toggleSessionParticipant(juggler.id)}
+                    >
+                      <strong>{juggler.name}</strong>
+                      <span>{juggler.experience}</span>
+                    </button>
+                  ))}
+              </div>
+              <label>
+                Additional attendees
+                <input
+                  value={sessionForm.participantNames}
+                  onChange={(event) =>
+                    setSessionForm((prev) => ({ ...prev, participantNames: event.target.value }))
+                  }
+                  placeholder="Comma-separated names for guests not on the roster"
+                />
+              </label>
+            </div>
           ) : null}
           <div>
             <label>
@@ -1332,6 +1526,27 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               </div>
             ) : null}
           </div>
+          {practiceReadiness.length > 0 ? (
+            <div className="patternpals-readiness-panel" aria-label="Practice readiness">
+              <div>
+                <h3>Practice readiness</h3>
+                <p className="muted small">Check group size, prerequisites, and progress before you schedule.</p>
+              </div>
+              {practiceReadiness.map((item) => (
+                <div key={item.pattern.id} className={`patternpals-readiness-card ${item.readiness}`}>
+                  <div>
+                    <strong>{item.pattern.name}</strong>
+                    <span>{READINESS_LABELS[item.readiness]}</span>
+                  </div>
+                  <ul>
+                    {item.reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <label>
             Session notes
             <input
@@ -1356,12 +1571,17 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 <div>
                   <strong>{formatDateTime(session.scheduledFor)}</strong>
                   <p className="muted small">
-                    {session.partnerName || 'Open session'} ?{' '}
+                    {(session.participantNames?.length ? session.participantNames.join(', ') : session.partnerName) || 'Open session'} ·{' '}
                     {session.location || 'Location TBD'}
                   </p>
                   <p className="muted small">
                     Focus: {session.focusPatterns.map(formatPattern).join(', ') || 'Open focus'}
                   </p>
+                  {session.readinessSnapshot?.length ? (
+                    <p className="muted small">
+                      Readiness: {session.readinessSnapshot.map((item) => `${formatPattern(item.patternId)} is ${item.readiness}`).join('; ')}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="patternpals-session-actions">
                   <button
@@ -1378,6 +1598,31 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   >
                     Cancel
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </article>
+      <article className="card half patternpals-history">
+        <h2>Learning history</h2>
+        <p className="muted">Completed sessions become a lightweight practice log for remembering what worked.</p>
+        {completedSessions.length === 0 ? (
+          <p className="muted small">No completed sessions yet. Mark an upcoming session completed to start your history.</p>
+        ) : (
+          <div className="patternpals-session-list">
+            {completedSessions.slice(0, 6).map((session) => (
+              <div key={session.id} className="patternpals-session-card">
+                <div>
+                  <strong>{formatDateTime(session.completedAt ?? session.scheduledFor)}</strong>
+                  <p className="muted small">
+                    {(session.participantNames?.length ? session.participantNames.join(', ') : session.partnerName) || 'Solo practice'}
+                    {session.durationMinutes ? ` · ${session.durationMinutes} minutes` : ''}
+                  </p>
+                  <p className="muted small">
+                    Patterns: {session.focusPatterns.map(formatPattern).join(', ') || 'Open focus'}
+                  </p>
+                  {session.outcome ? <p>{session.outcome}</p> : null}
                 </div>
               </div>
             ))}

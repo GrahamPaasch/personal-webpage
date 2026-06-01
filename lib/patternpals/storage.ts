@@ -4,9 +4,11 @@ import type {
   ExperienceLevel,
   JugglerProfile,
   PatternStatus,
+  PracticeMode,
   PropType,
   ProgressEntry,
   SessionEntry,
+  SessionReadinessSnapshot,
   SessionStatus,
 } from './types';
 
@@ -20,12 +22,17 @@ type CreateSessionInput = {
   hostId: string;
   partnerId: string | null;
   partnerName: string | null;
+  participantIds: string[];
+  participantNames: string[];
+  practiceMode: PracticeMode;
   scheduledFor: string;
   durationMinutes: number | null;
   location: string | null;
   focusPatterns: string[];
+  readinessSnapshot: SessionReadinessSnapshot[];
   status: SessionStatus;
   outcome: string | null;
+  completedAt: string | null;
 };
 
 type ProgressUpdateInput = {
@@ -135,14 +142,27 @@ function createPgStorage(conn: string): StorageImpl {
           host_id UUID NOT NULL,
           partner_id UUID,
           partner_name TEXT,
+          participant_ids TEXT[] NOT NULL DEFAULT '{}',
+          participant_names TEXT[] NOT NULL DEFAULT '{}',
+          practice_mode TEXT NOT NULL DEFAULT 'passing',
           scheduled_for TIMESTAMPTZ NOT NULL,
           duration_minutes INTEGER,
           location TEXT,
           focus_patterns TEXT[] NOT NULL DEFAULT '{}',
+          readiness_snapshot JSONB NOT NULL DEFAULT '[]'::jsonb,
           status TEXT NOT NULL,
           outcome TEXT,
+          completed_at TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL
         );
+      `);
+      await client.query(`
+        ALTER TABLE patternpals_sessions
+          ADD COLUMN IF NOT EXISTS participant_ids TEXT[] NOT NULL DEFAULT '{}',
+          ADD COLUMN IF NOT EXISTS participant_names TEXT[] NOT NULL DEFAULT '{}',
+          ADD COLUMN IF NOT EXISTS practice_mode TEXT NOT NULL DEFAULT 'passing',
+          ADD COLUMN IF NOT EXISTS readiness_snapshot JSONB NOT NULL DEFAULT '[]'::jsonb,
+          ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
       `);
     } finally {
       client.release();
@@ -173,12 +193,19 @@ function createPgStorage(conn: string): StorageImpl {
     hostId: row.host_id,
     partnerId: row.partner_id,
     partnerName: row.partner_name,
+    participantIds: row.participant_ids ?? (row.partner_id ? [row.partner_id] : []),
+    participantNames: row.participant_names ?? (row.partner_name ? [row.partner_name] : []),
+    practiceMode: row.practice_mode === 'solo' ? 'solo' : 'passing',
     scheduledFor: row.scheduled_for.toISOString?.() ?? new Date(row.scheduled_for).toISOString(),
     durationMinutes: row.duration_minutes,
     location: row.location,
     focusPatterns: row.focus_patterns ?? [],
+    readinessSnapshot: row.readiness_snapshot ?? [],
     status: row.status,
     outcome: row.outcome,
+    completedAt: row.completed_at
+      ? row.completed_at.toISOString?.() ?? new Date(row.completed_at).toISOString()
+      : null,
     createdAt: row.created_at.toISOString?.() ?? new Date(row.created_at).toISOString(),
   });
 
@@ -280,27 +307,37 @@ function createPgStorage(conn: string): StorageImpl {
           host_id,
           partner_id,
           partner_name,
+          participant_ids,
+          participant_names,
+          practice_mode,
           scheduled_for,
           duration_minutes,
           location,
           focus_patterns,
+          readiness_snapshot,
           status,
           outcome,
+          completed_at,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text[], $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5::text[], $6::text[], $7, $8, $9, $10, $11::text[], $12::jsonb, $13, $14, $15, $16)
         `,
         [
           id,
           input.hostId,
           input.partnerId,
           input.partnerName,
+          input.participantIds ?? [],
+          input.participantNames ?? [],
+          input.practiceMode,
           input.scheduledFor,
           input.durationMinutes,
           input.location,
           input.focusPatterns ?? [],
+          JSON.stringify(input.readinessSnapshot ?? []),
           input.status,
           input.outcome,
+          input.completedAt,
           createdAt,
         ],
       );
@@ -317,12 +354,17 @@ function createPgStorage(conn: string): StorageImpl {
         UPDATE patternpals_sessions
         SET partner_id = COALESCE($2, partner_id),
             partner_name = COALESCE($3, partner_name),
-            scheduled_for = COALESCE($4, scheduled_for),
-            duration_minutes = COALESCE($5, duration_minutes),
-            location = COALESCE($6, location),
-            focus_patterns = COALESCE($7::text[], focus_patterns),
-            status = COALESCE($8, status),
-            outcome = COALESCE($9, outcome)
+            participant_ids = COALESCE($4::text[], participant_ids),
+            participant_names = COALESCE($5::text[], participant_names),
+            practice_mode = COALESCE($6, practice_mode),
+            scheduled_for = COALESCE($7, scheduled_for),
+            duration_minutes = COALESCE($8, duration_minutes),
+            location = COALESCE($9, location),
+            focus_patterns = COALESCE($10::text[], focus_patterns),
+            readiness_snapshot = COALESCE($11::jsonb, readiness_snapshot),
+            status = COALESCE($12, status),
+            outcome = COALESCE($13, outcome),
+            completed_at = COALESCE($14, completed_at)
         WHERE id = $1
         RETURNING *
         `,
@@ -330,12 +372,17 @@ function createPgStorage(conn: string): StorageImpl {
           id,
           input.partnerId ?? null,
           input.partnerName ?? null,
+          input.participantIds ?? null,
+          input.participantNames ?? null,
+          input.practiceMode ?? null,
           input.scheduledFor ?? null,
           input.durationMinutes ?? null,
           input.location ?? null,
           input.focusPatterns ?? null,
+          input.readinessSnapshot ? JSON.stringify(input.readinessSnapshot) : null,
           input.status ?? null,
           input.outcome ?? null,
+          input.completedAt ?? null,
         ],
       );
       return res.rows[0] ? mapSession(res.rows[0]) : null;

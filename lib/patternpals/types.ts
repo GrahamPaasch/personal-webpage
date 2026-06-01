@@ -54,17 +54,31 @@ export type ProgressEntry = {
 
 export type SessionStatus = 'scheduled' | 'completed' | 'canceled';
 
+export type ReadinessState = 'ready' | 'stretch' | 'blocked';
+
+export type SessionReadinessSnapshot = {
+  patternId: string;
+  readiness: ReadinessState;
+  reasons: string[];
+  participantCount: number;
+};
+
 export type SessionEntry = {
   id: string;
   hostId: string;
   partnerId: string | null;
   partnerName: string | null;
+  participantIds: string[];
+  participantNames: string[];
+  practiceMode: PracticeMode;
   scheduledFor: string;
   durationMinutes: number | null;
   location: string | null;
   focusPatterns: string[];
+  readinessSnapshot: SessionReadinessSnapshot[];
   status: SessionStatus;
   outcome: string | null;
+  completedAt: string | null;
   createdAt: string;
 };
 
@@ -72,5 +86,5 @@ export type PatternRecommendation = {
   pattern: Pattern;
   score: number;
   reasons: string[];
-  readiness: 'ready' | 'stretch' | 'blocked';
+  readiness: ReadinessState;
 };
