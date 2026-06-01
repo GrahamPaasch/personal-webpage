@@ -3,6 +3,7 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 import { recommendPatterns } from '@/lib/patternpals/recommendations';
+import { getPatternExcerpt } from '@/lib/patternpals/excerpts';
 import type {
   ExperienceLevel,
   JugglerProfile,
@@ -332,6 +333,11 @@ export default function PatternPalsApp() {
   const selectedSources = useMemo(() => {
     if (!selectedPattern) return { sources: [], missing: [] as string[] };
     return getPatternSources(selectedPattern);
+  }, [selectedPattern]);
+
+  const selectedExcerpt = useMemo(() => {
+    if (!selectedPattern) return undefined;
+    return getPatternExcerpt(selectedPattern.id);
   }, [selectedPattern]);
 
   useEffect(() => {
@@ -1206,9 +1212,47 @@ export default function PatternPalsApp() {
               </div>
             ) : null}
             <div className="patternpals-detail-section">
+              <h4>Source excerpt</h4>
+              <p className="muted small">
+                See the relevant source-book notation directly here, with the original PDFs still available below.
+              </p>
+              {selectedExcerpt ? (
+                <div className="patternpals-excerpt-card">
+                  <div className="patternpals-excerpt-header">
+                    <div>
+                      <strong>{selectedExcerpt.sourceTitle}</strong>
+                      <span>Page {selectedExcerpt.page}</span>
+                    </div>
+                    <a
+                      href={`${selectedExcerpt.bookFile}#page=${selectedExcerpt.page}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open PDF page
+                    </a>
+                  </div>
+                  <a
+                    className="patternpals-excerpt-image-link"
+                    href={`${selectedExcerpt.bookFile}#page=${selectedExcerpt.page}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open ${selectedPattern.name} source page in PDF`}
+                  >
+                    {/* Static generated excerpts have variable natural heights, so a plain image preserves the PDF crop ratio. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={selectedExcerpt.image} alt={selectedExcerpt.alt} loading="lazy" />
+                  </a>
+                </div>
+              ) : (
+                <p className="muted small">
+                  No automatic source snapshot is available for this pattern yet. Use the mapped source PDFs below.
+                </p>
+              )}
+            </div>
+            <div className="patternpals-detail-section">
               <h4>Source books</h4>
               <p className="muted small">
-                Download the source PDFs to match this pattern and review notation or diagrams.
+                Download the mapped source PDFs if you want the full surrounding context.
               </p>
               {selectedSources.sources.length > 0 ? (
                 <div className="patternpals-book-list">
