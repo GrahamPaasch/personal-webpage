@@ -2038,8 +2038,41 @@ select:focus {
   flex-wrap: wrap;
 }
 
+.patternpals-search-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  min-width: min(100%, 520px);
+}
+
 .patternpals-search input {
-  min-width: 200px;
+  min-width: min(420px, 100%);
+}
+
+.patternpals-filter-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(92px, 1fr));
+  width: 100%;
+}
+
+.patternpals-filter-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.patternpals-filter-grid select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--text);
 }
 
 .patternpals-pattern-list {
@@ -2089,6 +2122,21 @@ select:focus {
 
 .patternpals-pattern-title {
   font-weight: 600;
+}
+
+.patternpals-pattern-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.patternpals-pattern-badges span {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.72rem;
 }
 
 .patternpals-status-buttons {
@@ -2172,6 +2220,15 @@ select:focus {
 
 .patternpals-detail-section {
   margin-top: 18px;
+}
+
+.patternpals-detail-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.patternpals-detail-list li + li {
+  margin-top: 4px;
 }
 
 .patternpals-excerpt-card {
@@ -2274,8 +2331,17 @@ select:focus {
     align-items: flex-start;
   }
 
+  .patternpals-search-panel {
+    align-items: stretch;
+    width: 100%;
+  }
+
   .patternpals-search input {
     width: 100%;
+  }
+
+  .patternpals-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .patternpals-profile {

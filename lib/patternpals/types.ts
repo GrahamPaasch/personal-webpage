@@ -6,6 +6,17 @@ export type PatternStatus = 'known' | 'working' | 'curious';
 
 export type PracticeMode = 'solo' | 'passing';
 
+export type PatternType =
+  | 'passing'
+  | 'feed'
+  | 'line'
+  | 'takeout'
+  | 'triangle'
+  | 'moving'
+  | 'solo'
+  | 'warmup'
+  | 'other';
+
 export type Pattern = {
   id: string;
   name: string;
@@ -15,6 +26,13 @@ export type Pattern = {
   description: string;
   tags: string[];
   prerequisites: string[];
+  patternType?: PatternType;
+  rhythm?: string;
+  numObjects?: number;
+  numJugglers?: number;
+  roles?: string[];
+  aliases?: string[];
+  commonMistakes?: string[];
 };
 
 export type JugglerProfile = {

@@ -9,6 +9,7 @@ import type {
   JugglerProfile,
   Pattern,
   PatternStatus,
+  PatternType,
   PracticeMode,
   ProgressEntry,
   PropType,
@@ -24,9 +25,46 @@ type PatternPalsAppProps = {
 
 const EXPERIENCE_OPTIONS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
 const PROP_OPTIONS: PropType[] = ['clubs', 'balls', 'rings'];
+const PATTERN_TYPE_OPTIONS: PatternType[] = [
+  'passing',
+  'feed',
+  'line',
+  'takeout',
+  'triangle',
+  'moving',
+  'solo',
+  'warmup',
+  'other',
+];
+
+const PATTERN_TYPE_LABELS: Record<PatternType, string> = {
+  passing: 'Passing',
+  feed: 'Feed',
+  line: 'Line',
+  takeout: 'Takeout',
+  triangle: 'Triangle',
+  moving: 'Moving',
+  solo: 'Solo',
+  warmup: 'Warmup',
+  other: 'Other',
+};
 const DEFAULT_PATTERN_LIMIT = 60;
 const PATTERN_PAGE_SIZE = 60;
 const SEARCH_PATTERN_LIMIT = 200;
+
+type PatternFilterState = {
+  difficulty: 'all' | ExperienceLevel;
+  patternType: 'all' | PatternType;
+  jugglers: 'all' | string;
+  objects: 'all' | string;
+};
+
+const DEFAULT_PATTERN_FILTERS: PatternFilterState = {
+  difficulty: 'all',
+  patternType: 'all',
+  jugglers: 'all',
+  objects: 'all',
+};
 
 type PatternBook = {
   tag: string;
@@ -101,6 +139,122 @@ const getPatternSources = (pattern: Pattern) => {
   return { sources, missing };
 };
 
+
+const normalizeSearchText = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const compactSearchText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+const isSubsequence = (needle: string, haystack: string) => {
+  if (needle.length < 3 || haystack.length < needle.length) return false;
+  let index = 0;
+  for (const character of haystack) {
+    if (character === needle[index]) index += 1;
+    if (index === needle.length) return true;
+  }
+  return false;
+};
+
+const getPatternType = (pattern: Pattern): PatternType => {
+  if (pattern.patternType) return pattern.patternType;
+  const searchable = `${pattern.name} ${pattern.tags.join(' ')}`.toLowerCase();
+  if (searchable.includes('feed')) return 'feed';
+  if (searchable.includes('line')) return 'line';
+  if (searchable.includes('takeout') || searchable.includes('scrambled')) return 'takeout';
+  if (searchable.includes('triangle')) return 'triangle';
+  if (searchable.includes('runaround') || searchable.includes('zap') || searchable.includes('zip')) return 'moving';
+  if (pattern.requiredJugglers <= 1) return 'solo';
+  return 'passing';
+};
+
+const getPatternJugglerCount = (pattern: Pattern) => pattern.numJugglers ?? pattern.requiredJugglers;
+
+const getPatternObjectCount = (pattern: Pattern) => {
+  if (typeof pattern.numObjects === 'number') return pattern.numObjects;
+  const fromName = pattern.name.match(/(\d+)[ -]?(clubs?|balls?|rings?)/i);
+  if (fromName) return Number(fromName[1]);
+  const fromId = pattern.id.match(/^(\d+)_clubs?/i);
+  if (fromId) return Number(fromId[1]);
+  return null;
+};
+
+const getPatternRhythm = (pattern: Pattern) => {
+  if (pattern.rhythm) return pattern.rhythm;
+  const count = pattern.name.match(/(\d+)[ -]?count/i);
+  if (count) return `${count[1]}-count`;
+  const acronym = pattern.name.match(/P[PSZ]{1,6}/i);
+  if (acronym) return acronym[0].toUpperCase();
+  if (pattern.tags.includes('count')) return 'count-based';
+  return null;
+};
+
+const getPatternAliases = (pattern: Pattern) => pattern.aliases ?? [];
+
+const buildPatternSearchFields = (pattern: Pattern) => {
+  const sources = getPatternSources(pattern).sources.map((source) => source.title);
+  return [
+    pattern.id,
+    pattern.name,
+    pattern.description,
+    pattern.difficulty,
+    PATTERN_TYPE_LABELS[getPatternType(pattern)],
+    getPatternRhythm(pattern) ?? '',
+    String(getPatternJugglerCount(pattern)),
+    String(getPatternObjectCount(pattern) ?? ''),
+    ...pattern.tags,
+    ...getPatternAliases(pattern),
+    ...(pattern.roles ?? []),
+    ...(pattern.commonMistakes ?? []),
+    ...sources,
+  ].filter(Boolean);
+};
+
+const scorePatternSearch = (pattern: Pattern, query: string) => {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return 1;
+
+  const terms = normalizedQuery.split(/\s+/).filter(Boolean);
+  const fields = buildPatternSearchFields(pattern).map((field) => ({
+    normalized: normalizeSearchText(field),
+    compact: compactSearchText(field),
+  }));
+  const compactName = compactSearchText(pattern.name);
+
+  let totalScore = 0;
+  for (const term of terms) {
+    const compactTerm = compactSearchText(term);
+    let termScore = 0;
+    for (const field of fields) {
+      if (!field.normalized) continue;
+      if (field.normalized === term || field.compact === compactTerm) {
+        termScore = Math.max(termScore, 120);
+      } else if (field.normalized.includes(term) || field.compact.includes(compactTerm)) {
+        termScore = Math.max(termScore, 90);
+      } else if (field.normalized.split(' ').some((word) => word.startsWith(term))) {
+        termScore = Math.max(termScore, 70);
+      } else if (isSubsequence(compactTerm, field.compact)) {
+        termScore = Math.max(termScore, 35);
+      }
+    }
+    if (compactName.includes(compactTerm)) termScore += 20;
+    if (termScore === 0) return 0;
+    totalScore += termScore;
+  }
+
+  return totalScore;
+};
+
+const matchesPatternFilters = (pattern: Pattern, filters: PatternFilterState) => {
+  if (filters.difficulty !== 'all' && pattern.difficulty !== filters.difficulty) return false;
+  if (filters.patternType !== 'all' && getPatternType(pattern) !== filters.patternType) return false;
+  if (filters.jugglers !== 'all' && getPatternJugglerCount(pattern) !== Number(filters.jugglers)) return false;
+  if (filters.objects !== 'all' && getPatternObjectCount(pattern) !== Number(filters.objects)) return false;
+  return true;
+};
+
 const buildStatusCounts = (entries: ProgressEntry[]) => {
   return entries.reduce(
     (acc, entry) => {
@@ -130,6 +284,11 @@ type PatternRowProps = {
 };
 
 const PatternRow = memo(({ pattern, status, onSelect, onUpdateStatus }: PatternRowProps) => {
+  const patternType = getPatternType(pattern);
+  const rhythm = getPatternRhythm(pattern);
+  const objectCount = getPatternObjectCount(pattern);
+  const jugglerCount = getPatternJugglerCount(pattern);
+
   return (
     <div className="patternpals-pattern-row">
       <div className="patternpals-pattern-main">
@@ -140,7 +299,12 @@ const PatternRow = memo(({ pattern, status, onSelect, onUpdateStatus }: PatternR
         >
           <span className="patternpals-pattern-title">{pattern.name}</span>
           <span className="muted small">
-            {pattern.difficulty} - {pattern.requiredJugglers} jugglers - {pattern.props.join(', ')}
+            {pattern.difficulty} - {jugglerCount} jugglers - {pattern.props.join(', ')}
+          </span>
+          <span className="patternpals-pattern-badges" aria-label="Pattern metadata">
+            <span>{PATTERN_TYPE_LABELS[patternType]}</span>
+            {rhythm ? <span>{rhythm}</span> : null}
+            {objectCount ? <span>{objectCount} objects</span> : null}
           </span>
         </button>
       </div>
@@ -210,6 +374,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [patternSearch, setPatternSearch] = useState('');
+  const [patternFilters, setPatternFilters] = useState<PatternFilterState>(DEFAULT_PATTERN_FILTERS);
   const deferredPatternSearch = useDeferredValue(patternSearch);
   const [patternLimit, setPatternLimit] = useState(DEFAULT_PATTERN_LIMIT);
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(() =>
@@ -308,14 +473,19 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   }, [activeProfile, deferredPartnerProgress, deferredProgress, mode, partnerProfile, recentPatternIds]);
 
   const filteredPatterns = useMemo(() => {
-    const query = deferredPatternSearch.trim().toLowerCase();
-    if (!query) return PATTERN_LIBRARY;
-    return PATTERN_LIBRARY.filter((pattern) =>
-      pattern.name.toLowerCase().includes(query) ||
-      pattern.description.toLowerCase().includes(query) ||
-      pattern.tags.some((tag) => tag.toLowerCase().includes(query)),
-    );
-  }, [deferredPatternSearch]);
+    const query = deferredPatternSearch.trim();
+    const scored = PATTERN_LIBRARY.map((pattern, index) => ({
+      pattern,
+      index,
+      score: scorePatternSearch(pattern, query),
+    })).filter(({ pattern, score }) => score > 0 && matchesPatternFilters(pattern, patternFilters));
+
+    if (query) {
+      scored.sort((a, b) => b.score - a.score || a.index - b.index);
+    }
+
+    return scored.map(({ pattern }) => pattern);
+  }, [deferredPatternSearch, patternFilters]);
 
   const visiblePatterns = useMemo(() => {
     if (deferredPatternSearch.trim()) {
@@ -331,13 +501,33 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     return filteredPatterns.length > patternLimit;
   }, [filteredPatterns.length, deferredPatternSearch, patternLimit]);
 
+  const patternFiltersActive = useMemo(
+    () =>
+      Boolean(patternSearch.trim()) ||
+      patternFilters.difficulty !== 'all' ||
+      patternFilters.patternType !== 'all' ||
+      patternFilters.jugglers !== 'all' ||
+      patternFilters.objects !== 'all',
+    [patternFilters, patternSearch],
+  );
+
+  const resetPatternBrowser = useCallback(() => {
+    setPatternSearch('');
+    setPatternFilters(DEFAULT_PATTERN_FILTERS);
+  }, []);
+
   const focusOptions = useMemo(() => {
-    const query = focusInput.trim().toLowerCase();
+    const query = focusInput.trim();
     if (!query) return PATTERN_LIBRARY.slice(0, 40);
-    return PATTERN_LIBRARY.filter((pattern) =>
-      pattern.name.toLowerCase().includes(query) ||
-      pattern.tags.some((tag) => tag.toLowerCase().includes(query)),
-    ).slice(0, 40);
+    return PATTERN_LIBRARY.map((pattern, index) => ({
+      pattern,
+      index,
+      score: scorePatternSearch(pattern, query),
+    }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, 40)
+      .map(({ pattern }) => pattern);
   }, [focusInput]);
 
   const selectedSources = useMemo(() => {
@@ -348,6 +538,19 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   const selectedExcerpt = useMemo(() => {
     if (!selectedPattern) return undefined;
     return getPatternExcerpt(selectedPattern.id);
+  }, [selectedPattern]);
+
+  const selectedPatternMetadata = useMemo(() => {
+    if (!selectedPattern) return null;
+    return {
+      patternType: getPatternType(selectedPattern),
+      rhythm: getPatternRhythm(selectedPattern),
+      objectCount: getPatternObjectCount(selectedPattern),
+      jugglerCount: getPatternJugglerCount(selectedPattern),
+      aliases: getPatternAliases(selectedPattern),
+      roles: selectedPattern.roles ?? [],
+      commonMistakes: selectedPattern.commonMistakes ?? [],
+    };
   }, [selectedPattern]);
 
   const selectedPatternPath = selectedPattern ? `/patternpals/patterns/${selectedPattern.id}` : '/patternpals';
@@ -406,7 +609,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
   useEffect(() => {
     setPatternLimit(DEFAULT_PATTERN_LIMIT);
-  }, [deferredPatternSearch]);
+  }, [deferredPatternSearch, patternFilters]);
 
   useEffect(() => {
     if (!selectedPattern) return;
@@ -1190,12 +1393,91 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               Mark patterns as known, working, or curious to tune recommendations.
             </p>
           </div>
-          <div className="patternpals-search">
-            <input
-              value={patternSearch}
-              onChange={(event) => setPatternSearch(event.target.value)}
-              placeholder="Search patterns"
-            />
+          <div className="patternpals-search-panel">
+            <div className="patternpals-search">
+              <input
+                value={patternSearch}
+                onChange={(event) => setPatternSearch(event.target.value)}
+                placeholder="Search names, aliases, roles, rhythms, or source books"
+              />
+            </div>
+            <div className="patternpals-filter-grid" aria-label="Pattern filters">
+              <label>
+                Difficulty
+                <select
+                  value={patternFilters.difficulty}
+                  onChange={(event) =>
+                    setPatternFilters((prev) => ({
+                      ...prev,
+                      difficulty: event.target.value as PatternFilterState['difficulty'],
+                    }))
+                  }
+                >
+                  <option value="all">Any</option>
+                  {EXPERIENCE_OPTIONS.map((level) => (
+                    <option key={level} value={level}>
+                      {level}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Pattern type
+                <select
+                  value={patternFilters.patternType}
+                  onChange={(event) =>
+                    setPatternFilters((prev) => ({
+                      ...prev,
+                      patternType: event.target.value as PatternFilterState['patternType'],
+                    }))
+                  }
+                >
+                  <option value="all">Any</option>
+                  {PATTERN_TYPE_OPTIONS.map((type) => (
+                    <option key={type} value={type}>
+                      {PATTERN_TYPE_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Jugglers
+                <select
+                  value={patternFilters.jugglers}
+                  onChange={(event) =>
+                    setPatternFilters((prev) => ({ ...prev, jugglers: event.target.value }))
+                  }
+                >
+                  <option value="all">Any</option>
+                  {[2, 3, 4, 5, 6].map((count) => (
+                    <option key={count} value={String(count)}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Objects
+                <select
+                  value={patternFilters.objects}
+                  onChange={(event) =>
+                    setPatternFilters((prev) => ({ ...prev, objects: event.target.value }))
+                  }
+                >
+                  <option value="all">Any</option>
+                  {[5, 6, 7, 8, 9, 10, 11].map((count) => (
+                    <option key={count} value={String(count)}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {patternFiltersActive ? (
+              <button type="button" className="patternpals-mini-button ghost" onClick={resetPatternBrowser}>
+                Reset search and filters
+              </button>
+            ) : null}
           </div>
         </div>
         <PatternList
@@ -1249,17 +1531,52 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
             </div>
             <div className="patternpals-detail-meta">
               <span>{selectedPattern.difficulty}</span>
-              <span>{selectedPattern.requiredJugglers} jugglers</span>
+              <span>{selectedPatternMetadata?.jugglerCount ?? selectedPattern.requiredJugglers} jugglers</span>
               <span>{selectedPattern.props.join(', ')}</span>
+              {selectedPatternMetadata?.objectCount ? (
+                <span>{selectedPatternMetadata.objectCount} objects</span>
+              ) : null}
+              {selectedPatternMetadata ? (
+                <span>{PATTERN_TYPE_LABELS[selectedPatternMetadata.patternType]}</span>
+              ) : null}
+              {selectedPatternMetadata?.rhythm ? <span>{selectedPatternMetadata.rhythm}</span> : null}
             </div>
             {shareStatus ? <p className="patternpals-share-status muted small">{shareStatus}</p> : null}
             <p className="muted">{selectedPattern.description}</p>
+            {selectedPatternMetadata?.aliases.length ? (
+              <div className="patternpals-detail-section">
+                <h4>Aliases and search terms</h4>
+                <div className="patternpals-chip-row">
+                  {selectedPatternMetadata.aliases.map((alias) => (
+                    <span key={alias} className="patternpals-chip">
+                      {alias}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {selectedPatternMetadata?.roles.length ? (
+              <div className="patternpals-detail-section">
+                <h4>Roles</h4>
+                <p className="muted small">{selectedPatternMetadata.roles.join(', ')}</p>
+              </div>
+            ) : null}
             {selectedPattern.prerequisites.length > 0 ? (
               <div className="patternpals-detail-section">
                 <h4>Prerequisites</h4>
                 <p className="muted small">
                   {selectedPattern.prerequisites.map(formatPattern).join(', ')}
                 </p>
+              </div>
+            ) : null}
+            {selectedPatternMetadata?.commonMistakes.length ? (
+              <div className="patternpals-detail-section">
+                <h4>Common mistakes</h4>
+                <ul className="patternpals-detail-list muted small">
+                  {selectedPatternMetadata.commonMistakes.map((mistake) => (
+                    <li key={mistake}>{mistake}</li>
+                  ))}
+                </ul>
               </div>
             ) : null}
             <div className="patternpals-detail-section">
