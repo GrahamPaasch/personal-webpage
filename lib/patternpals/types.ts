@@ -16,6 +16,40 @@ export type PatternStatus = 'known' | 'working' | 'curious';
 
 export type PracticeMode = 'solo' | 'passing';
 
+export type MovementComfort = 'stationary' | 'moderate' | 'high';
+
+export type GroupJugglerInput = {
+  id: string;
+  name: string;
+  comfortableObjects: number;
+  comfortableCount: number;
+  movementComfort: MovementComfort;
+};
+
+export type PositionDifficultyEstimate = {
+  role: string;
+  averageObjects: number;
+  count: number | null;
+  movement: MovementComfort;
+  difficultyScore: number;
+  notes: string[];
+};
+
+export type PositionAssignment = PositionDifficultyEstimate & {
+  juggler: GroupJugglerInput;
+  fitScore: number;
+  fitLabel: 'easy' | 'good-fit' | 'stretch' | 'overloaded';
+  reasons: string[];
+};
+
+export type GroupPatternRecommendation = {
+  pattern: Pattern;
+  score: number;
+  assignments: PositionAssignment[];
+  reasons: string[];
+  dataQuality: 'structured' | 'partial' | 'inferred';
+};
+
 export type PatternType =
   | 'passing'
   | 'feed'

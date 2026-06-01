@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
-import { recommendPatterns } from '@/lib/patternpals/recommendations';
+import { createDefaultGroupJugglers, recommendGroupPatterns } from '@/lib/patternpals/groupRecommendations';
 import { getPatternExcerpt } from '@/lib/patternpals/excerpts';
 import {
   PATTERN_BOOKS,
@@ -24,7 +24,9 @@ import {
 import type {
   CurationSignal,
   ExperienceLevel,
+  GroupJugglerInput,
   JugglerProfile,
+  MovementComfort,
   Pattern,
   PatternCurationEntry,
   PatternStatus,
@@ -38,7 +40,7 @@ import type {
 } from '@/lib/patternpals/types';
 
 const PATTERNPALS_TAGLINE =
-  'A living atlas for passing jugglers: find, understand, teach, preserve, and improve the patterns the community already knows.';
+  'A group-fit planner for passing jugglers: enter who is at practice, then choose patterns whose positions give each person the right challenge.';
 
 const LOCAL_KEYS = {
   activeId: 'patternpals-active-juggler',
@@ -394,9 +396,8 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   const [activeId, setActiveId] = useState<string | null>(null);
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressEntry[]>([]);
-  const [partnerProgress, setPartnerProgress] = useState<ProgressEntry[]>([]);
   const [sessions, setSessions] = useState<SessionEntry[]>([]);
-  const [mode, setMode] = useState<PracticeMode>('passing');
+  const [groupJugglers, setGroupJugglers] = useState<GroupJugglerInput[]>(() => createDefaultGroupJugglers());
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -418,7 +419,6 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     visualAidUrl: '',
   });
   const deferredProgress = useDeferredValue(progress);
-  const deferredPartnerProgress = useDeferredValue(partnerProgress);
 
   const [profileForm, setProfileForm] = useState<{
     name: string;
@@ -514,29 +514,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     [activeProfile?.experience, deferredProgress, sessions],
   );
 
-  const recentPatternIds = useMemo(() => {
-    const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 21;
-    const recent = new Set<string>();
-    sessions.forEach((session) => {
-      if (session.status !== 'completed') return;
-      const when = new Date(session.scheduledFor).getTime();
-      if (when < cutoff) return;
-      session.focusPatterns.forEach((patternId) => recent.add(patternId));
-    });
-    return Array.from(recent);
-  }, [sessions]);
-
-  const recommendations = useMemo(() => {
-    if (!activeProfile) return [];
-    return recommendPatterns(PATTERN_LIBRARY, {
-      mode,
-      myProfile: activeProfile,
-      myProgress: deferredProgress,
-      partnerProfile,
-      partnerProgress: deferredPartnerProgress,
-      recentPatternIds,
-    }).slice(0, 6);
-  }, [activeProfile, deferredPartnerProgress, deferredProgress, mode, partnerProfile, recentPatternIds]);
+  const recommendations = useMemo(() => recommendGroupPatterns(PATTERN_LIBRARY, groupJugglers, 10), [groupJugglers]);
 
   const filteredPatterns = useMemo(() => {
     const query = deferredPatternSearch.trim();
@@ -817,29 +795,6 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   }, [activeId]);
 
   useEffect(() => {
-    if (!partnerId) {
-      setPartnerProgress([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/patternpals/progress?jugglerId=${encodeURIComponent(partnerId)}`);
-        if (!res.ok) throw new Error('Failed to load partner progress.');
-        const data = await res.json();
-        if (!cancelled) {
-          setPartnerProgress(data.items ?? []);
-        }
-      } catch {
-        if (!cancelled) setPartnerProgress([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [partnerId]);
-
-  useEffect(() => {
     if (activeProfile && !editingProfile) {
       setProfileForm({
         name: activeProfile.name,
@@ -948,9 +903,6 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
   const handleSetPartner = (id: string | null) => {
     setPartnerId(id);
-    if (id) {
-      setMode('passing');
-    }
   };
 
   const updatePatternStatus = useCallback(async (patternId: string, status: PatternStatus) => {
@@ -1184,6 +1136,53 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     }));
   }, []);
 
+  const addPatternToSession = useCallback((patternId: string) => {
+    setSessionForm((prev) => ({
+      ...prev,
+      focusPatterns: Array.from(new Set([...prev.focusPatterns, patternId])).slice(0, 12),
+      practiceMode: 'passing',
+    }));
+  }, []);
+
+  const updateGroupJuggler = useCallback((id: string, updates: Partial<GroupJugglerInput>) => {
+    setGroupJugglers((prev) => prev.map((juggler) => (juggler.id === id ? { ...juggler, ...updates } : juggler)));
+  }, []);
+
+  const addGroupJuggler = useCallback(() => {
+    setGroupJugglers((prev) => [
+      ...prev,
+      {
+        id: `group-juggler-${Date.now()}`,
+        name: `Juggler ${prev.length + 1}`,
+        comfortableObjects: 3,
+        comfortableCount: 4,
+        movementComfort: 'stationary',
+      },
+    ]);
+  }, []);
+
+  const removeGroupJuggler = useCallback((id: string) => {
+    setGroupJugglers((prev) => (prev.length <= 2 ? prev : prev.filter((juggler) => juggler.id !== id)));
+  }, []);
+
+  const seedGroupFromSession = useCallback(() => {
+    const roster = uniqueStrings([
+      ...(activeProfile ? [activeProfile.name] : []),
+      ...selectedParticipantProfiles.map((participant) => participant.name),
+      ...manualParticipantNames,
+    ]);
+    if (roster.length < 2) return;
+    setGroupJugglers(
+      roster.map((name, index) => ({
+        id: `group-juggler-${index + 1}`,
+        name,
+        comfortableObjects: 3,
+        comfortableCount: 4,
+        movementComfort: 'stationary' as MovementComfort,
+      })),
+    );
+  }, [activeProfile, manualParticipantNames, selectedParticipantProfiles]);
+
   const addWorkshopSectionToSession = useCallback((patternIds: string[]) => {
     setSessionForm((prev) => ({
       ...prev,
@@ -1283,7 +1282,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
             <p className="patternpals-detail-label">Product center</p>
             <h2>The Pattern Atlas</h2>
             <p className="muted">
-              PatternPals now treats recommendations as one affordance of a deeper community asset: canonical, source-backed, teachable, and improvable pattern knowledge.
+              PatternPals now starts from the practical question at practice: which ten patterns fit this exact group, and which position should each juggler try?
             </p>
           </div>
           <a className="patternpals-mini-button" href="#patternpals-library">
@@ -1391,7 +1390,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
       <article className="card half">
         <h2>Roster</h2>
-        <p className="muted">Add jugglers you pass with and pick a partner for recommendations.</p>
+        <p className="muted">Add jugglers you pass with. Saved roster names can seed the MVP group-fit planner.</p>
         <div className="patternpals-roster">
           {jugglers
             .filter((juggler) => juggler.id !== activeId)
@@ -1465,60 +1464,135 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       <article className="card patternpals-recommendations">
         <div className="patternpals-section-header">
           <div>
-            <p className="patternpals-detail-label">Supporting layer</p>
-            <h2>Practice assistant</h2>
+            <p className="patternpals-detail-label">Minimum viable product</p>
+            <h2>Top 10 group-fit patterns</h2>
             <p className="muted">
-              The ranked list is now a helper, not the product center: use it to seed a lesson plan after the atlas tells you what is teachable and worth preserving.
+              Enter the jugglers you have, then PatternPals scores every position by average club load, passing count, and movement or turning pressure.
+              The list below ranks the ten patterns most likely to give each person a useful challenge.
             </p>
           </div>
           <div className="patternpals-mode">
-            <button
-              type="button"
-              className={`patternpals-mini-button${mode === 'solo' ? ' active' : ''}`}
-              onClick={() => setMode('solo')}
-            >
-              Solo mode
+            <button type="button" className="patternpals-mini-button" onClick={addGroupJuggler}>
+              Add juggler
             </button>
-            <button
-              type="button"
-              className={`patternpals-mini-button${mode === 'passing' ? ' active' : ''}`}
-              onClick={() => setMode('passing')}
-            >
-              Passing mode
+            <button type="button" className="patternpals-mini-button ghost" onClick={seedGroupFromSession}>
+              Use session roster
             </button>
           </div>
         </div>
+        <div className="patternpals-group-planner">
+          {groupJugglers.map((juggler, index) => (
+            <div key={juggler.id} className="patternpals-group-juggler">
+              <label>
+                Position candidate
+                <input
+                  value={juggler.name}
+                  onChange={(event) => updateGroupJuggler(juggler.id, { name: event.target.value })}
+                  placeholder={`Juggler ${index + 1}`}
+                />
+              </label>
+              <label>
+                Avg clubs comfort
+                <input
+                  type="number"
+                  min={1.5}
+                  max={5.5}
+                  step={0.5}
+                  value={juggler.comfortableObjects}
+                  onChange={(event) => updateGroupJuggler(juggler.id, { comfortableObjects: Number(event.target.value || 3) })}
+                />
+              </label>
+              <label>
+                Fastest useful count
+                <select
+                  value={juggler.comfortableCount}
+                  onChange={(event) => updateGroupJuggler(juggler.id, { comfortableCount: Number(event.target.value) })}
+                >
+                  {[1, 2, 3, 4, 5, 6].map((count) => (
+                    <option key={count} value={count}>
+                      {count}-count
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Movement comfort
+                <select
+                  value={juggler.movementComfort}
+                  onChange={(event) => updateGroupJuggler(juggler.id, { movementComfort: event.target.value as MovementComfort })}
+                >
+                  <option value="stationary">Stationary</option>
+                  <option value="moderate">Some movement</option>
+                  <option value="high">Turns / moving patterns</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                className="patternpals-mini-button ghost"
+                onClick={() => removeGroupJuggler(juggler.id)}
+                disabled={groupJugglers.length <= 2}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
         <div className="patternpals-recommendation-grid">
           {recommendations.length === 0 ? (
-            <p className="muted">Set up your profile and progress to see recommendations.</p>
+            <p className="muted">Add at least two jugglers to see top pattern matches for that group size.</p>
           ) : (
-            recommendations.map((item) => (
-              <div key={item.pattern.id} className="patternpals-recommendation">
-                <div>
-                  <h3>{item.pattern.name}</h3>
-                  <p className="muted small">{item.pattern.description}</p>
+            recommendations.map((item, index) => (
+              <div key={item.pattern.id} className="patternpals-recommendation patternpals-mvp-recommendation">
+                <div className="patternpals-recommendation-title">
+                  <span className="patternpals-rank">#{index + 1}</span>
+                  <div>
+                    <h3>{item.pattern.name}</h3>
+                    <p className="muted small">{item.pattern.description}</p>
+                  </div>
+                  <span className="patternpals-fit-score">{item.score}% fit</span>
                 </div>
                 <div className="patternpals-reasons">
-                  {item.reasons.slice(0, 3).map((reason) => (
-                    <span key={reason} className={`patternpals-reason ${item.readiness}`}>
+                  {item.reasons.map((reason) => (
+                    <span key={reason} className={`patternpals-reason ${item.dataQuality}`}>
                       {reason}
                     </span>
+                  ))}
+                </div>
+                <div className="patternpals-position-fit-list">
+                  {item.assignments.map((assignment) => (
+                    <div key={`${item.pattern.id}-${assignment.role}`} className={`patternpals-position-fit ${assignment.fitLabel}`}>
+                      <div>
+                        <strong>{assignment.juggler.name}</strong>
+                        <span>{assignment.role}</span>
+                      </div>
+                      <p>
+                        {assignment.averageObjects} avg clubs · {assignment.count ? `${assignment.count}-count` : 'count inferred'} · {assignment.movement === 'stationary' ? 'stationary' : assignment.movement}
+                      </p>
+                      <span>{assignment.fitScore}% · {assignment.fitLabel.replace('-', ' ')}</span>
+                    </div>
                   ))}
                 </div>
                 <div className="patternpals-recommendation-actions">
                   <button
                     type="button"
                     className="patternpals-mini-button"
-                    onClick={() => updatePatternStatus(item.pattern.id, 'working')}
+                    onClick={() => addPatternToSession(item.pattern.id)}
                   >
-                    Mark working
+                    Add to session
                   </button>
                   <button
                     type="button"
                     className="patternpals-mini-button ghost"
-                    onClick={() => updatePatternStatus(item.pattern.id, 'known')}
+                    onClick={() => handleSelectPattern(item.pattern)}
                   >
-                    Mark known
+                    View atlas entry
+                  </button>
+                  <button
+                    type="button"
+                    className="patternpals-mini-button ghost"
+                    onClick={() => updatePatternStatus(item.pattern.id, 'working')}
+                  >
+                    Mark working
                   </button>
                 </div>
               </div>
