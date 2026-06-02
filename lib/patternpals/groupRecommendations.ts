@@ -1,4 +1,5 @@
 import {
+  getPatternJugglerBounds,
   getPatternJugglerCount,
   getPatternObjectCount,
   getPatternRhythm,
@@ -31,11 +32,11 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 const roundToTenth = (value: number) => Math.round(value * 10) / 10;
 
-const normalizeCount = (value: number) => clamp(Math.round(value), 1, 8);
+const normalizeCount = (value: number) => clamp(Math.round(value), 1, 12);
 
 const inferCountFromText = (value: string | null | undefined) => {
   if (!value) return null;
-  const count = value.match(/\b([1-8])[ -]?count\b/i);
+  const count = value.match(/\b(1[0-2]|[1-9])[ -]?count\b/i);
   if (count) return Number(count[1]);
 
   const normalized = value.toLowerCase();
@@ -329,6 +330,87 @@ const buildRecommendationReasons = (assignments: PositionAssignment[], quality: 
   return reasons;
 };
 
+const splitIntoLanes = (group: GroupJugglerInput[], laneCount: number) => {
+  if (laneCount <= 1) return [group];
+  const lanes = Array.from({ length: laneCount }, () => [] as GroupJugglerInput[]);
+  const sorted = [...group].sort((a, b) => b.comfortableObjects - a.comfortableObjects || b.comfortableCount - a.comfortableCount);
+  sorted.forEach((juggler, index) => {
+    lanes[index % laneCount].push(juggler);
+  });
+  return lanes;
+};
+
+const selectLanePositions = (positions: PositionDifficultyEstimate[], laneSize: number) => {
+  if (laneSize >= positions.length) return positions;
+  return [...positions]
+    .sort((a, b) => a.difficultyScore - b.difficultyScore || a.role.localeCompare(b.role))
+    .slice(0, laneSize)
+    .map((position) => ({
+      ...position,
+      notes: [...position.notes, 'Partial-lane adaptation for non-divisible group size.'].slice(0, 4),
+    }));
+};
+
+const buildComposedRecommendation = (
+  pattern: Pattern,
+  normalizedGroup: GroupJugglerInput[],
+  attempts: PracticeAttemptEntry[],
+): GroupPatternRecommendation | null => {
+  const baseSize = getPatternJugglerCount(pattern);
+  const total = normalizedGroup.length;
+  if (baseSize < 2 || total <= baseSize) return null;
+
+  const computedLaneCount = Math.ceil(total / baseSize);
+  if (computedLaneCount < 2) return null;
+
+  const positions = buildPositionDifficulties(pattern);
+  if (positions.length !== baseSize) return null;
+
+  const lanes = splitIntoLanes(normalizedGroup, computedLaneCount);
+  if (lanes.some((lane) => lane.length < 2)) return null;
+
+  const laneAssignments = lanes.map((lane, laneIndex) =>
+    bestAssignment(lane, selectLanePositions(positions, lane.length)).map((assignment) => {
+      const partial = lane.length < baseSize;
+      return {
+        ...assignment,
+        role: `Lane ${laneIndex + 1}: ${assignment.role}`,
+        reasons: [
+          partial
+            ? `Lane ${laneIndex + 1} uses partial-lane adaptation (${lane.length}/${baseSize} roles).`
+            : `Lane ${laneIndex + 1} assignment`,
+          ...assignment.reasons,
+        ].slice(0, 3),
+      };
+    }),
+  );
+
+  const assignments = laneAssignments.flat();
+  const quality = dataQuality(pattern);
+  const attemptAdjustment = buildAttemptAdjustment(attempts, pattern.id);
+  const laneScore = laneAssignments.reduce((sum, lane) => sum + assignmentScore(lane), 0) / laneAssignments.length;
+  const partialLaneCount = lanes.filter((lane) => lane.length < baseSize).length;
+  const compositionPenalty = Math.max(0, computedLaneCount - 2) * 2 + partialLaneCount * 3;
+  const score = Math.round(
+    clamp(laneScore + qualityAdjustment(quality) - compositionPenalty + attemptAdjustment.score, 0, 100),
+  );
+
+  return {
+    pattern,
+    score,
+    assignments,
+    reasons: [
+      partialLaneCount > 0
+        ? `Composed as ${computedLaneCount} lanes with partial-lane adaptation for ${total} jugglers.`
+        : `Composed as ${computedLaneCount} synchronized lanes of ${baseSize} jugglers.`,
+      `Scales ${pattern.name} to ${total} jugglers via stacked-lane practice.`,
+      ...buildRecommendationReasons(assignments, quality),
+      ...attemptAdjustment.reasons,
+    ].slice(0, 4),
+    dataQuality: quality,
+  };
+};
+
 export const recommendGroupPatterns = (
   patterns: Pattern[],
   group: GroupJugglerInput[],
@@ -348,8 +430,12 @@ export const recommendGroupPatterns = (
 
   if (normalizedGroup.length < 2) return [];
 
-  return patterns
-    .filter((pattern) => pattern.props.includes('clubs') && getPatternJugglerCount(pattern) === normalizedGroup.length)
+  const exact = patterns
+    .filter((pattern) => {
+      if (!pattern.props.includes('clubs')) return false;
+      const bounds = getPatternJugglerBounds(pattern);
+      return bounds.min === normalizedGroup.length && bounds.max === normalizedGroup.length;
+    })
     .map((pattern) => {
       const positions = buildPositionDifficulties(pattern);
       const assignments = bestAssignment(normalizedGroup, positions);
@@ -365,7 +451,23 @@ export const recommendGroupPatterns = (
         reasons: [...buildRecommendationReasons(assignments, quality), ...attemptAdjustment.reasons].slice(0, 4),
         dataQuality: quality,
       } satisfies GroupPatternRecommendation;
+    });
+
+  const composed = patterns
+    .filter((pattern) => {
+      if (!pattern.props.includes('clubs')) return false;
+      const bounds = getPatternJugglerBounds(pattern);
+      return bounds.strategy === 'fixed' && bounds.min >= 2 && bounds.max === bounds.min;
     })
+    .map((pattern) => buildComposedRecommendation(pattern, normalizedGroup, attempts))
+    .filter((item): item is GroupPatternRecommendation => Boolean(item));
+
+  const preferExact = exact.length > 0;
+  const combined = preferExact
+    ? [...exact, ...composed.filter((item) => item.score >= 70)]
+    : [...composed, ...exact];
+
+  return combined
     .sort(
       (a, b) => b.score - a.score || qualityRank(b.dataQuality) - qualityRank(a.dataQuality) || a.pattern.name.localeCompare(b.pattern.name),
     )

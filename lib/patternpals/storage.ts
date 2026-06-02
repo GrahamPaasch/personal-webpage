@@ -13,6 +13,7 @@ import type {
   PracticeMode,
   PropType,
   ProgressEntry,
+  SessionCompositionPlan,
   SessionEntry,
   SessionReadinessSnapshot,
   SessionStatus,
@@ -35,6 +36,7 @@ type CreateSessionInput = {
   durationMinutes: number | null;
   location: string | null;
   focusPatterns: string[];
+  compositionPlan: SessionCompositionPlan[];
   readinessSnapshot: SessionReadinessSnapshot[];
   status: SessionStatus;
   outcome: string | null;
@@ -184,6 +186,7 @@ function createPgStorage(conn: string): StorageImpl {
           duration_minutes INTEGER,
           location TEXT,
           focus_patterns TEXT[] NOT NULL DEFAULT '{}',
+          composition_plan JSONB NOT NULL DEFAULT '[]'::jsonb,
           readiness_snapshot JSONB NOT NULL DEFAULT '[]'::jsonb,
           status TEXT NOT NULL,
           outcome TEXT,
@@ -196,6 +199,7 @@ function createPgStorage(conn: string): StorageImpl {
           ADD COLUMN IF NOT EXISTS participant_ids TEXT[] NOT NULL DEFAULT '{}',
           ADD COLUMN IF NOT EXISTS participant_names TEXT[] NOT NULL DEFAULT '{}',
           ADD COLUMN IF NOT EXISTS practice_mode TEXT NOT NULL DEFAULT 'passing',
+            ADD COLUMN IF NOT EXISTS composition_plan JSONB NOT NULL DEFAULT '[]'::jsonb,
           ADD COLUMN IF NOT EXISTS readiness_snapshot JSONB NOT NULL DEFAULT '[]'::jsonb,
           ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
       `);
@@ -301,6 +305,7 @@ function createPgStorage(conn: string): StorageImpl {
     durationMinutes: row.duration_minutes,
     location: row.location,
     focusPatterns: row.focus_patterns ?? [],
+    compositionPlan: row.composition_plan ?? [],
     readinessSnapshot: row.readiness_snapshot ?? [],
     status: row.status,
     outcome: row.outcome,
@@ -426,13 +431,14 @@ function createPgStorage(conn: string): StorageImpl {
           duration_minutes,
           location,
           focus_patterns,
+          composition_plan,
           readiness_snapshot,
           status,
           outcome,
           completed_at,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5::text[], $6::text[], $7, $8, $9, $10, $11::text[], $12::jsonb, $13, $14, $15, $16)
+        VALUES ($1, $2, $3, $4, $5::text[], $6::text[], $7, $8, $9, $10, $11::text[], $12::jsonb, $13::jsonb, $14, $15, $16, $17)
         `,
         [
           id,
@@ -446,6 +452,7 @@ function createPgStorage(conn: string): StorageImpl {
           input.durationMinutes,
           input.location,
           input.focusPatterns ?? [],
+          JSON.stringify(input.compositionPlan ?? []),
           JSON.stringify(input.readinessSnapshot ?? []),
           input.status,
           input.outcome,
@@ -473,10 +480,11 @@ function createPgStorage(conn: string): StorageImpl {
             duration_minutes = COALESCE($8, duration_minutes),
             location = COALESCE($9, location),
             focus_patterns = COALESCE($10::text[], focus_patterns),
-            readiness_snapshot = COALESCE($11::jsonb, readiness_snapshot),
-            status = COALESCE($12, status),
-            outcome = COALESCE($13, outcome),
-            completed_at = COALESCE($14, completed_at)
+            composition_plan = COALESCE($11::jsonb, composition_plan),
+            readiness_snapshot = COALESCE($12::jsonb, readiness_snapshot),
+            status = COALESCE($13, status),
+            outcome = COALESCE($14, outcome),
+            completed_at = COALESCE($15, completed_at)
         WHERE id = $1
         RETURNING *
         `,
@@ -491,6 +499,7 @@ function createPgStorage(conn: string): StorageImpl {
           input.durationMinutes ?? null,
           input.location ?? null,
           input.focusPatterns ?? null,
+          input.compositionPlan ? JSON.stringify(input.compositionPlan) : null,
           input.readinessSnapshot ? JSON.stringify(input.readinessSnapshot) : null,
           input.status ?? null,
           input.outcome ?? null,
@@ -673,6 +682,7 @@ function createMemoryStorage(): StorageImpl {
         ...sessions[idx],
         ...input,
         focusPatterns: input.focusPatterns ?? sessions[idx].focusPatterns,
+        compositionPlan: input.compositionPlan ?? sessions[idx].compositionPlan,
       };
       return sessions[idx];
     },

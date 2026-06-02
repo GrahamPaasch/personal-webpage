@@ -10,8 +10,11 @@ import {
   buildAtlasHealth,
   buildPatternAtlasEntry,
   buildWorkshopPlan,
+  getCatalogJugglerCounts,
+  getCatalogMaxJugglers,
   getDifficultyClassification,
   getPatternAliases,
+  getPatternJugglerBounds,
   getPatternJugglerCount,
   getPatternObjectCount,
   getPatternRhythm,
@@ -19,12 +22,14 @@ import {
   getPatternType,
   getPatternTypeClassification,
   getVisualAidBrief,
+  patternSupportsJugglers,
   summarizeCommunityMemory,
 } from '@/lib/patternpals/atlas';
 import type {
   CurationSignal,
   ExperienceLevel,
   GroupJugglerInput,
+  GroupPatternRecommendation,
   JugglerProfile,
   MovementComfort,
   Pattern,
@@ -37,6 +42,7 @@ import type {
   ProgressEntry,
   PropType,
   ReadinessState,
+  SessionCompositionPlan,
   SessionEntry,
   SessionReadinessSnapshot,
 } from '@/lib/patternpals/types';
@@ -72,6 +78,12 @@ const PATTERN_TYPE_OPTIONS: PatternType[] = [
 const DEFAULT_PATTERN_LIMIT = 60;
 const PATTERN_PAGE_SIZE = 60;
 const SEARCH_PATTERN_LIMIT = 200;
+const MAX_SESSION_FOCUS_PATTERNS = 24;
+const MAX_RECOMMENDATION_COMFORT_COUNT = 12;
+const CATALOG_JUGGLER_COUNTS = getCatalogJugglerCounts(PATTERN_LIBRARY).filter((count) => count >= 2);
+const MAX_CATALOG_JUGGLERS = getCatalogMaxJugglers(PATTERN_LIBRARY);
+const MAX_GROUP_JUGGLERS = Math.max(24, MAX_CATALOG_JUGGLERS);
+const COMFORT_COUNT_OPTIONS = Array.from({ length: MAX_RECOMMENDATION_COMFORT_COUNT }, (_, index) => index + 1);
 
 const parseGroupJugglers = (value: string | null): GroupJugglerInput[] => {
   if (!value) return createDefaultGroupJugglers();
@@ -100,7 +112,7 @@ const parseGroupJugglers = (value: string | null): GroupJugglerInput[] => {
         } satisfies GroupJugglerInput;
       })
       .filter((item): item is GroupJugglerInput => Boolean(item && item.name));
-    return normalized.length >= 2 ? normalized.slice(0, 8) : createDefaultGroupJugglers();
+    return normalized.length >= 2 ? normalized.slice(0, MAX_GROUP_JUGGLERS) : createDefaultGroupJugglers();
   } catch {
     return createDefaultGroupJugglers();
   }
@@ -211,7 +223,7 @@ const matchesPatternFilters = (pattern: Pattern, filters: PatternFilterState) =>
   const patternTypeClassification = getPatternTypeClassification(pattern);
   if (filters.difficulty !== 'all' && difficultyClassification.value !== filters.difficulty) return false;
   if (filters.patternType !== 'all' && patternTypeClassification.value !== filters.patternType) return false;
-  if (filters.jugglers !== 'all' && getPatternJugglerCount(pattern) !== Number(filters.jugglers)) return false;
+  if (filters.jugglers !== 'all' && !patternSupportsJugglers(pattern, Number(filters.jugglers))) return false;
   if (filters.objects !== 'all' && getPatternObjectCount(pattern) !== Number(filters.objects)) return false;
   return true;
 };
@@ -247,6 +259,68 @@ type PracticeReadiness = SessionReadinessSnapshot & {
 const uniqueStrings = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 const normalizePersonName = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
 
+const buildCompositionPlanFromRecommendation = (recommendation: GroupPatternRecommendation): SessionCompositionPlan | null => {
+  const laneMap = new Map<number, SessionCompositionPlan['lanes'][number]>();
+
+  recommendation.assignments.forEach((assignment) => {
+    const match = assignment.role.match(/^Lane\s+(\d+):\s*/i);
+    if (!match) return;
+    const laneNumber = Number(match[1]);
+    if (!Number.isFinite(laneNumber) || laneNumber <= 0) return;
+    const laneId = `lane-${laneNumber}`;
+    const existing = laneMap.get(laneNumber) ?? {
+      laneId,
+      label: `Lane ${laneNumber}`,
+      participantIds: [],
+      participantNames: [],
+    };
+
+    if (!existing.participantIds.includes(assignment.juggler.id)) {
+      existing.participantIds.push(assignment.juggler.id);
+    }
+    if (!existing.participantNames.includes(assignment.juggler.name)) {
+      existing.participantNames.push(assignment.juggler.name);
+    }
+    laneMap.set(laneNumber, existing);
+  });
+
+  const lanes = Array.from(laneMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([, lane]) => lane);
+
+  if (lanes.length < 2) return null;
+
+  const totalJugglers = lanes.reduce((total, lane) => total + lane.participantIds.length, 0);
+  const baseJugglers = lanes[0]?.participantIds.length ?? 0;
+  if (baseJugglers < 2 || totalJugglers < 4) return null;
+
+  const notes = recommendation.reasons.find((reason) => reason.toLowerCase().includes('composed as')) ?? null;
+
+  return {
+    patternId: recommendation.pattern.id,
+    strategy: 'stacked-lanes',
+    baseJugglers,
+    totalJugglers,
+    lanes,
+    notes,
+  };
+};
+
+const normalizeCompositionAttendees = (
+  attendees: { id: string | null; name: string }[],
+) => {
+  const seen = new Set<string>();
+  return attendees
+    .map((attendee) => ({ id: attendee.id, name: attendee.name.trim() }))
+    .filter((attendee) => attendee.name)
+    .filter((attendee) => {
+      const key = normalizePersonName(attendee.name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+
 const assessPracticeReadiness = ({
   focusPatternIds,
   activeProfile,
@@ -277,12 +351,17 @@ const assessPracticeReadiness = ({
         reasons.push('Create or select your profile first.');
       }
 
-      const neededJugglers = getPatternJugglerCount(pattern);
-      if (neededJugglers > participantCount) {
+      const jugglerBounds = getPatternJugglerBounds(pattern);
+      const neededJugglers = jugglerBounds.min;
+      if (participantCount < jugglerBounds.min) {
         readiness = 'blocked';
-        reasons.push(`Needs ${neededJugglers} jugglers; this plan has ${participantCount}.`);
+        reasons.push(`Needs at least ${jugglerBounds.min} jugglers; this plan has ${participantCount}.`);
       } else {
-        reasons.push(`${participantCount} juggler${participantCount === 1 ? '' : 's'} planned for a ${neededJugglers}-juggler pattern.`);
+        if (typeof jugglerBounds.max === 'number') {
+          reasons.push(`${participantCount} juggler${participantCount === 1 ? '' : 's'} planned for a ${jugglerBounds.min}-to-${jugglerBounds.max} juggler pattern.`);
+        } else {
+          reasons.push(`${participantCount} juggler${participantCount === 1 ? '' : 's'} planned for an open-ended pattern (minimum ${jugglerBounds.min}).`);
+        }
       }
 
       const missingPrerequisites = pattern.prerequisites.filter((prereq) => progressMap.get(prereq) !== 'known');
@@ -493,6 +572,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     participantNames: string;
     practiceMode: PracticeMode;
     focusPatterns: string[];
+    compositionPlan: SessionCompositionPlan[];
     outcome: string;
   }>({
     scheduledFor: '',
@@ -504,6 +584,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     participantNames: '',
     practiceMode: 'passing',
     focusPatterns: [],
+    compositionPlan: [],
     outcome: '',
   });
   const [focusInput, setFocusInput] = useState('');
@@ -1104,6 +1185,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       durationMinutes: sessionForm.durationMinutes,
       location: sessionForm.location.trim() || null,
       focusPatterns: sessionForm.focusPatterns,
+      compositionPlan: sessionForm.compositionPlan,
       readinessSnapshot,
       status: 'scheduled',
       outcome: sessionForm.outcome.trim() || null,
@@ -1131,6 +1213,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         participantNames: manualParticipantNames.join(', '),
         practiceMode: sessionForm.practiceMode,
         focusPatterns: [],
+        compositionPlan: [],
         outcome: '',
       });
       setFocusInput('');
@@ -1307,15 +1390,22 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     setSessionForm((prev) => ({
       ...prev,
       focusPatterns: prev.focusPatterns.filter((id) => id !== patternId),
+      compositionPlan: prev.compositionPlan.filter((plan) => plan.patternId !== patternId),
     }));
   }, []);
 
-  const addPatternToSession = useCallback((patternId: string) => {
-    setSessionForm((prev) => ({
-      ...prev,
-      focusPatterns: Array.from(new Set([...prev.focusPatterns, patternId])).slice(0, 12),
-      practiceMode: 'passing',
-    }));
+  const addPatternToSession = useCallback((recommendation: GroupPatternRecommendation) => {
+    const compositionPlan = buildCompositionPlanFromRecommendation(recommendation);
+    setSessionForm((prev) => {
+      const focusPatterns = Array.from(new Set([...prev.focusPatterns, recommendation.pattern.id])).slice(0, MAX_SESSION_FOCUS_PATTERNS);
+      const withoutExisting = prev.compositionPlan.filter((plan) => plan.patternId !== recommendation.pattern.id);
+      return {
+        ...prev,
+        focusPatterns,
+        compositionPlan: compositionPlan ? [...withoutExisting, compositionPlan] : withoutExisting,
+        practiceMode: 'passing',
+      };
+    });
   }, []);
 
   const updateGroupJuggler = useCallback((id: string, updates: Partial<GroupJugglerInput>) => {
@@ -1323,16 +1413,22 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   }, []);
 
   const addGroupJuggler = useCallback(() => {
-    setGroupJugglers((prev) => [
-      ...prev,
-      {
-        id: `group-juggler-${Date.now()}`,
-        name: `Juggler ${prev.length + 1}`,
-        comfortableObjects: 3,
-        comfortableCount: 4,
-        movementComfort: 'stationary',
-      },
-    ]);
+    setGroupJugglers((prev) => {
+      if (prev.length >= MAX_GROUP_JUGGLERS) {
+        setStatusMessage(`Reached planner limit of ${MAX_GROUP_JUGGLERS} jugglers.`);
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          id: `group-juggler-${Date.now()}`,
+          name: `Juggler ${prev.length + 1}`,
+          comfortableObjects: 3,
+          comfortableCount: 4,
+          movementComfort: 'stationary',
+        },
+      ];
+    });
   }, []);
 
   const removeGroupJuggler = useCallback((id: string) => {
@@ -1360,7 +1456,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   const addWorkshopSectionToSession = useCallback((patternIds: string[]) => {
     setSessionForm((prev) => ({
       ...prev,
-      focusPatterns: Array.from(new Set([...prev.focusPatterns, ...patternIds])).slice(0, 12),
+      focusPatterns: Array.from(new Set([...prev.focusPatterns, ...patternIds])).slice(0, MAX_SESSION_FOCUS_PATTERNS),
       outcome: prev.outcome || 'Atlas-guided practice: teach one pattern deeply, review retention, and capture community memory.',
     }));
   }, []);
@@ -1378,6 +1474,84 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       };
     });
   }, [jugglers]);
+
+  const removeCompositionPlan = useCallback((patternId: string) => {
+    setSessionForm((prev) => ({
+      ...prev,
+      compositionPlan: prev.compositionPlan.filter((plan) => plan.patternId !== patternId),
+    }));
+  }, []);
+
+  const updateCompositionLaneLabel = useCallback((patternId: string, laneId: string, label: string) => {
+    setSessionForm((prev) => ({
+      ...prev,
+      compositionPlan: prev.compositionPlan.map((plan) =>
+        plan.patternId !== patternId
+          ? plan
+          : {
+              ...plan,
+              lanes: plan.lanes.map((lane) => (lane.laneId === laneId ? { ...lane, label } : lane)),
+            },
+      ),
+    }));
+  }, []);
+
+  const updateCompositionNotes = useCallback((patternId: string, notes: string) => {
+    setSessionForm((prev) => ({
+      ...prev,
+      compositionPlan: prev.compositionPlan.map((plan) =>
+        plan.patternId !== patternId
+          ? plan
+          : {
+              ...plan,
+              notes: notes,
+            },
+      ),
+    }));
+  }, []);
+
+  const rebuildCompositionPlanFromSessionRoster = useCallback((patternId: string) => {
+    setSessionForm((prev) => {
+      const plan = prev.compositionPlan.find((item) => item.patternId === patternId);
+      if (!plan) return prev;
+
+      const participantProfiles = prev.participantIds
+        .map((id) => jugglers.find((juggler) => juggler.id === id))
+        .filter((juggler): juggler is JugglerProfile => Boolean(juggler));
+      const manualNames = uniqueStrings(prev.participantNames.split(',').map((name) => name.trim()));
+      const attendees = normalizeCompositionAttendees([
+        ...(activeProfile ? [{ id: activeProfile.id, name: activeProfile.name }] : []),
+        ...participantProfiles.map((participant) => ({ id: participant.id, name: participant.name })),
+        ...manualNames.map((name, index) => ({ id: `manual-${index + 1}`, name })),
+      ]);
+
+      if (attendees.length < 2) return prev;
+
+      const baseJugglers = Math.max(2, plan.baseJugglers);
+      const laneCount = Math.max(1, Math.ceil(attendees.length / baseJugglers));
+      const lanes = Array.from({ length: laneCount }, (_, index) => {
+        const slice = attendees.slice(index * baseJugglers, (index + 1) * baseJugglers);
+        return {
+          laneId: plan.lanes[index]?.laneId ?? `lane-${index + 1}`,
+          label: plan.lanes[index]?.label ?? `Lane ${index + 1}`,
+          participantIds: slice.map((attendee) => attendee.id).filter((id): id is string => Boolean(id && !id.startsWith('manual-'))),
+          participantNames: slice.map((attendee) => attendee.name),
+        };
+      }).filter((lane) => lane.participantNames.length > 0);
+
+      const rebuiltPlan: SessionCompositionPlan = {
+        ...plan,
+        lanes,
+        totalJugglers: attendees.length,
+        notes: `Roster rebuilt into ${lanes.length} lane${lanes.length === 1 ? '' : 's'} from current participants.`,
+      };
+
+      return {
+        ...prev,
+        compositionPlan: prev.compositionPlan.map((item) => (item.patternId === patternId ? rebuiltPlan : item)),
+      };
+    });
+  }, [activeProfile, jugglers]);
 
   const renderPropPicker = (
     value: PropType[],
@@ -1667,6 +1841,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               Enter the jugglers you have, then PatternPals scores every position by average club load, passing count, and movement or turning pressure.
               The list below ranks the ten patterns most likely to give each person a useful challenge.
             </p>
+            <p className="muted small">
+              Atlas currently includes patterns for up to {MAX_CATALOG_JUGGLERS} jugglers. Planner supports up to {MAX_GROUP_JUGGLERS} so larger groups can be staged while composition planning lands next.
+            </p>
           </div>
           <div className="patternpals-mode">
             <button type="button" className="patternpals-mini-button" onClick={addGroupJuggler}>
@@ -1725,7 +1902,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   value={juggler.comfortableCount}
                   onChange={(event) => updateGroupJuggler(juggler.id, { comfortableCount: Number(event.target.value) })}
                 >
-                  {[1, 2, 3, 4, 5, 6].map((count) => (
+                  {COMFORT_COUNT_OPTIONS.map((count) => (
                     <option key={count} value={count}>
                       {count}-count
                     </option>
@@ -1793,7 +1970,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   <button
                     type="button"
                     className="patternpals-mini-button"
-                    onClick={() => addPatternToSession(item.pattern.id)}
+                    onClick={() => addPatternToSession(item)}
                   >
                     Add to session
                   </button>
@@ -2026,6 +2203,61 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 ))}
               </div>
             ) : null}
+            {sessionForm.compositionPlan.length > 0 ? (
+              <div className="patternpals-readiness-panel" aria-label="Session composition plans">
+                <div>
+                  <h3>Composition plans</h3>
+                  <p className="muted small">Patterns marked with lanes can scale beyond fixed-size formations.</p>
+                </div>
+                {sessionForm.compositionPlan.map((plan) => (
+                  <div key={plan.patternId} className="patternpals-readiness-card stretch">
+                    <div>
+                      <strong>{formatPattern(plan.patternId)}</strong>
+                      <span>{plan.strategy}</span>
+                    </div>
+                    <ul>
+                      <li>{plan.totalJugglers} jugglers across {plan.lanes.length} lanes ({plan.baseJugglers} each).</li>
+                      {plan.lanes.map((lane) => (
+                        <li key={lane.laneId}>
+                          <div className="patternpals-inline-actions">
+                            <input
+                              value={lane.label}
+                              onChange={(event) => updateCompositionLaneLabel(plan.patternId, lane.laneId, event.target.value)}
+                              placeholder="Lane label"
+                            />
+                            <span className="muted small">{lane.participantNames.join(', ') || 'No names yet'}</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <label>
+                      Composition notes
+                      <input
+                        value={plan.notes ?? ''}
+                        onChange={(event) => updateCompositionNotes(plan.patternId, event.target.value)}
+                        placeholder="Optional notes for this composed plan"
+                      />
+                    </label>
+                    <div className="patternpals-inline-actions">
+                      <button
+                        type="button"
+                        className="patternpals-mini-button ghost"
+                        onClick={() => rebuildCompositionPlanFromSessionRoster(plan.patternId)}
+                      >
+                        Rebuild lanes from roster
+                      </button>
+                      <button
+                        type="button"
+                        className="patternpals-mini-button ghost"
+                        onClick={() => removeCompositionPlan(plan.patternId)}
+                      >
+                        Remove composition
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
           {practiceReadiness.length > 0 ? (
             <div className="patternpals-readiness-panel" aria-label="Practice readiness">
@@ -2231,7 +2463,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   }
                 >
                   <option value="all">Any</option>
-                  {[2, 3, 4, 5, 6].map((count) => (
+                  {CATALOG_JUGGLER_COUNTS.map((count) => (
                     <option key={count} value={String(count)}>
                       {count}
                     </option>

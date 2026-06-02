@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createSession, listSessions, updateSession } from '@/lib/patternpals/storage';
-import type { PracticeMode, ReadinessState, SessionReadinessSnapshot, SessionStatus } from '@/lib/patternpals/types';
+import { getPatternById } from '@/lib/patternpals/patterns';
+import type { PracticeMode, ReadinessState, SessionCompositionPlan, SessionReadinessSnapshot, SessionStatus } from '@/lib/patternpals/types';
 import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
 import { patternPalsApiError, patternPalsJson } from '../_utils';
 
@@ -21,13 +22,75 @@ const cleanStringArray = (value: unknown) =>
     ? value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
     : [];
 
+const cleanPatternIds = (value: unknown) =>
+  cleanStringArray(value).filter((patternId) => Boolean(getPatternById(patternId)));
+
+const cleanCompositionPlan = (value: unknown): SessionCompositionPlan[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') return null;
+      const row = item as Record<string, unknown>;
+      const patternId = typeof row.patternId === 'string' && getPatternById(row.patternId) ? row.patternId : null;
+      if (!patternId) return null;
+
+      const strategy =
+        row.strategy === 'fixed' ||
+        row.strategy === 'open-ended' ||
+        row.strategy === 'stacked-lanes' ||
+        row.strategy === 'mirrored-waves' ||
+        row.strategy === 'ring-expansion'
+          ? row.strategy
+          : 'fixed';
+
+      const lanes = Array.isArray(row.lanes)
+        ? row.lanes
+            .map((lane, laneIndex) => {
+              if (!lane || typeof lane !== 'object') return null;
+              const laneRow = lane as Record<string, unknown>;
+              return {
+                laneId:
+                  typeof laneRow.laneId === 'string' && laneRow.laneId.trim()
+                    ? laneRow.laneId.trim()
+                    : `lane-${index + 1}-${laneIndex + 1}`,
+                label:
+                  typeof laneRow.label === 'string' && laneRow.label.trim()
+                    ? laneRow.label.trim()
+                    : `Lane ${laneIndex + 1}`,
+                participantIds: cleanStringArray(laneRow.participantIds).slice(0, 48),
+                participantNames: cleanStringArray(laneRow.participantNames).slice(0, 48),
+              };
+            })
+            .filter((lane): lane is SessionCompositionPlan['lanes'][number] => Boolean(lane))
+            .slice(0, 24)
+        : [];
+
+      return {
+        patternId,
+        strategy,
+        baseJugglers:
+          typeof row.baseJugglers === 'number' && Number.isFinite(row.baseJugglers)
+            ? Math.max(1, Math.round(row.baseJugglers))
+            : 1,
+        totalJugglers:
+          typeof row.totalJugglers === 'number' && Number.isFinite(row.totalJugglers)
+            ? Math.max(1, Math.round(row.totalJugglers))
+            : 1,
+        lanes,
+        notes: typeof row.notes === 'string' ? row.notes.trim().slice(0, 500) || null : null,
+      };
+    })
+    .filter((item): item is SessionCompositionPlan => Boolean(item))
+    .slice(0, 16);
+};
+
 const cleanReadinessSnapshot = (value: unknown): SessionReadinessSnapshot[] => {
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => {
       if (!item || typeof item !== 'object') return null;
       const row = item as Record<string, unknown>;
-      if (typeof row.patternId !== 'string' || !isReadinessState(row.readiness)) return null;
+      if (typeof row.patternId !== 'string' || !isReadinessState(row.readiness) || !getPatternById(row.patternId)) return null;
       return {
         patternId: row.patternId,
         readiness: row.readiness,
@@ -81,7 +144,7 @@ export async function POST(request: NextRequest) {
     return patternPalsJson({ error: 'Invalid scheduledFor date.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
-  const focusPatterns = cleanStringArray(data.focusPatterns);
+  const focusPatterns = cleanPatternIds(data.focusPatterns);
   const participantIds = cleanStringArray(data.participantIds);
   const participantNames = cleanStringArray(data.participantNames);
   const partnerId = typeof data.partnerId === 'string' ? data.partnerId : null;
@@ -122,6 +185,7 @@ export async function POST(request: NextRequest) {
           : null,
       location: typeof data.location === 'string' ? data.location.trim() : null,
       focusPatterns,
+      compositionPlan: cleanCompositionPlan(data.compositionPlan),
       readinessSnapshot: cleanReadinessSnapshot(data.readinessSnapshot),
       status,
       outcome: typeof data.outcome === 'string' ? data.outcome.trim() : null,
@@ -168,7 +232,10 @@ export async function PATCH(request: NextRequest) {
         ? Math.round(data.durationMinutes)
         : undefined,
     location: typeof data.location === 'string' ? data.location.trim() : undefined,
-    focusPatterns: Array.isArray(data.focusPatterns) ? cleanStringArray(data.focusPatterns) : undefined,
+    focusPatterns: Array.isArray(data.focusPatterns) ? cleanPatternIds(data.focusPatterns) : undefined,
+    compositionPlan: Array.isArray(data.compositionPlan)
+      ? cleanCompositionPlan(data.compositionPlan)
+      : undefined,
     readinessSnapshot: Array.isArray(data.readinessSnapshot)
       ? cleanReadinessSnapshot(data.readinessSnapshot)
       : undefined,

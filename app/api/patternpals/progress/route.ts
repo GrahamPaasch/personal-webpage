@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { deleteProgress, listProgress, upsertProgress } from '@/lib/patternpals/storage';
+import { getPatternById } from '@/lib/patternpals/patterns';
 import type { PatternStatus } from '@/lib/patternpals/types';
 import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
 import { patternPalsApiError, patternPalsJson } from '../_utils';
@@ -49,6 +50,9 @@ export async function POST(request: NextRequest) {
   if (!isStatus(data.status)) {
     return patternPalsJson({ error: 'Invalid status.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
+  if (!getPatternById(data.patternId)) {
+    return patternPalsJson({ error: 'Invalid patternId.' }, { status: 400, headers: rateLimitHeaders(rl) });
+  }
 
   try {
     const entry = await upsertProgress({
@@ -81,6 +85,9 @@ export async function DELETE(request: NextRequest) {
   const data = await request.json().catch(() => null);
   if (!data || typeof data.jugglerId !== 'string' || typeof data.patternId !== 'string') {
     return patternPalsJson({ error: 'Invalid payload.' }, { status: 400, headers: rateLimitHeaders(rl) });
+  }
+  if (!getPatternById(data.patternId)) {
+    return patternPalsJson({ error: 'Invalid patternId.' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
   try {

@@ -203,6 +203,75 @@ export const getPatternType = (pattern: Pattern): PatternType => getPatternTypeC
 
 export const getPatternJugglerCount = (pattern: Pattern) => pattern.numJugglers ?? pattern.requiredJugglers;
 
+const inferOpenEndedMinimumFromText = (pattern: Pattern): number | null => {
+  const searchable = `${pattern.name} ${pattern.description} ${pattern.tags.join(' ')}`.toLowerCase();
+  const orMore = searchable.match(/\b(\d{1,2})\s*(?:or more|\+)\s*jugglers?\b/i);
+  if (orMore) return Number(orMore[1]);
+  const forAtLeast = searchable.match(/\b(?:at least|minimum)\s*(\d{1,2})\s*jugglers?\b/i);
+  if (forAtLeast) return Number(forAtLeast[1]);
+  return null;
+};
+
+export const getPatternJugglerBounds = (pattern: Pattern) => {
+  if (pattern.scaling) {
+    return {
+      min: Math.max(1, Math.round(pattern.scaling.minJugglers)),
+      max: typeof pattern.scaling.maxJugglers === 'number' ? Math.max(pattern.scaling.minJugglers, Math.round(pattern.scaling.maxJugglers)) : null,
+      strategy: pattern.scaling.strategy,
+      notes: pattern.scaling.notes ?? null,
+    } as const;
+  }
+
+  const inferredMin = inferOpenEndedMinimumFromText(pattern);
+  if (typeof inferredMin === 'number' && inferredMin > 0) {
+    return {
+      min: inferredMin,
+      max: null,
+      strategy: 'open-ended' as const,
+      notes: 'Inferred from catalog text indicating open-ended juggler support.',
+    };
+  }
+
+  const fixed = getPatternJugglerCount(pattern);
+  return {
+    min: fixed,
+    max: fixed,
+    strategy: 'fixed' as const,
+    notes: null,
+  };
+};
+
+export const patternSupportsJugglers = (pattern: Pattern, jugglers: number) => {
+  const normalized = Math.max(1, Math.round(jugglers));
+  const bounds = getPatternJugglerBounds(pattern);
+  if (normalized < bounds.min) return false;
+  if (typeof bounds.max === 'number' && normalized > bounds.max) return false;
+  return true;
+};
+
+export const getCatalogJugglerCounts = (patterns: Pattern[]) => {
+  return Array.from(
+    new Set(
+      patterns.flatMap((pattern) => {
+        const bounds = getPatternJugglerBounds(pattern);
+        if (typeof bounds.max === 'number') {
+          return Array.from({ length: bounds.max - bounds.min + 1 }, (_, index) => bounds.min + index);
+        }
+        return [bounds.min];
+      }),
+    ),
+  ).sort((a, b) => a - b);
+};
+
+export const getCatalogMaxJugglers = (patterns: Pattern[]) => {
+  const fixedMax = patterns.reduce((max, pattern) => {
+    const bounds = getPatternJugglerBounds(pattern);
+    if (typeof bounds.max === 'number') return Math.max(max, bounds.max);
+    return Math.max(max, bounds.min);
+  }, 2);
+  return fixedMax;
+};
+
 export const getPatternObjectCount = (pattern: Pattern) => {
   if (typeof pattern.numObjects === 'number') return pattern.numObjects;
   const fromName = pattern.name.match(/\b(\d+)[ -]?(clubs?|balls?|rings?)\b/i);

@@ -10570,6 +10570,38 @@ const PATTERN_METADATA_OVERRIDES: Record<string, Partial<Pattern>> = {
     aliases: ['bookends feed', 'bookends line'],
     commonMistakes: ['Line compresses during the feed turn', 'Ends do not signal when they are ready to receive'],
   },
+  'back_to_back_turbos': {
+    scaling: {
+      minJugglers: 6,
+      maxJugglers: null,
+      strategy: 'stacked-lanes',
+      notes: 'Can scale by running multiple synchronized 6-person turbo lanes.',
+    },
+  },
+  'back_to_back_turbos_for_6_jugglers': {
+    scaling: {
+      minJugglers: 6,
+      maxJugglers: null,
+      strategy: 'stacked-lanes',
+      notes: 'Documented as a 6-person base; larger groups can stack additional lanes.',
+    },
+  },
+  'gandini_s_site_swap_weaves_for_3_or_more_jugglers': {
+    scaling: {
+      minJugglers: 3,
+      maxJugglers: null,
+      strategy: 'open-ended',
+      notes: 'Source title explicitly indicates support for 3 or more jugglers.',
+    },
+  },
+  'gandini_s_siteswap_weaves_4': {
+    scaling: {
+      minJugglers: 4,
+      maxJugglers: null,
+      strategy: 'open-ended',
+      notes: 'Source title indicates 4+ jugglers.',
+    },
+  },
   'scrambled_v': {
     patternType: 'takeout',
     rhythm: 'Scrambled V',

@@ -1,4 +1,4 @@
-import { getDifficultyClassification } from './atlas';
+import { getDifficultyClassification, getPatternJugglerCount } from './atlas';
 import type {
   JugglerProfile,
   Pattern,
@@ -44,8 +44,9 @@ export const recommendPatterns = (
 
   for (const pattern of patterns) {
     if (known.has(pattern.id)) continue;
-    if (mode === 'solo' && pattern.requiredJugglers !== 1) continue;
-    if (mode === 'passing' && pattern.requiredJugglers < 2) continue;
+    const jugglerCount = getPatternJugglerCount(pattern);
+    if (mode === 'solo' && jugglerCount !== 1) continue;
+    if (mode === 'passing' && jugglerCount < 2) continue;
 
     const reasons: string[] = [];
     let score = 0;

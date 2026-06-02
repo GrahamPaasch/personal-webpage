@@ -63,6 +63,20 @@ export type PatternType =
   | 'warmup'
   | 'other';
 
+export type PatternScalingStrategy =
+  | 'fixed'
+  | 'open-ended'
+  | 'stacked-lanes'
+  | 'mirrored-waves'
+  | 'ring-expansion';
+
+export type PatternScalingModel = {
+  minJugglers: number;
+  maxJugglers: number | null;
+  strategy: PatternScalingStrategy;
+  notes?: string;
+};
+
 export type Pattern = {
   id: string;
   name: string;
@@ -78,6 +92,7 @@ export type Pattern = {
   rhythm?: string;
   numObjects?: number;
   numJugglers?: number;
+  scaling?: PatternScalingModel;
   roles?: string[];
   aliases?: string[];
   commonMistakes?: string[];
@@ -111,6 +126,22 @@ export type SessionReadinessSnapshot = {
   participantCount: number;
 };
 
+export type SessionCompositionLane = {
+  laneId: string;
+  label: string;
+  participantIds: string[];
+  participantNames: string[];
+};
+
+export type SessionCompositionPlan = {
+  patternId: string;
+  strategy: PatternScalingStrategy;
+  baseJugglers: number;
+  totalJugglers: number;
+  lanes: SessionCompositionLane[];
+  notes: string | null;
+};
+
 export type SessionEntry = {
   id: string;
   hostId: string;
@@ -123,6 +154,7 @@ export type SessionEntry = {
   durationMinutes: number | null;
   location: string | null;
   focusPatterns: string[];
+  compositionPlan: SessionCompositionPlan[];
   readinessSnapshot: SessionReadinessSnapshot[];
   status: SessionStatus;
   outcome: string | null;
