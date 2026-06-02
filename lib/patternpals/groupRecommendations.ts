@@ -4,6 +4,7 @@ import {
   getPatternObjectCount,
   getPatternRhythm,
   getPatternType,
+  patternSupportsJugglers,
 } from './atlas';
 import type {
   GroupJugglerInput,
@@ -15,6 +16,10 @@ import type {
   PositionDifficultyEstimate,
   PracticeAttemptEntry,
   PracticeAttemptVerdict,
+  RecommendationComposition,
+  RosterHealthAssessment,
+  RosterHealthStatus,
+  SessionMode,
 } from './types';
 
 const MOVEMENT_SCORE: Record<MovementComfort, number> = {
@@ -295,6 +300,11 @@ const buildAttemptAdjustment = (attempts: PracticeAttemptEntry[], patternId: str
   }
 
   const total = recent.reduce((sum, attempt) => sum + verdictImpact[attempt.verdict], 0);
+  const scoredAttempts = recent.filter((attempt) => typeof attempt.outcomeScore === 'number');
+  const averageOutcomeScore = scoredAttempts.length
+    ? scoredAttempts.reduce((sum, attempt) => sum + (attempt.outcomeScore ?? 0), 0) / scoredAttempts.length
+    : null;
+  const ratingAdjustment = averageOutcomeScore === null ? 0 : (averageOutcomeScore - 5.5) * 2.2;
   const reasons: string[] = [];
 
   if (recent.some((attempt) => attempt.verdict === 'good-fit')) {
@@ -307,7 +317,11 @@ const buildAttemptAdjustment = (attempts: PracticeAttemptEntry[], patternId: str
     reasons.push('Recent try feedback suggests this pattern may need more challenge.');
   }
 
-  return { score: total, reasons };
+  if (averageOutcomeScore !== null) {
+    reasons.push(`Recent outcome feedback averages ${roundToTenth(averageOutcomeScore)}/10 for this pattern.`);
+  }
+
+  return { score: total + ratingAdjustment, reasons };
 };
 
 const buildRecommendationReasons = (assignments: PositionAssignment[], quality: GroupPatternRecommendation['dataQuality']) => {
@@ -340,6 +354,129 @@ const splitIntoLanes = (group: GroupJugglerInput[], laneCount: number) => {
   return lanes;
 };
 
+const normalizeRecommendationGroup = (group: GroupJugglerInput[]) => {
+  return group
+    .map((juggler, index) => ({
+      ...juggler,
+      id: juggler.id || `group-juggler-${index + 1}`,
+      name: juggler.name.trim() || `Juggler ${index + 1}`,
+      comfortableObjects: clamp(Number.isFinite(juggler.comfortableObjects) ? juggler.comfortableObjects : 3, 1.5, 5.5),
+      comfortableCount: normalizeCount(Number.isFinite(juggler.comfortableCount) ? juggler.comfortableCount : 4),
+      movementComfort: juggler.movementComfort,
+    }))
+    .filter((juggler) => juggler.name);
+};
+
+const scoreToHealthStatus = (score: number): RosterHealthStatus => {
+  if (score >= 75) return 'strong';
+  if (score >= 52) return 'watch';
+  return 'fragile';
+};
+
+const buildRecommendationRoster = (group: GroupJugglerInput[], sessionMode: SessionMode) => {
+  const normalizedGroup = normalizeRecommendationGroup(group);
+  return sessionMode === 'solo'
+    ? normalizedGroup.slice(0, 1)
+    : sessionMode === 'duo'
+      ? normalizedGroup.slice(0, 2)
+      : normalizedGroup;
+};
+
+const canComposePatternToGroup = (pattern: Pattern, groupSize: number) => {
+  const baseSize = getPatternJugglerCount(pattern);
+  if (baseSize < 2 || groupSize <= baseSize) return false;
+
+  const laneCount = Math.ceil(groupSize / baseSize);
+  if (laneCount < 2) return false;
+
+  return groupSize >= laneCount * 2;
+};
+
+const buildExactRecommendation = (
+  pattern: Pattern,
+  normalizedGroup: GroupJugglerInput[],
+  attempts: PracticeAttemptEntry[],
+  sessionMode: SessionMode,
+): GroupPatternRecommendation | null => {
+  if (!pattern.props.includes('clubs')) return null;
+  if (!patternSupportsJugglers(pattern, normalizedGroup.length)) return null;
+
+  const positions = buildPositionDifficulties(pattern);
+  if (positions.length !== normalizedGroup.length) return null;
+
+  const assignments = bestAssignment(normalizedGroup, positions);
+  const quality = dataQuality(pattern);
+  const attemptAdjustment = buildAttemptAdjustment(attempts, pattern.id);
+  const score = Math.round(
+    clamp(assignmentScore(assignments) + qualityAdjustment(quality) + attemptAdjustment.score, 0, 100),
+  );
+
+  return {
+    pattern,
+    score,
+    assignments,
+    reasons: [...buildRecommendationReasons(assignments, quality), ...attemptAdjustment.reasons].slice(0, 4),
+    dataQuality: quality,
+    sessionMode,
+    composition: null,
+  };
+};
+
+const buildSoloShadowCue = (patternType: PatternType) => {
+  if (patternType === 'feed') return 'Rehearse feeder timing with self-feeds, hold heights, and body turns before adding a partner.';
+  if (patternType === 'moving') return 'Mark footwork and timing solo first; add throws only after the path feels automatic.';
+  if (patternType === 'line' || patternType === 'triangle') return 'Use a wall target or floor marks to rehearse spacing and eye-line for this formation.';
+  if (patternType === 'takeout') return 'Shadow the takeout path with a single prop so the release timing is stable before partner reps.';
+  return 'Shadow the cleanest role solo first, then add a partner once the rhythm feels automatic.';
+};
+
+const buildSoloShadowRecommendation = (
+  pattern: Pattern,
+  soloJuggler: GroupJugglerInput,
+  attempts: PracticeAttemptEntry[],
+): GroupPatternRecommendation | null => {
+  if (!pattern.props.includes('clubs')) return null;
+
+  const bounds = getPatternJugglerBounds(pattern);
+  if (bounds.min > 2) return null;
+
+  const positions = buildPositionDifficulties(pattern);
+  if (positions.length < 2) return null;
+
+  const rankedRoles = positions
+    .map((position) => fitPosition(soloJuggler, position))
+    .sort((a, b) => b.fitScore - a.fitScore || a.difficultyScore - b.difficultyScore || a.role.localeCompare(b.role));
+  const bestRole = rankedRoles[0];
+  if (!bestRole) return null;
+
+  const quality = dataQuality(pattern);
+  const attemptAdjustment = buildAttemptAdjustment(attempts, pattern.id);
+  const adaptationPenalty = getPatternType(pattern) === 'moving' ? 14 : 10;
+  const score = Math.round(
+    clamp(bestRole.fitScore + qualityAdjustment(quality) + attemptAdjustment.score - adaptationPenalty, 0, 100),
+  );
+
+  return {
+    pattern,
+    score,
+    assignments: [
+      {
+        ...bestRole,
+        role: `Shadow ${bestRole.role}`,
+        reasons: [`Solo shadow-drill for ${bestRole.role.toLowerCase()}.`, ...bestRole.reasons].slice(0, 3),
+      },
+    ],
+    reasons: [
+      `Use ${pattern.name} as a solo shadow drill for the ${bestRole.role.toLowerCase()} role.`,
+      buildSoloShadowCue(getPatternType(pattern)),
+      ...attemptAdjustment.reasons,
+    ].slice(0, 4),
+    dataQuality: quality,
+    sessionMode: 'solo',
+    composition: null,
+  };
+};
+
 const selectLanePositions = (positions: PositionDifficultyEstimate[], laneSize: number) => {
   if (laneSize >= positions.length) return positions;
   return [...positions]
@@ -369,22 +506,30 @@ const buildComposedRecommendation = (
   const lanes = splitIntoLanes(normalizedGroup, computedLaneCount);
   if (lanes.some((lane) => lane.length < 2)) return null;
 
-  const laneAssignments = lanes.map((lane, laneIndex) =>
-    bestAssignment(lane, selectLanePositions(positions, lane.length)).map((assignment) => {
-      const partial = lane.length < baseSize;
-      return {
-        ...assignment,
-        role: `Lane ${laneIndex + 1}: ${assignment.role}`,
-        reasons: [
-          partial
-            ? `Lane ${laneIndex + 1} uses partial-lane adaptation (${lane.length}/${baseSize} roles).`
-            : `Lane ${laneIndex + 1} assignment`,
-          ...assignment.reasons,
-        ].slice(0, 3),
-      };
-    }),
-  );
+  const lanePlans = lanes.map((lane, laneIndex) => {
+    const lanePositions = selectLanePositions(positions, lane.length);
+    const partial = lane.length < baseSize;
+    const assignments = bestAssignment(lane, lanePositions).map((assignment) => ({
+      ...assignment,
+      role: `Lane ${laneIndex + 1}: ${assignment.role}`,
+      reasons: [
+        partial
+          ? `Lane ${laneIndex + 1} uses partial-lane adaptation (${lane.length}/${baseSize} roles).`
+          : `Lane ${laneIndex + 1} assignment`,
+        ...assignment.reasons,
+      ].slice(0, 3),
+    }));
 
+    return {
+      lane,
+      laneIndex,
+      lanePositions,
+      partial,
+      assignments,
+    };
+  });
+
+  const laneAssignments = lanePlans.map((lanePlan) => lanePlan.assignments);
   const assignments = laneAssignments.flat();
   const quality = dataQuality(pattern);
   const attemptAdjustment = buildAttemptAdjustment(attempts, pattern.id);
@@ -394,6 +539,28 @@ const buildComposedRecommendation = (
   const score = Math.round(
     clamp(laneScore + qualityAdjustment(quality) - compositionPenalty + attemptAdjustment.score, 0, 100),
   );
+  const adaptationNotes = [
+    partialLaneCount > 0
+      ? `${partialLaneCount} lane${partialLaneCount === 1 ? '' : 's'} use partial-role adaptation because the roster is not divisible by ${baseSize}.`
+      : `All ${computedLaneCount} lanes can run the full ${baseSize}-role formation.`,
+    `Recompose to ${baseSize}-juggler lanes whenever the roster changes to keep difficulty balanced.`,
+  ];
+  const composition: RecommendationComposition = {
+    strategy: 'stacked-lanes',
+    baseJugglers: baseSize,
+    totalJugglers: total,
+    lanes: lanePlans.map(({ lane, laneIndex, lanePositions, partial }) => ({
+      laneId: `lane-${laneIndex + 1}`,
+      label: `Lane ${laneIndex + 1}`,
+      participantIds: lane.map((juggler) => juggler.id),
+      participantNames: lane.map((juggler) => juggler.name),
+      targetJugglers: baseSize,
+      roleLabels: lanePositions.map((position) => position.role),
+      adaptationNote: partial ? `Run ${lane.length}/${baseSize} roles and rotate missing jobs between rounds.` : null,
+    })),
+    partialLaneCount,
+    adaptationNotes,
+  };
 
   return {
     pattern,
@@ -408,6 +575,8 @@ const buildComposedRecommendation = (
       ...attemptAdjustment.reasons,
     ].slice(0, 4),
     dataQuality: quality,
+    sessionMode: 'group',
+    composition,
   };
 };
 
@@ -416,42 +585,39 @@ export const recommendGroupPatterns = (
   group: GroupJugglerInput[],
   limit = 10,
   attempts: PracticeAttemptEntry[] = [],
+  sessionMode: SessionMode = group.length <= 1 ? 'solo' : group.length === 2 ? 'duo' : 'group',
 ): GroupPatternRecommendation[] => {
-  const normalizedGroup = group
-    .map((juggler, index) => ({
-      ...juggler,
-      id: juggler.id || `group-juggler-${index + 1}`,
-      name: juggler.name.trim() || `Juggler ${index + 1}`,
-      comfortableObjects: clamp(Number.isFinite(juggler.comfortableObjects) ? juggler.comfortableObjects : 3, 1.5, 5.5),
-      comfortableCount: normalizeCount(Number.isFinite(juggler.comfortableCount) ? juggler.comfortableCount : 4),
-      movementComfort: juggler.movementComfort,
-    }))
-    .filter((juggler) => juggler.name);
+  const recommendationGroup = buildRecommendationRoster(group, sessionMode);
 
-  if (normalizedGroup.length < 2) return [];
+  if (recommendationGroup.length === 0) return [];
+
+  if (sessionMode === 'solo') {
+    const soloJuggler = recommendationGroup[0];
+    if (!soloJuggler) return [];
+
+    const exactSolo = patterns
+      .map((pattern) => buildExactRecommendation(pattern, [soloJuggler], attempts, 'solo'))
+      .filter((item): item is GroupPatternRecommendation => Boolean(item));
+
+    const shadowSolo = patterns
+      .map((pattern) => buildSoloShadowRecommendation(pattern, soloJuggler, attempts))
+      .filter((item): item is GroupPatternRecommendation => Boolean(item));
+
+    const combined = exactSolo.length > 0 ? [...exactSolo, ...shadowSolo.filter((item) => item.score >= 68)] : shadowSolo;
+    const deduped = Array.from(new Map(combined.map((item) => [item.pattern.id, item])).values());
+
+    return deduped
+      .sort(
+        (a, b) => b.score - a.score || qualityRank(b.dataQuality) - qualityRank(a.dataQuality) || a.pattern.name.localeCompare(b.pattern.name),
+      )
+      .slice(0, limit);
+  }
+
+  if (recommendationGroup.length < 2) return [];
 
   const exact = patterns
-    .filter((pattern) => {
-      if (!pattern.props.includes('clubs')) return false;
-      const bounds = getPatternJugglerBounds(pattern);
-      return bounds.min === normalizedGroup.length && bounds.max === normalizedGroup.length;
-    })
-    .map((pattern) => {
-      const positions = buildPositionDifficulties(pattern);
-      const assignments = bestAssignment(normalizedGroup, positions);
-      const quality = dataQuality(pattern);
-      const attemptAdjustment = buildAttemptAdjustment(attempts, pattern.id);
-      const score = Math.round(
-        clamp(assignmentScore(assignments) + qualityAdjustment(quality) + attemptAdjustment.score, 0, 100),
-      );
-      return {
-        pattern,
-        score,
-        assignments,
-        reasons: [...buildRecommendationReasons(assignments, quality), ...attemptAdjustment.reasons].slice(0, 4),
-        dataQuality: quality,
-      } satisfies GroupPatternRecommendation;
-    });
+    .map((pattern) => buildExactRecommendation(pattern, recommendationGroup, attempts, sessionMode))
+    .filter((item): item is GroupPatternRecommendation => Boolean(item));
 
   const composed = patterns
     .filter((pattern) => {
@@ -459,10 +625,10 @@ export const recommendGroupPatterns = (
       const bounds = getPatternJugglerBounds(pattern);
       return bounds.strategy === 'fixed' && bounds.min >= 2 && bounds.max === bounds.min;
     })
-    .map((pattern) => buildComposedRecommendation(pattern, normalizedGroup, attempts))
+    .map((pattern) => buildComposedRecommendation(pattern, recommendationGroup, attempts))
     .filter((item): item is GroupPatternRecommendation => Boolean(item));
 
-  const preferExact = exact.length > 0;
+  const preferExact = exact.length > 0 || sessionMode === 'duo';
   const combined = preferExact
     ? [...exact, ...composed.filter((item) => item.score >= 70)]
     : [...composed, ...exact];
@@ -472,6 +638,146 @@ export const recommendGroupPatterns = (
       (a, b) => b.score - a.score || qualityRank(b.dataQuality) - qualityRank(a.dataQuality) || a.pattern.name.localeCompare(b.pattern.name),
     )
     .slice(0, limit);
+};
+
+export const assessRosterHealth = (
+  patterns: Pattern[],
+  group: GroupJugglerInput[],
+  sessionMode: SessionMode,
+): RosterHealthAssessment => {
+  const roster = buildRecommendationRoster(group, sessionMode);
+
+  if (roster.length === 0) {
+    return {
+      sessionMode,
+      score: 0,
+      status: 'fragile',
+      summary: 'Add at least one juggler to assess roster health.',
+      warnings: ['Roster is empty, so PatternPals cannot assess fit or suggest a progression yet.'],
+      suggestions: ['Add a planner row, then tune club, count, and movement comfort to unlock targeted guidance.'],
+      strengths: [],
+      supportedPatternCount: 0,
+      exactPatternCount: 0,
+      scalablePatternCount: 0,
+    };
+  }
+
+  const count = roster.length;
+  const objectValues = roster.map((juggler) => juggler.comfortableObjects);
+  const countValues = roster.map((juggler) => juggler.comfortableCount);
+  const movementValues = roster.map((juggler) => MOVEMENT_SCORE[juggler.movementComfort]);
+  const objectSpread = Math.max(...objectValues) - Math.min(...objectValues);
+  const countSpread = Math.max(...countValues) - Math.min(...countValues);
+  const movementSpread = Math.max(...movementValues) - Math.min(...movementValues);
+  const averageObjects = objectValues.reduce((sum, value) => sum + value, 0) / count;
+  const averageCount = countValues.reduce((sum, value) => sum + value, 0) / count;
+  const allStationary = movementValues.every((value) => value === 0);
+
+  const exactPatternCount =
+    sessionMode === 'solo'
+      ? patterns.filter((pattern) => buildExactRecommendation(pattern, roster, [], 'solo')).length
+      : patterns.filter((pattern) => buildExactRecommendation(pattern, roster, [], sessionMode)).length;
+  const scalablePatternCount =
+    sessionMode === 'group'
+      ? patterns.filter((pattern) => pattern.props.includes('clubs') && canComposePatternToGroup(pattern, count)).length
+      : sessionMode === 'solo'
+        ? patterns.filter((pattern) => buildSoloShadowRecommendation(pattern, roster[0], [])).length
+        : 0;
+  const supportedPatternCount = exactPatternCount + scalablePatternCount;
+
+  let score = sessionMode === 'solo' ? 66 : sessionMode === 'duo' ? 72 : 76;
+  const warnings: string[] = [];
+  const suggestions: string[] = [];
+  const strengths: string[] = [];
+
+  if (sessionMode !== 'solo' && count < 2) {
+    score -= 30;
+    warnings.push('This mode needs at least two jugglers before passing-fit patterns will be reliable.');
+    suggestions.push('Add another juggler or switch to solo mode while you rehearse shadow roles.');
+  }
+
+  if (supportedPatternCount < (sessionMode === 'group' ? 10 : 6)) {
+    score -= 12;
+    warnings.push(`Only ${supportedPatternCount} catalog pattern${supportedPatternCount === 1 ? '' : 's'} currently fit this roster cleanly.`);
+    suggestions.push(sessionMode === 'group'
+      ? 'Try a warmer count target, add one more mover, or use stacked-lane patterns to widen options.'
+      : 'Loosen comfort targets or start with simpler role rehearsals before pushing harder patterns.');
+  } else if (supportedPatternCount >= (sessionMode === 'group' ? 24 : 12)) {
+    score += 6;
+    strengths.push(`Catalog coverage is strong: about ${supportedPatternCount} patterns fit this roster shape.`);
+  }
+
+  if (averageObjects < 3.1) {
+    score -= 10;
+    warnings.push('Average club comfort is still low, so high-object roles may overload the roster quickly.');
+    suggestions.push('Open with lower-object warm-ups or feed roles before assigning heavier passing loads.');
+  } else if (averageObjects >= 3.6) {
+    score += 4;
+    strengths.push('Club comfort is high enough to support productive stretch roles.');
+  }
+
+  if (averageCount <= 3) {
+    score -= 10;
+    warnings.push('Fast-count comfort is narrow, which will limit quick passing rhythms and some takeouts.');
+    suggestions.push('Use slower-count patterns first, then build speed with short count ladders or rhythm drills.');
+  } else if (averageCount >= 4.2) {
+    score += 4;
+    strengths.push('The roster can absorb faster counts without every role becoming a stretch.');
+  }
+
+  if (allStationary && sessionMode !== 'solo') {
+    score -= 9;
+    warnings.push('Everyone is marked stationary, so moving, rotating, and recovery-heavy patterns are risky today.');
+    suggestions.push('Keep the plan mostly stationary or raise one juggler to moderate movement if someone can cover turns.');
+  } else if (movementSpread >= 1) {
+    score += 5;
+    strengths.push('Movement comfort is varied enough to cover both anchor and turning roles.');
+  }
+
+  if (objectSpread < 0.5 && countSpread < 1 && sessionMode !== 'solo') {
+    score -= 6;
+    warnings.push('Comfort targets are very uniform, so the group may struggle to create clear stretch vs support roles.');
+    suggestions.push('Consider mixing one easier anchor role with one stretch role so not everyone gets the same challenge.');
+  } else if (objectSpread >= 0.8 || countSpread >= 2) {
+    score += 4;
+    strengths.push('Comfort spread gives PatternPals enough contrast to balance support and stretch roles.');
+  }
+
+  if (sessionMode === 'group' && count % 2 === 1) {
+    warnings.push('An odd group size will likely need at least one partial lane or rotating spare role.');
+    suggestions.push('Plan a spare job, coach slot, or partial lane rotation before starting the main block.');
+    score -= 4;
+  }
+
+  if (sessionMode === 'solo') {
+    strengths.push('Solo mode can still rehearse feeder timing, footwork, and role shapes before partner reps.');
+    if (supportedPatternCount < 8) {
+      warnings.push('The atlas is still passing-first, so solo recommendations lean on shadow drills instead of full solo patterns.');
+      suggestions.push('Capture solo-friendly warm-ups as community notes to expand the catalog over time.');
+    }
+  }
+
+  score = Math.round(clamp(score, 0, 100));
+  const status = scoreToHealthStatus(score);
+  const summary =
+    status === 'strong'
+      ? `Roster looks strong for ${sessionMode} work: ${supportedPatternCount} catalog options and enough comfort diversity to balance roles.`
+      : status === 'watch'
+        ? `Roster is workable but needs attention: ${supportedPatternCount} options fit, with a few comfort bottlenecks to plan around.`
+        : `Roster is fragile right now: only ${supportedPatternCount} options fit cleanly, so warm-ups and adaptations matter.`;
+
+  return {
+    sessionMode,
+    score,
+    status,
+    summary,
+    warnings: warnings.slice(0, 4),
+    suggestions: suggestions.slice(0, 4),
+    strengths: strengths.slice(0, 3),
+    supportedPatternCount,
+    exactPatternCount,
+    scalablePatternCount,
+  };
 };
 
 export const createDefaultGroupJugglers = () => DEFAULT_GROUP_JUGGLERS.map((juggler) => ({ ...juggler }));

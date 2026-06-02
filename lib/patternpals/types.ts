@@ -50,6 +50,8 @@ export type GroupPatternRecommendation = {
   assignments: PositionAssignment[];
   reasons: string[];
   dataQuality: 'structured' | 'partial' | 'inferred';
+  sessionMode: SessionMode;
+  composition: RecommendationComposition | null;
 };
 
 export type PatternType =
@@ -117,6 +119,8 @@ export type ProgressEntry = {
 
 export type SessionStatus = 'scheduled' | 'completed' | 'canceled';
 
+export type SessionMode = 'solo' | 'duo' | 'group';
+
 export type ReadinessState = 'ready' | 'stretch' | 'blocked';
 
 export type SessionReadinessSnapshot = {
@@ -131,6 +135,9 @@ export type SessionCompositionLane = {
   label: string;
   participantIds: string[];
   participantNames: string[];
+  targetJugglers: number;
+  roleLabels: string[];
+  adaptationNote: string | null;
 };
 
 export type SessionCompositionPlan = {
@@ -139,7 +146,33 @@ export type SessionCompositionPlan = {
   baseJugglers: number;
   totalJugglers: number;
   lanes: SessionCompositionLane[];
+  partialLaneCount: number;
+  adaptationNotes: string[];
   notes: string | null;
+};
+
+export type RecommendationComposition = {
+  strategy: PatternScalingStrategy;
+  baseJugglers: number;
+  totalJugglers: number;
+  lanes: SessionCompositionLane[];
+  partialLaneCount: number;
+  adaptationNotes: string[];
+};
+
+export type RosterHealthStatus = 'strong' | 'watch' | 'fragile';
+
+export type RosterHealthAssessment = {
+  sessionMode: SessionMode;
+  score: number;
+  status: RosterHealthStatus;
+  summary: string;
+  warnings: string[];
+  suggestions: string[];
+  strengths: string[];
+  supportedPatternCount: number;
+  exactPatternCount: number;
+  scalablePatternCount: number;
 };
 
 export type SessionEntry = {
@@ -149,6 +182,7 @@ export type SessionEntry = {
   partnerName: string | null;
   participantIds: string[];
   participantNames: string[];
+  sessionMode: SessionMode;
   practiceMode: PracticeMode;
   scheduledFor: string;
   durationMinutes: number | null;
@@ -168,6 +202,7 @@ export type PracticeAttemptEntry = {
   patternId: string;
   sessionId: string | null;
   verdict: PracticeAttemptVerdict;
+  outcomeScore: number | null;
   note: string | null;
   rosterSnapshot: GroupJugglerInput[];
   createdAt: string;

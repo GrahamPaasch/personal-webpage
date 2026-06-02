@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
-import { createDefaultGroupJugglers, recommendGroupPatterns } from '@/lib/patternpals/groupRecommendations';
+import { assessRosterHealth, createDefaultGroupJugglers, recommendGroupPatterns } from '@/lib/patternpals/groupRecommendations';
 import { getPatternExcerpt } from '@/lib/patternpals/excerpts';
 import {
   PATTERN_BOOKS,
@@ -44,6 +44,7 @@ import type {
   ReadinessState,
   SessionCompositionPlan,
   SessionEntry,
+  SessionMode,
   SessionReadinessSnapshot,
 } from '@/lib/patternpals/types';
 
@@ -52,8 +53,8 @@ const PATTERNPALS_TAGLINE =
 
 const LOCAL_KEYS = {
   activeId: 'patternpals-active-juggler',
-  partnerId: 'patternpals-partner-juggler',
   groupJugglers: 'patternpals-group-jugglers',
+  recommendationMode: 'patternpals-recommendation-mode',
   tryMode: 'patternpals-try-mode',
 };
 
@@ -112,7 +113,7 @@ const parseGroupJugglers = (value: string | null): GroupJugglerInput[] => {
         } satisfies GroupJugglerInput;
       })
       .filter((item): item is GroupJugglerInput => Boolean(item && item.name));
-    return normalized.length >= 2 ? normalized.slice(0, MAX_GROUP_JUGGLERS) : createDefaultGroupJugglers();
+    return normalized.length >= 1 ? normalized.slice(0, MAX_GROUP_JUGGLERS) : createDefaultGroupJugglers();
   } catch {
     return createDefaultGroupJugglers();
   }
@@ -244,6 +245,24 @@ const READINESS_LABELS: Record<ReadinessState, string> = {
   blocked: 'Blocked',
 };
 
+const SESSION_MODE_LABELS: Record<SessionMode, string> = {
+  solo: 'Solo',
+  duo: 'Duo',
+  group: 'Group',
+};
+
+const ROSTER_HEALTH_LABELS = {
+  strong: 'Strong roster',
+  watch: 'Watch list',
+  fragile: 'Fragile roster',
+} as const;
+
+const ROSTER_HEALTH_CLASSNAMES = {
+  strong: 'ready',
+  watch: 'stretch',
+  fragile: 'blocked',
+} as const;
+
 const formatPattern = (patternId: string) => getPatternById(patternId)?.name ?? patternId.replace(/_/g, ' ');
 
 const formatDateTime = (value: string) =>
@@ -260,48 +279,24 @@ const uniqueStrings = (values: string[]) => Array.from(new Set(values.map((value
 const normalizePersonName = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
 
 const buildCompositionPlanFromRecommendation = (recommendation: GroupPatternRecommendation): SessionCompositionPlan | null => {
-  const laneMap = new Map<number, SessionCompositionPlan['lanes'][number]>();
-
-  recommendation.assignments.forEach((assignment) => {
-    const match = assignment.role.match(/^Lane\s+(\d+):\s*/i);
-    if (!match) return;
-    const laneNumber = Number(match[1]);
-    if (!Number.isFinite(laneNumber) || laneNumber <= 0) return;
-    const laneId = `lane-${laneNumber}`;
-    const existing = laneMap.get(laneNumber) ?? {
-      laneId,
-      label: `Lane ${laneNumber}`,
-      participantIds: [],
-      participantNames: [],
-    };
-
-    if (!existing.participantIds.includes(assignment.juggler.id)) {
-      existing.participantIds.push(assignment.juggler.id);
-    }
-    if (!existing.participantNames.includes(assignment.juggler.name)) {
-      existing.participantNames.push(assignment.juggler.name);
-    }
-    laneMap.set(laneNumber, existing);
-  });
-
-  const lanes = Array.from(laneMap.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([, lane]) => lane);
-
-  if (lanes.length < 2) return null;
-
-  const totalJugglers = lanes.reduce((total, lane) => total + lane.participantIds.length, 0);
-  const baseJugglers = lanes[0]?.participantIds.length ?? 0;
-  if (baseJugglers < 2 || totalJugglers < 4) return null;
+  const composition = recommendation.composition;
+  if (!composition || composition.lanes.length < 2) return null;
 
   const notes = recommendation.reasons.find((reason) => reason.toLowerCase().includes('composed as')) ?? null;
 
   return {
     patternId: recommendation.pattern.id,
-    strategy: 'stacked-lanes',
-    baseJugglers,
-    totalJugglers,
-    lanes,
+    strategy: composition.strategy,
+    baseJugglers: composition.baseJugglers,
+    totalJugglers: composition.totalJugglers,
+    lanes: composition.lanes.map((lane) => ({
+      ...lane,
+      participantIds: [...lane.participantIds],
+      participantNames: [...lane.participantNames],
+      roleLabels: [...lane.roleLabels],
+    })),
+    partialLaneCount: composition.partialLaneCount,
+    adaptationNotes: [...composition.adaptationNotes],
     notes,
   };
 };
@@ -319,6 +314,45 @@ const normalizeCompositionAttendees = (
       seen.add(key);
       return true;
     });
+};
+
+const distributeCompositionLanes = (
+  attendees: { id: string | null; name: string }[],
+  plan: Pick<SessionCompositionPlan, 'baseJugglers' | 'lanes'>,
+) => {
+  const baseJugglers = Math.max(2, plan.baseJugglers);
+  const laneCount = Math.max(1, Math.ceil(attendees.length / baseJugglers));
+  const lanes = Array.from({ length: laneCount }, (_, index) => {
+    const slice = attendees.slice(index * baseJugglers, (index + 1) * baseJugglers);
+    const existingLane = plan.lanes[index];
+    const templateLane = plan.lanes[index % Math.max(plan.lanes.length, 1)] ?? plan.lanes[0];
+    return {
+      laneId: existingLane?.laneId ?? `lane-${index + 1}`,
+      label: existingLane?.label ?? `Lane ${index + 1}`,
+      participantIds: slice.map((attendee) => attendee.id).filter((id): id is string => Boolean(id && !id.startsWith('manual-'))),
+      participantNames: slice.map((attendee) => attendee.name),
+      targetJugglers: existingLane?.targetJugglers ?? templateLane?.targetJugglers ?? baseJugglers,
+      roleLabels: existingLane?.roleLabels ?? templateLane?.roleLabels ?? [],
+      adaptationNote:
+        slice.length < baseJugglers
+          ? `Run ${slice.length}/${baseJugglers} roles and rotate missing jobs between rounds.`
+          : existingLane?.adaptationNote ?? null,
+    };
+  }).filter((lane) => lane.participantNames.length > 0);
+
+  const partialLaneCount = lanes.filter((lane) => lane.participantNames.length < lane.targetJugglers).length;
+  const adaptationNotes = [
+    partialLaneCount > 0
+      ? `${partialLaneCount} lane${partialLaneCount === 1 ? '' : 's'} need partial-role adaptation after recomposing the roster.`
+      : `All lanes can run the full ${baseJugglers}-juggler base formation.`,
+    `Rebalanced into ${lanes.length} lane${lanes.length === 1 ? '' : 's'} from the current roster.`,
+  ];
+
+  return {
+    lanes,
+    partialLaneCount,
+    adaptationNotes,
+  };
 };
 
 const assessPracticeReadiness = ({
@@ -511,10 +545,10 @@ PatternList.displayName = 'PatternList';
 export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps = {}) {
   const [jugglers, setJugglers] = useState<JugglerProfile[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [partnerId, setPartnerId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressEntry[]>([]);
   const [sessions, setSessions] = useState<SessionEntry[]>([]);
   const [groupJugglers, setGroupJugglers] = useState<GroupJugglerInput[]>(() => createDefaultGroupJugglers());
+  const [recommendationMode, setRecommendationMode] = useState<SessionMode>('group');
   const [attempts, setAttempts] = useState<PracticeAttemptEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -538,6 +572,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   });
   const [tryModeEnabled, setTryModeEnabled] = useState(false);
   const [tryFeedbackNote, setTryFeedbackNote] = useState('');
+  const [tryOutcomeScore, setTryOutcomeScore] = useState(7);
   const deferredProgress = useDeferredValue(progress);
 
   const [profileForm, setProfileForm] = useState<{
@@ -566,10 +601,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     scheduledFor: string;
     durationMinutes: number;
     location: string;
-    partnerId: string;
-    partnerName: string;
     participantIds: string[];
     participantNames: string;
+    sessionMode: SessionMode;
     practiceMode: PracticeMode;
     focusPatterns: string[];
     compositionPlan: SessionCompositionPlan[];
@@ -578,10 +612,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     scheduledFor: '',
     durationMinutes: 90,
     location: '',
-    partnerId: '',
-    partnerName: '',
     participantIds: [],
     participantNames: '',
+    sessionMode: 'group',
     practiceMode: 'passing',
     focusPatterns: [],
     compositionPlan: [],
@@ -592,10 +625,6 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   const activeProfile = useMemo(
     () => jugglers.find((juggler) => juggler.id === activeId) ?? null,
     [jugglers, activeId],
-  );
-  const partnerProfile = useMemo(
-    () => jugglers.find((juggler) => juggler.id === partnerId) ?? null,
-    [jugglers, partnerId],
   );
 
   const rosterPartners = useMemo(() => {
@@ -649,9 +678,20 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     [activeProfile?.experience, deferredProgress, sessions],
   );
 
+  const recommendationJugglers = useMemo(() => {
+    if (recommendationMode === 'solo') return groupJugglers.slice(0, 1);
+    if (recommendationMode === 'duo') return groupJugglers.slice(0, 2);
+    return groupJugglers;
+  }, [groupJugglers, recommendationMode]);
+
   const recommendations = useMemo(
-    () => recommendGroupPatterns(PATTERN_LIBRARY, groupJugglers, 10, attempts),
-    [attempts, groupJugglers],
+    () => recommendGroupPatterns(PATTERN_LIBRARY, recommendationJugglers, 10, attempts, recommendationMode),
+    [attempts, recommendationJugglers, recommendationMode],
+  );
+
+  const rosterHealth = useMemo(
+    () => assessRosterHealth(PATTERN_LIBRARY, recommendationJugglers, recommendationMode),
+    [recommendationJugglers, recommendationMode],
   );
 
   const filteredPatterns = useMemo(() => {
@@ -723,8 +763,16 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   }, [sessionForm.participantNames]);
 
   const practiceReadiness = useMemo(() => {
-    const participants = sessionForm.practiceMode === 'solo' ? [] : selectedParticipantProfiles;
-    const manualNames = sessionForm.practiceMode === 'solo' ? [] : manualParticipantNames;
+    const participants = sessionForm.sessionMode === 'solo'
+      ? []
+      : sessionForm.sessionMode === 'duo'
+        ? selectedParticipantProfiles.slice(0, 1)
+        : selectedParticipantProfiles;
+    const manualNames = sessionForm.sessionMode === 'solo'
+      ? []
+      : sessionForm.sessionMode === 'duo'
+        ? manualParticipantNames.slice(0, 1)
+        : manualParticipantNames;
     return assessPracticeReadiness({
       focusPatternIds: sessionForm.focusPatterns,
       activeProfile,
@@ -732,7 +780,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       manualParticipantNames: manualNames,
       progressMap,
     });
-  }, [activeProfile, manualParticipantNames, progressMap, selectedParticipantProfiles, sessionForm.focusPatterns, sessionForm.practiceMode]);
+  }, [activeProfile, manualParticipantNames, progressMap, selectedParticipantProfiles, sessionForm.focusPatterns, sessionForm.sessionMode]);
 
   const readinessSnapshot = useMemo<SessionReadinessSnapshot[]>(() => {
     return practiceReadiness.map(({ pattern: _pattern, ...snapshot }) => snapshot);
@@ -817,6 +865,15 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     } catch {
       setTryModeEnabled(false);
     }
+
+    try {
+      const storedRecommendationMode = window.localStorage.getItem(LOCAL_KEYS.recommendationMode);
+      if (storedRecommendationMode === 'solo' || storedRecommendationMode === 'duo' || storedRecommendationMode === 'group') {
+        setRecommendationMode(storedRecommendationMode);
+      }
+    } catch {
+      setRecommendationMode('group');
+    }
   }, []);
 
   useEffect(() => {
@@ -846,29 +903,13 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         setActiveId(stored);
       }
     }
-    if (!partnerId) {
-      const storedPartner = window.localStorage.getItem(LOCAL_KEYS.partnerId);
-      if (storedPartner && rosterPartners.some((juggler) => juggler.id === storedPartner)) {
-        setPartnerId(storedPartner);
-      } else if (storedPartner) {
-        window.localStorage.removeItem(LOCAL_KEYS.partnerId);
-      }
-    }
-  }, [jugglers, activeId, partnerId, rosterPartners]);
+  }, [jugglers, activeId]);
 
   useEffect(() => {
     if (activeId) {
       window.localStorage.setItem(LOCAL_KEYS.activeId, activeId);
     }
   }, [activeId]);
-
-  useEffect(() => {
-    if (partnerId) {
-      window.localStorage.setItem(LOCAL_KEYS.partnerId, partnerId);
-    } else {
-      window.localStorage.removeItem(LOCAL_KEYS.partnerId);
-    }
-  }, [partnerId]);
 
   useEffect(() => {
     if (selectedRosterPartnerId && !rosterPartners.some((juggler) => juggler.id === selectedRosterPartnerId)) {
@@ -891,6 +932,14 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       // Ignore storage failures.
     }
   }, [tryModeEnabled]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LOCAL_KEYS.recommendationMode, recommendationMode);
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [recommendationMode]);
 
   useEffect(() => {
     setPatternLimit(DEFAULT_PATTERN_LIMIT);
@@ -992,19 +1041,6 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     }
   }, [activeProfile, editingProfile]);
 
-  useEffect(() => {
-    if (partnerProfile && !sessionForm.partnerId) {
-      setSessionForm((prev) => ({
-        ...prev,
-        partnerId: partnerProfile.id,
-        partnerName: partnerProfile.name,
-        participantIds: prev.participantIds.includes(partnerProfile.id)
-          ? prev.participantIds
-          : [partnerProfile.id, ...prev.participantIds],
-      }));
-    }
-  }, [partnerProfile, sessionForm.partnerId]);
-
   const handleCreateProfile = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -1071,9 +1107,8 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       (juggler) => normalizePersonName(juggler.name) === normalizePersonName(nextName),
     );
     if (existingPartner) {
-      setPartnerId(existingPartner.id);
       setSelectedRosterPartnerId(existingPartner.id);
-      setStatusMessage('Partner already exists. Selected existing partner.');
+      setStatusMessage('Partner already exists. Selected existing roster entry.');
       return;
     }
 
@@ -1092,7 +1127,6 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       }
       const created = await res.json();
       setJugglers((prev) => [...prev, created]);
-      setPartnerId(created.id);
       setSelectedRosterPartnerId(created.id);
       setPartnerForm({ name: '', experience: 'Beginner', props: [] });
       setStatusMessage('Partner added.');
@@ -1106,29 +1140,28 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     setStatusMessage('Active profile switched.');
   };
 
-  const handleSetPartner = (id: string | null) => {
-    setPartnerId(id);
-    setSelectedRosterPartnerId(id ?? '');
+  const addRosterPartnerToSession = useCallback((id: string) => {
+    const participant = jugglers.find((juggler) => juggler.id === id);
+    if (!participant) return;
     setSessionForm((prev) => {
-      if (!id) {
+      if (prev.sessionMode === 'duo') {
         return {
           ...prev,
-          partnerId: '',
-          partnerName: '',
+          sessionMode: 'duo',
+          practiceMode: 'passing',
+          participantIds: [id],
         };
       }
-
-      const participantIds = prev.participantIds.includes(id)
-        ? prev.participantIds
-        : [id, ...prev.participantIds];
+      if (prev.participantIds.includes(id)) return prev;
       return {
         ...prev,
-        partnerId: id,
-        partnerName: jugglers.find((juggler) => juggler.id === id)?.name ?? '',
-        participantIds,
+        sessionMode: prev.sessionMode === 'solo' ? 'group' : prev.sessionMode,
+        practiceMode: 'passing',
+        participantIds: [...prev.participantIds, id],
       };
     });
-  };
+    setSelectedRosterPartnerId(id);
+  }, [jugglers]);
 
   const updatePatternStatus = useCallback(async (patternId: string, status: PatternStatus) => {
     if (!activeProfile) return;
@@ -1167,19 +1200,29 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       setError('Please choose a session time.');
       return;
     }
-    const participants = sessionForm.practiceMode === 'solo' ? [] : selectedParticipantProfiles;
+    const participants = sessionForm.sessionMode === 'solo'
+      ? []
+      : sessionForm.sessionMode === 'duo'
+        ? selectedParticipantProfiles.slice(0, 1)
+        : selectedParticipantProfiles;
     const participantIds = participants.map((participant) => participant.id);
     const participantNames = uniqueStrings([
       ...participants.map((participant) => participant.name),
-      ...manualParticipantNames,
+      ...(sessionForm.sessionMode === 'solo'
+        ? []
+        : sessionForm.sessionMode === 'duo'
+          ? manualParticipantNames.slice(0, 1)
+          : manualParticipantNames),
     ]);
-    const partner = participants[0] ?? null;
+    const isDuo = sessionForm.sessionMode === 'duo';
+    const duoPartner = isDuo ? participants[0] ?? null : null;
     const payload = {
       hostId: activeProfile.id,
-      partnerId: partner ? partner.id : null,
-      partnerName: partner ? partner.name : sessionForm.partnerName.trim() || null,
+      partnerId: duoPartner ? duoPartner.id : null,
+      partnerName: duoPartner ? duoPartner.name : null,
       participantIds,
       participantNames,
+      sessionMode: sessionForm.sessionMode,
       practiceMode: sessionForm.practiceMode,
       scheduledFor: new Date(sessionForm.scheduledFor).toISOString(),
       durationMinutes: sessionForm.durationMinutes,
@@ -1207,10 +1250,9 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         scheduledFor: '',
         durationMinutes: 90,
         location: '',
-        partnerId: partner?.id ?? '',
-        partnerName: partner?.name ?? '',
         participantIds,
         participantNames: manualParticipantNames.join(', '),
+        sessionMode: sessionForm.sessionMode,
         practiceMode: sessionForm.practiceMode,
         focusPatterns: [],
         compositionPlan: [],
@@ -1261,6 +1303,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
           patternId,
           sessionId: null,
           verdict,
+          outcomeScore: tryOutcomeScore,
           note: tryFeedbackNote.trim() || null,
           rosterSnapshot: groupJugglers,
         }),
@@ -1272,6 +1315,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       const entry = await res.json();
       setAttempts((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
       setTryFeedbackNote('');
+      setTryOutcomeScore(7);
       setStatusMessage('Try-mode feedback saved.');
     } catch (err: any) {
       setError(err?.message || 'Try-mode feedback failed.');
@@ -1399,11 +1443,25 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     setSessionForm((prev) => {
       const focusPatterns = Array.from(new Set([...prev.focusPatterns, recommendation.pattern.id])).slice(0, MAX_SESSION_FOCUS_PATTERNS);
       const withoutExisting = prev.compositionPlan.filter((plan) => plan.patternId !== recommendation.pattern.id);
+      const trimmedParticipantNames = uniqueStrings(prev.participantNames.split(',').map((name) => name.trim())).slice(0, 1).join(', ');
       return {
         ...prev,
         focusPatterns,
         compositionPlan: compositionPlan ? [...withoutExisting, compositionPlan] : withoutExisting,
-        practiceMode: 'passing',
+        sessionMode: recommendation.sessionMode,
+        practiceMode: recommendation.sessionMode === 'solo' ? 'solo' : 'passing',
+        participantIds:
+          recommendation.sessionMode === 'solo'
+            ? []
+            : recommendation.sessionMode === 'duo'
+              ? prev.participantIds.slice(0, 1)
+              : prev.participantIds,
+        participantNames:
+          recommendation.sessionMode === 'solo'
+            ? ''
+            : recommendation.sessionMode === 'duo'
+              ? trimmedParticipantNames
+              : prev.participantNames,
       };
     });
   }, []);
@@ -1432,8 +1490,11 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   }, []);
 
   const removeGroupJuggler = useCallback((id: string) => {
-    setGroupJugglers((prev) => (prev.length <= 2 ? prev : prev.filter((juggler) => juggler.id !== id)));
-  }, []);
+    setGroupJugglers((prev) => {
+      const minimum = recommendationMode === 'solo' ? 1 : 2;
+      return prev.length <= minimum ? prev : prev.filter((juggler) => juggler.id !== id);
+    });
+  }, [recommendationMode]);
 
   const seedGroupFromSession = useCallback(() => {
     const roster = uniqueStrings([
@@ -1441,7 +1502,8 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       ...selectedParticipantProfiles.map((participant) => participant.name),
       ...manualParticipantNames,
     ]);
-    if (roster.length < 2) return;
+    if (roster.length < 1) return;
+    setRecommendationMode(sessionForm.sessionMode);
     setGroupJugglers(
       roster.map((name, index) => ({
         id: `group-juggler-${index + 1}`,
@@ -1451,7 +1513,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         movementComfort: 'stationary' as MovementComfort,
       })),
     );
-  }, [activeProfile, manualParticipantNames, selectedParticipantProfiles]);
+  }, [activeProfile, manualParticipantNames, selectedParticipantProfiles, sessionForm.sessionMode]);
 
   const addWorkshopSectionToSession = useCallback((patternIds: string[]) => {
     setSessionForm((prev) => ({
@@ -1463,17 +1525,22 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
   const toggleSessionParticipant = useCallback((jugglerId: string) => {
     setSessionForm((prev) => {
+      if (prev.sessionMode === 'duo') {
+        return {
+          ...prev,
+          participantIds: prev.participantIds[0] === jugglerId ? [] : [jugglerId],
+        };
+      }
+
       const participantIds = prev.participantIds.includes(jugglerId)
         ? prev.participantIds.filter((id) => id !== jugglerId)
         : [...prev.participantIds, jugglerId];
       return {
         ...prev,
         participantIds,
-        partnerId: participantIds[0] ?? '',
-        partnerName: jugglers.find((juggler) => juggler.id === participantIds[0])?.name ?? '',
       };
     });
-  }, [jugglers]);
+  }, []);
 
   const removeCompositionPlan = useCallback((patternId: string) => {
     setSessionForm((prev) => ({
@@ -1527,21 +1594,13 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
       if (attendees.length < 2) return prev;
 
-      const baseJugglers = Math.max(2, plan.baseJugglers);
-      const laneCount = Math.max(1, Math.ceil(attendees.length / baseJugglers));
-      const lanes = Array.from({ length: laneCount }, (_, index) => {
-        const slice = attendees.slice(index * baseJugglers, (index + 1) * baseJugglers);
-        return {
-          laneId: plan.lanes[index]?.laneId ?? `lane-${index + 1}`,
-          label: plan.lanes[index]?.label ?? `Lane ${index + 1}`,
-          participantIds: slice.map((attendee) => attendee.id).filter((id): id is string => Boolean(id && !id.startsWith('manual-'))),
-          participantNames: slice.map((attendee) => attendee.name),
-        };
-      }).filter((lane) => lane.participantNames.length > 0);
+      const { lanes, partialLaneCount, adaptationNotes } = distributeCompositionLanes(attendees, plan);
 
       const rebuiltPlan: SessionCompositionPlan = {
         ...plan,
         lanes,
+        partialLaneCount,
+        adaptationNotes,
         totalJugglers: attendees.length,
         notes: `Roster rebuilt into ${lanes.length} lane${lanes.length === 1 ? '' : 's'} from current participants.`,
       };
@@ -1738,10 +1797,10 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
       <article className="card half">
         <h2>Roster</h2>
-        <p className="muted">Add jugglers you pass with. Saved roster names can seed the MVP group-fit planner.</p>
+        <p className="muted">Add jugglers you pass with. Then add any number of them to your session roster for duo or group planning.</p>
         <div className="patternpals-inline-actions">
           <label>
-            Select existing partner
+            Add roster member to session
             <select
               value={selectedRosterPartnerId}
               onChange={(event) => setSelectedRosterPartnerId(event.target.value)}
@@ -1757,10 +1816,14 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
           <button
             type="button"
             className="patternpals-mini-button"
-            onClick={() => handleSetPartner(selectedRosterPartnerId || null)}
+            onClick={() => {
+              if (!selectedRosterPartnerId) return;
+              addRosterPartnerToSession(selectedRosterPartnerId);
+              setStatusMessage('Added roster member to session participants.');
+            }}
             disabled={!selectedRosterPartnerId}
           >
-            Use selected partner
+            Add to session
           </button>
         </div>
         <div className="patternpals-roster">
@@ -1774,10 +1837,10 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 <div className="patternpals-roster-actions">
                   <button
                     type="button"
-                    className={`patternpals-mini-button${partnerId === juggler.id ? ' active' : ''}`}
-                    onClick={() => handleSetPartner(juggler.id)}
+                    className={`patternpals-mini-button${sessionForm.participantIds.includes(juggler.id) ? ' active' : ''}`}
+                    onClick={() => addRosterPartnerToSession(juggler.id)}
                   >
-                    {partnerId === juggler.id ? 'Active partner' : 'Use partner'}
+                    {sessionForm.participantIds.includes(juggler.id) ? 'In session roster' : 'Add to session'}
                   </button>
                   <button
                     type="button"
@@ -1836,16 +1899,42 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         <div className="patternpals-section-header">
           <div>
             <p className="patternpals-detail-label">Minimum viable product</p>
-            <h2>Top 10 group-fit patterns</h2>
+            <h2>Top 10 {SESSION_MODE_LABELS[recommendationMode].toLowerCase()}-fit patterns</h2>
             <p className="muted">
-              Enter the jugglers you have, then PatternPals scores every position by average club load, passing count, and movement or turning pressure.
-              The list below ranks the ten patterns most likely to give each person a useful challenge.
+              {recommendationMode === 'solo'
+                ? 'Enter one juggler and PatternPals will surface the cleanest solo shadow-drills and role rehearsals to prepare for partner practice.'
+                : recommendationMode === 'duo'
+                  ? 'Enter two jugglers and PatternPals scores duo-friendly roles by average club load, count pressure, and movement so the pair gets a useful challenge.'
+                  : 'Enter the jugglers you have, then PatternPals scores every position by average club load, passing count, and movement or turning pressure. The list below ranks the ten patterns most likely to give each person a useful challenge.'}
             </p>
             <p className="muted small">
-              Atlas currently includes patterns for up to {MAX_CATALOG_JUGGLERS} jugglers. Planner supports up to {MAX_GROUP_JUGGLERS} so larger groups can be staged while composition planning lands next.
+              {recommendationMode === 'solo'
+                ? 'The atlas is still passing-first, so solo recommendations prefer shadow-drills and role rehearsals that build toward partner sessions.'
+                : `Atlas currently includes patterns for up to ${MAX_CATALOG_JUGGLERS} jugglers. Planner supports up to ${MAX_GROUP_JUGGLERS} so larger groups can be staged while composition planning lands next.`}
             </p>
           </div>
           <div className="patternpals-mode">
+            <button
+              type="button"
+              className={`patternpals-mini-button${recommendationMode === 'solo' ? ' active' : ''}`}
+              onClick={() => setRecommendationMode('solo')}
+            >
+              Solo
+            </button>
+            <button
+              type="button"
+              className={`patternpals-mini-button${recommendationMode === 'duo' ? ' active' : ''}`}
+              onClick={() => setRecommendationMode('duo')}
+            >
+              Duo
+            </button>
+            <button
+              type="button"
+              className={`patternpals-mini-button${recommendationMode === 'group' ? ' active' : ''}`}
+              onClick={() => setRecommendationMode('group')}
+            >
+              Group
+            </button>
             <button type="button" className="patternpals-mini-button" onClick={addGroupJuggler}>
               Add juggler
             </button>
@@ -1871,11 +1960,24 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 placeholder="Optional note for the next try feedback"
               />
             </label>
-            <span className="muted small">Use the quick buttons on each recommendation to save feedback.</span>
+            <label className="patternpals-try-note">
+              Outcome score
+              <select
+                value={tryOutcomeScore}
+                onChange={(event) => setTryOutcomeScore(Number(event.target.value))}
+              >
+                {Array.from({ length: 10 }, (_, index) => index + 1).map((score) => (
+                  <option key={score} value={score}>
+                    {score}/10
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="muted small">Use the quick buttons on each recommendation to save feedback. Outcome score weights future rankings.</span>
           </div>
         ) : null}
         <div className="patternpals-group-planner">
-          {groupJugglers.map((juggler, index) => (
+          {recommendationJugglers.map((juggler, index) => (
             <div key={juggler.id} className="patternpals-group-juggler">
               <label>
                 Position candidate
@@ -1924,16 +2026,67 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 type="button"
                 className="patternpals-mini-button ghost"
                 onClick={() => removeGroupJuggler(juggler.id)}
-                disabled={groupJugglers.length <= 2}
+                disabled={recommendationJugglers.length <= (recommendationMode === 'solo' ? 1 : 2)}
               >
                 Remove
               </button>
             </div>
           ))}
         </div>
+        {recommendationMode === 'solo' && groupJugglers.length > 1 ? (
+          <p className="muted small">Solo mode scores the first planner row only; keep extra rows if you want to switch back to duo or group planning.</p>
+        ) : null}
+        <div className="patternpals-readiness-panel" aria-label="Roster health assessment">
+          <div>
+            <h3>Roster health</h3>
+            <p className="muted small">Score the current planner roster before you commit to a session block.</p>
+          </div>
+          <div className={`patternpals-readiness-card ${ROSTER_HEALTH_CLASSNAMES[rosterHealth.status]}`}>
+            <div>
+              <strong>{ROSTER_HEALTH_LABELS[rosterHealth.status]}</strong>
+              <span>{rosterHealth.score}/100</span>
+            </div>
+            <p>{rosterHealth.summary}</p>
+            <ul>
+              <li>{rosterHealth.exactPatternCount} exact-fit pattern{rosterHealth.exactPatternCount === 1 ? '' : 's'}.</li>
+              <li>{rosterHealth.scalablePatternCount} scalable option{rosterHealth.scalablePatternCount === 1 ? '' : 's'}.</li>
+              <li>{rosterHealth.supportedPatternCount} total catalog option{rosterHealth.supportedPatternCount === 1 ? '' : 's'} for this mode.</li>
+            </ul>
+            {rosterHealth.warnings.length > 0 ? (
+              <div className="patternpals-chip-row">
+                {rosterHealth.warnings.map((warning) => (
+                  <span key={warning} className="patternpals-chip">Warning: {warning}</span>
+                ))}
+              </div>
+            ) : null}
+            {rosterHealth.strengths.length > 0 ? (
+              <div className="patternpals-chip-row">
+                {rosterHealth.strengths.map((strength) => (
+                  <span key={strength} className="patternpals-chip">Strength: {strength}</span>
+                ))}
+              </div>
+            ) : null}
+            {rosterHealth.suggestions.length > 0 ? (
+              <div>
+                <strong>Suggested adjustments</strong>
+                <ul>
+                  {rosterHealth.suggestions.map((suggestion) => (
+                    <li key={suggestion}>{suggestion}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </div>
         <div className="patternpals-recommendation-grid">
           {recommendations.length === 0 ? (
-            <p className="muted">Add at least two jugglers to see top pattern matches for that group size.</p>
+            <p className="muted">
+              {recommendationMode === 'solo'
+                ? 'Add one juggler to see solo shadow-drills and role rehearsals.'
+                : recommendationMode === 'duo'
+                  ? 'Add two jugglers to see duo-fit patterns.'
+                  : 'Add at least two jugglers to see top pattern matches for that group size.'}
+            </p>
           ) : (
             recommendations.map((item, index) => (
               <div key={item.pattern.id} className="patternpals-recommendation patternpals-mvp-recommendation">
@@ -1942,6 +2095,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   <div>
                     <h3>{item.pattern.name}</h3>
                     <p className="muted small">{item.pattern.description}</p>
+                    <p className="muted small">{SESSION_MODE_LABELS[item.sessionMode]} recommendation</p>
                   </div>
                   <span className="patternpals-fit-score">{item.score}% fit</span>
                 </div>
@@ -2116,14 +2270,14 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
             <div className="patternpals-mode">
               <button
                 type="button"
-                className={`patternpals-mini-button${sessionForm.practiceMode === 'solo' ? ' active' : ''}`}
+                className={`patternpals-mini-button${sessionForm.sessionMode === 'solo' ? ' active' : ''}`}
                 onClick={() =>
                   setSessionForm((prev) => ({
                     ...prev,
+                    sessionMode: 'solo',
                     practiceMode: 'solo',
                     participantIds: [],
-                    partnerId: '',
-                    partnerName: '',
+                    participantNames: '',
                   }))
                 }
               >
@@ -2131,16 +2285,32 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
               </button>
               <button
                 type="button"
-                className={`patternpals-mini-button${sessionForm.practiceMode === 'passing' ? ' active' : ''}`}
-                onClick={() => setSessionForm((prev) => ({ ...prev, practiceMode: 'passing' }))}
+                className={`patternpals-mini-button${sessionForm.sessionMode === 'duo' ? ' active' : ''}`}
+                onClick={() =>
+                  setSessionForm((prev) => ({
+                    ...prev,
+                    sessionMode: 'duo',
+                    practiceMode: 'passing',
+                    participantIds: prev.participantIds.slice(0, 1),
+                  }))
+                }
+              >
+                Duo session
+              </button>
+              <button
+                type="button"
+                className={`patternpals-mini-button${sessionForm.sessionMode === 'group' ? ' active' : ''}`}
+                onClick={() => setSessionForm((prev) => ({ ...prev, sessionMode: 'group', practiceMode: 'passing' }))}
               >
                 Group session
               </button>
             </div>
           </div>
-          {sessionForm.practiceMode === 'passing' ? (
+          {sessionForm.sessionMode !== 'solo' ? (
             <div>
-              <p className="muted small">Who is at practice?</p>
+              <p className="muted small">
+                {sessionForm.sessionMode === 'duo' ? 'Who is your practice partner?' : 'Who is at practice (group)?'}
+              </p>
               <div className="patternpals-participant-grid">
                 {rosterPartners
                   .map((juggler) => (
@@ -2156,13 +2326,15 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   ))}
               </div>
               <label>
-                Additional attendees
+                {sessionForm.sessionMode === 'duo' ? 'Partner name (if not on roster)' : 'Additional attendees'}
                 <input
                   value={sessionForm.participantNames}
                   onChange={(event) =>
                     setSessionForm((prev) => ({ ...prev, participantNames: event.target.value }))
                   }
-                  placeholder="Comma-separated names for guests not on the roster"
+                  placeholder={sessionForm.sessionMode === 'duo'
+                    ? 'Optional partner name'
+                    : 'Comma-separated names for guests not on the roster'}
                 />
               </label>
             </div>
@@ -2217,6 +2389,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                     </div>
                     <ul>
                       <li>{plan.totalJugglers} jugglers across {plan.lanes.length} lanes ({plan.baseJugglers} each).</li>
+                      <li>{plan.partialLaneCount > 0 ? `${plan.partialLaneCount} partial lane${plan.partialLaneCount === 1 ? '' : 's'} need adaptation.` : 'All lanes can run the full base formation.'}</li>
                       {plan.lanes.map((lane) => (
                         <li key={lane.laneId}>
                           <div className="patternpals-inline-actions">
@@ -2227,9 +2400,20 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                             />
                             <span className="muted small">{lane.participantNames.join(', ') || 'No names yet'}</span>
                           </div>
+                          <div className="muted small">
+                            Roles: {lane.roleLabels.join(', ') || 'Open roles'}
+                            {lane.adaptationNote ? ` · ${lane.adaptationNote}` : ''}
+                          </div>
                         </li>
                       ))}
                     </ul>
+                    {plan.adaptationNotes.length > 0 ? (
+                      <div className="patternpals-chip-row">
+                        {plan.adaptationNotes.map((note) => (
+                          <span key={note} className="patternpals-chip">{note}</span>
+                        ))}
+                      </div>
+                    ) : null}
                     <label>
                       Composition notes
                       <input
@@ -2305,7 +2489,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   <strong>{formatDateTime(session.scheduledFor)}</strong>
                   <p className="muted small">
                     {(session.participantNames?.length ? session.participantNames.join(', ') : session.partnerName) || 'Open session'} ·{' '}
-                    {session.location || 'Location TBD'}
+                    {session.location || 'Location TBD'} · {SESSION_MODE_LABELS[session.sessionMode]}
                   </p>
                   <p className="muted small">
                     Focus: {session.focusPatterns.map(formatPattern).join(', ') || 'Open focus'}
@@ -2350,6 +2534,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   <strong>{formatDateTime(session.completedAt ?? session.scheduledFor)}</strong>
                   <p className="muted small">
                     {(session.participantNames?.length ? session.participantNames.join(', ') : session.partnerName) || 'Solo practice'}
+                    {` · ${SESSION_MODE_LABELS[session.sessionMode]}`}
                     {session.durationMinutes ? ` · ${session.durationMinutes} minutes` : ''}
                   </p>
                   <p className="muted small">

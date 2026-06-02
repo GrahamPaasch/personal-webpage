@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createAttempt, listAttempts } from '@/lib/patternpals/storage';
 import { getPatternById } from '@/lib/patternpals/patterns';
-import type { PracticeAttemptVerdict } from '@/lib/patternpals/types';
+import type { GroupJugglerInput, PracticeAttemptVerdict } from '@/lib/patternpals/types';
 import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
 import { patternPalsApiError, patternPalsJson } from '../_utils';
 
@@ -11,6 +11,8 @@ const MAX_CONTENT_LENGTH = 20_000; // bytes (best-effort)
 const MAX_ID_LENGTH = 120;
 const MAX_NOTE_LENGTH = 800;
 const MAX_ROSTER_SNAPSHOT_JUGGLERS = 24;
+const MIN_OUTCOME_SCORE = 1;
+const MAX_OUTCOME_SCORE = 10;
 
 const VERDICTS: PracticeAttemptVerdict[] = ['too-easy', 'good-fit', 'too-hard', 'unsure'];
 
@@ -23,7 +25,7 @@ const normalizeId = (value: unknown): string | null => {
   return normalized;
 };
 
-const cleanRosterSnapshot = (value: unknown) => {
+const cleanRosterSnapshot = (value: unknown): GroupJugglerInput[] => {
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => {
@@ -43,11 +45,16 @@ const cleanRosterSnapshot = (value: unknown) => {
         movementComfort:
           row.movementComfort === 'high' || row.movementComfort === 'moderate' || row.movementComfort === 'stationary'
             ? row.movementComfort
-            : 'stationary',
+            : 'stationary' as GroupJugglerInput['movementComfort'],
       };
     })
     .filter((item) => item && item.id && item.name)
     .slice(0, MAX_ROSTER_SNAPSHOT_JUGGLERS);
+};
+
+const cleanOutcomeScore = (value: unknown): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return Math.max(MIN_OUTCOME_SCORE, Math.min(MAX_OUTCOME_SCORE, Math.round(value)));
 };
 
 export async function GET(request: NextRequest) {
@@ -113,6 +120,7 @@ export async function POST(request: NextRequest) {
       patternId,
       sessionId: normalizeId((data as Record<string, unknown>).sessionId),
       verdict: (data as Record<string, unknown>).verdict as PracticeAttemptVerdict,
+      outcomeScore: cleanOutcomeScore((data as Record<string, unknown>).outcomeScore),
       note:
         typeof (data as Record<string, unknown>).note === 'string'
           ? (((data as Record<string, unknown>).note as string).trim().slice(0, MAX_NOTE_LENGTH) || null)
