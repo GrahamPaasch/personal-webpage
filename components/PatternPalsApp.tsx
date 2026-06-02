@@ -32,6 +32,8 @@ import type {
   PatternStatus,
   PatternType,
   PracticeMode,
+  PracticeAttemptEntry,
+  PracticeAttemptVerdict,
   ProgressEntry,
   PropType,
   ReadinessState,
@@ -45,6 +47,8 @@ const PATTERNPALS_TAGLINE =
 const LOCAL_KEYS = {
   activeId: 'patternpals-active-juggler',
   partnerId: 'patternpals-partner-juggler',
+  groupJugglers: 'patternpals-group-jugglers',
+  tryMode: 'patternpals-try-mode',
 };
 
 type PatternPalsAppProps = {
@@ -68,6 +72,39 @@ const PATTERN_TYPE_OPTIONS: PatternType[] = [
 const DEFAULT_PATTERN_LIMIT = 60;
 const PATTERN_PAGE_SIZE = 60;
 const SEARCH_PATTERN_LIMIT = 200;
+
+const parseGroupJugglers = (value: string | null): GroupJugglerInput[] => {
+  if (!value) return createDefaultGroupJugglers();
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return createDefaultGroupJugglers();
+    const normalized = parsed
+      .map((item, index) => {
+        if (!item || typeof item !== 'object') return null;
+        const row = item as Record<string, unknown>;
+        return {
+          id: typeof row.id === 'string' && row.id ? row.id : `group-juggler-${index + 1}`,
+          name: typeof row.name === 'string' && row.name.trim() ? row.name.trim() : `Juggler ${index + 1}`,
+          comfortableObjects:
+            typeof row.comfortableObjects === 'number' && Number.isFinite(row.comfortableObjects)
+              ? row.comfortableObjects
+              : 3,
+          comfortableCount:
+            typeof row.comfortableCount === 'number' && Number.isFinite(row.comfortableCount)
+              ? Math.round(row.comfortableCount)
+              : 4,
+          movementComfort:
+            row.movementComfort === 'high' || row.movementComfort === 'moderate' || row.movementComfort === 'stationary'
+              ? row.movementComfort
+              : 'stationary',
+        } satisfies GroupJugglerInput;
+      })
+      .filter((item): item is GroupJugglerInput => Boolean(item && item.name));
+    return normalized.length >= 2 ? normalized.slice(0, 8) : createDefaultGroupJugglers();
+  } catch {
+    return createDefaultGroupJugglers();
+  }
+};
 
 const CURATION_SIGNAL_OPTIONS: { value: CurationSignal; label: string; description: string }[] = [
   { value: 'tip', label: 'Teaching tip', description: 'A cue that helped your group learn the pattern.' },
@@ -398,6 +435,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   const [progress, setProgress] = useState<ProgressEntry[]>([]);
   const [sessions, setSessions] = useState<SessionEntry[]>([]);
   const [groupJugglers, setGroupJugglers] = useState<GroupJugglerInput[]>(() => createDefaultGroupJugglers());
+  const [attempts, setAttempts] = useState<PracticeAttemptEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -418,6 +456,8 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     visualAidTitle: '',
     visualAidUrl: '',
   });
+  const [tryModeEnabled, setTryModeEnabled] = useState(false);
+  const [tryFeedbackNote, setTryFeedbackNote] = useState('');
   const deferredProgress = useDeferredValue(progress);
 
   const [profileForm, setProfileForm] = useState<{
@@ -514,7 +554,10 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     [activeProfile?.experience, deferredProgress, sessions],
   );
 
-  const recommendations = useMemo(() => recommendGroupPatterns(PATTERN_LIBRARY, groupJugglers, 10), [groupJugglers]);
+  const recommendations = useMemo(
+    () => recommendGroupPatterns(PATTERN_LIBRARY, groupJugglers, 10, attempts),
+    [attempts, groupJugglers],
+  );
 
   const filteredPatterns = useMemo(() => {
     const query = deferredPatternSearch.trim();
@@ -666,6 +709,22 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   }, []);
 
   useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(LOCAL_KEYS.groupJugglers);
+      const next = parseGroupJugglers(stored);
+      setGroupJugglers(next);
+    } catch {
+      setGroupJugglers(createDefaultGroupJugglers());
+    }
+
+    try {
+      setTryModeEnabled(window.localStorage.getItem(LOCAL_KEYS.tryMode) === 'true');
+    } catch {
+      setTryModeEnabled(false);
+    }
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     fetch('/api/patternpals/curation')
       .then(async (res) => {
@@ -711,6 +770,22 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       window.localStorage.setItem(LOCAL_KEYS.partnerId, partnerId);
     }
   }, [partnerId]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LOCAL_KEYS.groupJugglers, JSON.stringify(groupJugglers));
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [groupJugglers]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LOCAL_KEYS.tryMode, tryModeEnabled ? 'true' : 'false');
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [tryModeEnabled]);
 
   useEffect(() => {
     setPatternLimit(DEFAULT_PATTERN_LIMIT);
@@ -765,14 +840,16 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     if (!activeId) {
       setProgress([]);
       setSessions([]);
+      setAttempts([]);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const [progressRes, sessionsRes] = await Promise.all([
+        const [progressRes, sessionsRes, attemptsRes] = await Promise.all([
           fetch(`/api/patternpals/progress?jugglerId=${encodeURIComponent(activeId)}`),
           fetch(`/api/patternpals/sessions?hostId=${encodeURIComponent(activeId)}`),
+          fetch(`/api/patternpals/attempts?hostId=${encodeURIComponent(activeId)}`),
         ]);
         if (!progressRes.ok || !sessionsRes.ok) {
           throw new Error('Failed to load profile data.');
@@ -782,6 +859,12 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
         if (!cancelled) {
           setProgress(progressData.items ?? []);
           setSessions(sessionsData.items ?? []);
+          if (attemptsRes && attemptsRes.ok) {
+            const attemptsData = await attemptsRes.json();
+            setAttempts(attemptsData.items ?? []);
+          } else {
+            setAttempts([]);
+          }
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -1018,6 +1101,36 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       setStatusMessage('Session updated.');
     } catch (err: any) {
       setError(err?.message || 'Session update failed.');
+    }
+  };
+
+  const submitPracticeAttempt = async (patternId: string, verdict: PracticeAttemptVerdict) => {
+    if (!activeProfile) return;
+    setError(null);
+    setStatusMessage(null);
+    try {
+      const res = await fetch('/api/patternpals/attempts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hostId: activeProfile.id,
+          patternId,
+          sessionId: null,
+          verdict,
+          note: tryFeedbackNote.trim() || null,
+          rosterSnapshot: groupJugglers,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to save try-mode feedback.');
+      }
+      const entry = await res.json();
+      setAttempts((prev) => [entry, ...prev.filter((item) => item.id !== entry.id)]);
+      setTryFeedbackNote('');
+      setStatusMessage('Try-mode feedback saved.');
+    } catch (err: any) {
+      setError(err?.message || 'Try-mode feedback failed.');
     }
   };
 
@@ -1478,8 +1591,28 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
             <button type="button" className="patternpals-mini-button ghost" onClick={seedGroupFromSession}>
               Use session roster
             </button>
+            <button
+              type="button"
+              className={`patternpals-mini-button${tryModeEnabled ? ' active' : ' ghost'}`}
+              onClick={() => setTryModeEnabled((prev) => !prev)}
+            >
+              {tryModeEnabled ? 'Exit try mode' : 'Try mode'}
+            </button>
           </div>
         </div>
+        {tryModeEnabled ? (
+          <div className="patternpals-inline-actions">
+            <label className="patternpals-try-note">
+              Try note
+              <input
+                value={tryFeedbackNote}
+                onChange={(event) => setTryFeedbackNote(event.target.value)}
+                placeholder="Optional note for the next try feedback"
+              />
+            </label>
+            <span className="muted small">Use the quick buttons on each recommendation to save feedback.</span>
+          </div>
+        ) : null}
         <div className="patternpals-group-planner">
           {groupJugglers.map((juggler, index) => (
             <div key={juggler.id} className="patternpals-group-juggler">
@@ -1594,6 +1727,31 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                   >
                     Mark working
                   </button>
+                  {tryModeEnabled ? (
+                    <>
+                      <button
+                        type="button"
+                        className="patternpals-mini-button ghost"
+                        onClick={() => submitPracticeAttempt(item.pattern.id, 'too-easy')}
+                      >
+                        Too easy
+                      </button>
+                      <button
+                        type="button"
+                        className="patternpals-mini-button ghost"
+                        onClick={() => submitPracticeAttempt(item.pattern.id, 'good-fit')}
+                      >
+                        Good fit
+                      </button>
+                      <button
+                        type="button"
+                        className="patternpals-mini-button ghost"
+                        onClick={() => submitPracticeAttempt(item.pattern.id, 'too-hard')}
+                      >
+                        Too hard
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             ))

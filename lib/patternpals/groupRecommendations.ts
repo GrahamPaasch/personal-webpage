@@ -12,6 +12,8 @@ import type {
   PatternType,
   PositionAssignment,
   PositionDifficultyEstimate,
+  PracticeAttemptEntry,
+  PracticeAttemptVerdict,
 } from './types';
 
 const MOVEMENT_SCORE: Record<MovementComfort, number> = {
@@ -274,6 +276,39 @@ const qualityRank = (quality: GroupPatternRecommendation['dataQuality']) => {
   return 1;
 };
 
+const verdictImpact: Record<PracticeAttemptVerdict, number> = {
+  'too-easy': -4,
+  'good-fit': 6,
+  'too-hard': -8,
+  unsure: 0,
+};
+
+const buildAttemptAdjustment = (attempts: PracticeAttemptEntry[], patternId: string) => {
+  const recent = attempts
+    .filter((attempt) => attempt.patternId === patternId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3);
+
+  if (recent.length === 0) {
+    return { score: 0, reasons: [] as string[] };
+  }
+
+  const total = recent.reduce((sum, attempt) => sum + verdictImpact[attempt.verdict], 0);
+  const reasons: string[] = [];
+
+  if (recent.some((attempt) => attempt.verdict === 'good-fit')) {
+    reasons.push('Recent try feedback says this pattern fit well for a similar roster.');
+  }
+  if (recent.some((attempt) => attempt.verdict === 'too-hard')) {
+    reasons.push('Recent try feedback flagged this pattern as too hard.');
+  }
+  if (recent.some((attempt) => attempt.verdict === 'too-easy')) {
+    reasons.push('Recent try feedback suggests this pattern may need more challenge.');
+  }
+
+  return { score: total, reasons };
+};
+
 const buildRecommendationReasons = (assignments: PositionAssignment[], quality: GroupPatternRecommendation['dataQuality']) => {
   const overloaded = assignments.filter((assignment) => assignment.fitLabel === 'overloaded');
   const stretches = assignments.filter((assignment) => assignment.fitLabel === 'stretch');
@@ -298,6 +333,7 @@ export const recommendGroupPatterns = (
   patterns: Pattern[],
   group: GroupJugglerInput[],
   limit = 10,
+  attempts: PracticeAttemptEntry[] = [],
 ): GroupPatternRecommendation[] => {
   const normalizedGroup = group
     .map((juggler, index) => ({
@@ -318,12 +354,15 @@ export const recommendGroupPatterns = (
       const positions = buildPositionDifficulties(pattern);
       const assignments = bestAssignment(normalizedGroup, positions);
       const quality = dataQuality(pattern);
-      const score = Math.round(clamp(assignmentScore(assignments) + qualityAdjustment(quality), 0, 100));
+      const attemptAdjustment = buildAttemptAdjustment(attempts, pattern.id);
+      const score = Math.round(
+        clamp(assignmentScore(assignments) + qualityAdjustment(quality) + attemptAdjustment.score, 0, 100),
+      );
       return {
         pattern,
         score,
         assignments,
-        reasons: buildRecommendationReasons(assignments, quality),
+        reasons: [...buildRecommendationReasons(assignments, quality), ...attemptAdjustment.reasons].slice(0, 4),
         dataQuality: quality,
       } satisfies GroupPatternRecommendation;
     })

@@ -8,6 +8,8 @@ import type {
   PatternCurationEntry,
   PatternStatus,
   PatternVisualAid,
+  PracticeAttemptEntry,
+  PracticeAttemptVerdict,
   PracticeMode,
   PropType,
   ProgressEntry,
@@ -39,6 +41,21 @@ type CreateSessionInput = {
   completedAt: string | null;
 };
 
+type CreatePracticeAttemptInput = {
+  hostId: string;
+  patternId: string;
+  sessionId: string | null;
+  verdict: PracticeAttemptVerdict;
+  note: string | null;
+  rosterSnapshot: {
+    id: string;
+    name: string;
+    comfortableObjects: number;
+    comfortableCount: number;
+    movementComfort: string;
+  }[];
+};
+
 type ProgressUpdateInput = {
   jugglerId: string;
   patternId: string;
@@ -65,6 +82,8 @@ type StorageImpl = {
   listSessions: (hostId: string) => Promise<SessionEntry[]>;
   createSession: (input: CreateSessionInput) => Promise<SessionEntry>;
   updateSession: (id: string, input: Partial<CreateSessionInput>) => Promise<SessionEntry | null>;
+  listAttempts: (hostId: string) => Promise<PracticeAttemptEntry[]>;
+  createAttempt: (input: CreatePracticeAttemptInput) => Promise<PracticeAttemptEntry>;
   listCuration: (patternId?: string) => Promise<PatternCurationEntry[]>;
   createCuration: (input: CreateCurationInput) => Promise<PatternCurationEntry>;
 };
@@ -197,6 +216,22 @@ function createPgStorage(conn: string): StorageImpl {
         CREATE INDEX IF NOT EXISTS patternpals_curation_pattern_idx
         ON patternpals_curation (pattern_id, created_at DESC);
       `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS patternpals_attempts (
+          id UUID PRIMARY KEY,
+          host_id UUID NOT NULL,
+          pattern_id TEXT NOT NULL,
+          session_id UUID,
+          verdict TEXT NOT NULL,
+          note TEXT,
+          roster_snapshot JSONB NOT NULL DEFAULT '[]'::jsonb,
+          created_at TIMESTAMPTZ NOT NULL
+        );
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS patternpals_attempts_host_idx
+        ON patternpals_attempts (host_id, created_at DESC);
+      `);
     } finally {
       client.release();
     }
@@ -272,6 +307,17 @@ function createPgStorage(conn: string): StorageImpl {
     completedAt: row.completed_at
       ? row.completed_at.toISOString?.() ?? new Date(row.completed_at).toISOString()
       : null,
+    createdAt: row.created_at.toISOString?.() ?? new Date(row.created_at).toISOString(),
+  });
+
+  const mapAttempt = (row: any): PracticeAttemptEntry => ({
+    id: row.id,
+    hostId: row.host_id,
+    patternId: row.pattern_id,
+    sessionId: row.session_id,
+    verdict: row.verdict,
+    note: row.note,
+    rosterSnapshot: Array.isArray(row.roster_snapshot) ? row.roster_snapshot : [],
     createdAt: row.created_at.toISOString?.() ?? new Date(row.created_at).toISOString(),
   });
 
@@ -453,6 +499,46 @@ function createPgStorage(conn: string): StorageImpl {
       );
       return res.rows[0] ? mapSession(res.rows[0]) : null;
     },
+    async listAttempts(hostId) {
+      await ready;
+      const res = await pool.query(
+        'SELECT * FROM patternpals_attempts WHERE host_id = $1 ORDER BY created_at DESC LIMIT 100',
+        [hostId],
+      );
+      return res.rows.map(mapAttempt);
+    },
+    async createAttempt(input) {
+      await ready;
+      const id = randomUUID();
+      const createdAt = new Date().toISOString();
+      const res = await pool.query(
+        `
+        INSERT INTO patternpals_attempts (
+          id,
+          host_id,
+          pattern_id,
+          session_id,
+          verdict,
+          note,
+          roster_snapshot,
+          created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+        RETURNING *
+        `,
+        [
+          id,
+          input.hostId,
+          input.patternId,
+          input.sessionId,
+          input.verdict,
+          input.note,
+          JSON.stringify(input.rosterSnapshot ?? []),
+          createdAt,
+        ],
+      );
+      return mapAttempt(res.rows[0]);
+    },
     async listCuration(patternId) {
       await ready;
       const res = patternId
@@ -506,6 +592,7 @@ function createMemoryStorage(): StorageImpl {
   const jugglers: JugglerProfile[] = [];
   const progress: ProgressEntry[] = [];
   const sessions: SessionEntry[] = [];
+  const attempts: PracticeAttemptEntry[] = [];
   const curationEntries: PatternCurationEntry[] = [];
 
   return {
@@ -588,6 +675,23 @@ function createMemoryStorage(): StorageImpl {
         focusPatterns: input.focusPatterns ?? sessions[idx].focusPatterns,
       };
       return sessions[idx];
+    },
+    async listAttempts(hostId) {
+      return attempts.filter((row) => row.hostId === hostId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 100);
+    },
+    async createAttempt(input) {
+      const entry: PracticeAttemptEntry = {
+        id: randomUUID(),
+        hostId: input.hostId,
+        patternId: input.patternId,
+        sessionId: input.sessionId,
+        verdict: input.verdict,
+        note: input.note,
+        rosterSnapshot: input.rosterSnapshot ?? [],
+        createdAt: new Date().toISOString(),
+      };
+      attempts.push(entry);
+      return entry;
     },
     async listCuration(patternId) {
       const rows = patternId
@@ -675,6 +779,8 @@ function createResilientStorage(conn: string | undefined): StorageImpl {
     listSessions: (hostId) => run('listSessions', () => memory.listSessions(hostId), (store) => store.listSessions(hostId)),
     createSession: (input) => run('createSession', () => memory.createSession(input), (store) => store.createSession(input)),
     updateSession: (id, input) => run('updateSession', () => memory.updateSession(id, input), (store) => store.updateSession(id, input)),
+    listAttempts: (hostId) => run('listAttempts', () => memory.listAttempts(hostId), (store) => store.listAttempts(hostId)),
+    createAttempt: (input) => run('createAttempt', () => memory.createAttempt(input), (store) => store.createAttempt(input)),
     listCuration: (patternId) => run('listCuration', () => memory.listCuration(patternId), (store) => store.listCuration(patternId)),
     createCuration: (input) => run('createCuration', () => memory.createCuration(input), (store) => store.createCuration(input)),
   };
@@ -692,6 +798,8 @@ export const {
   listSessions,
   createSession,
   updateSession,
+  listAttempts,
+  createAttempt,
   listCuration,
   createCuration,
 } = storage;

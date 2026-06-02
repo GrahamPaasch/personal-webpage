@@ -16,6 +16,8 @@ export type PatternStatus = 'known' | 'working' | 'curious';
 
 export type PracticeMode = 'solo' | 'passing';
 
+export type PracticeAttemptVerdict = 'too-easy' | 'good-fit' | 'too-hard' | 'unsure';
+
 export type MovementComfort = 'stationary' | 'moderate' | 'high';
 
 export type GroupJugglerInput = {
@@ -125,6 +127,17 @@ export type SessionEntry = {
   status: SessionStatus;
   outcome: string | null;
   completedAt: string | null;
+  createdAt: string;
+};
+
+export type PracticeAttemptEntry = {
+  id: string;
+  hostId: string;
+  patternId: string;
+  sessionId: string | null;
+  verdict: PracticeAttemptVerdict;
+  note: string | null;
+  rosterSnapshot: GroupJugglerInput[];
   createdAt: string;
 };
 
