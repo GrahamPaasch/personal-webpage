@@ -245,6 +245,7 @@ type PracticeReadiness = SessionReadinessSnapshot & {
 };
 
 const uniqueStrings = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+const normalizePersonName = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
 
 const assessPracticeReadiness = ({
   focusPatternIds,
@@ -480,6 +481,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     experience: 'Beginner',
     props: [],
   });
+  const [selectedRosterPartnerId, setSelectedRosterPartnerId] = useState('');
 
   const [sessionForm, setSessionForm] = useState<{
     scheduledFor: string;
@@ -514,6 +516,18 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     () => jugglers.find((juggler) => juggler.id === partnerId) ?? null,
     [jugglers, partnerId],
   );
+
+  const rosterPartners = useMemo(() => {
+    const seen = new Set<string>();
+    return jugglers
+      .filter((juggler) => juggler.id !== activeId)
+      .filter((juggler) => {
+        const key = normalizePersonName(juggler.name);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }, [jugglers, activeId]);
 
   const progressMap = useMemo(
     () => new Map(progress.map((entry) => [entry.patternId, entry.status])),
@@ -753,11 +767,13 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     }
     if (!partnerId) {
       const storedPartner = window.localStorage.getItem(LOCAL_KEYS.partnerId);
-      if (storedPartner && jugglers.some((juggler) => juggler.id === storedPartner)) {
+      if (storedPartner && rosterPartners.some((juggler) => juggler.id === storedPartner)) {
         setPartnerId(storedPartner);
+      } else if (storedPartner) {
+        window.localStorage.removeItem(LOCAL_KEYS.partnerId);
       }
     }
-  }, [jugglers, activeId, partnerId]);
+  }, [jugglers, activeId, partnerId, rosterPartners]);
 
   useEffect(() => {
     if (activeId) {
@@ -768,8 +784,16 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
   useEffect(() => {
     if (partnerId) {
       window.localStorage.setItem(LOCAL_KEYS.partnerId, partnerId);
+    } else {
+      window.localStorage.removeItem(LOCAL_KEYS.partnerId);
     }
   }, [partnerId]);
+
+  useEffect(() => {
+    if (selectedRosterPartnerId && !rosterPartners.some((juggler) => juggler.id === selectedRosterPartnerId)) {
+      setSelectedRosterPartnerId('');
+    }
+  }, [rosterPartners, selectedRosterPartnerId]);
 
   useEffect(() => {
     try {
@@ -956,15 +980,30 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
     event.preventDefault();
     setError(null);
     setStatusMessage(null);
-    if (!partnerForm.name.trim()) {
+    const nextName = partnerForm.name.trim();
+    if (!nextName) {
       setError('Partner name is required.');
       return;
     }
+
+    const existingPartner = rosterPartners.find(
+      (juggler) => normalizePersonName(juggler.name) === normalizePersonName(nextName),
+    );
+    if (existingPartner) {
+      setPartnerId(existingPartner.id);
+      setSelectedRosterPartnerId(existingPartner.id);
+      setStatusMessage('Partner already exists. Selected existing partner.');
+      return;
+    }
+
     try {
       const res = await fetch('/api/patternpals/jugglers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partnerForm),
+        body: JSON.stringify({
+          ...partnerForm,
+          name: nextName,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -972,6 +1011,8 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       }
       const created = await res.json();
       setJugglers((prev) => [...prev, created]);
+      setPartnerId(created.id);
+      setSelectedRosterPartnerId(created.id);
       setPartnerForm({ name: '', experience: 'Beginner', props: [] });
       setStatusMessage('Partner added.');
     } catch (err: any) {
@@ -986,6 +1027,26 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
 
   const handleSetPartner = (id: string | null) => {
     setPartnerId(id);
+    setSelectedRosterPartnerId(id ?? '');
+    setSessionForm((prev) => {
+      if (!id) {
+        return {
+          ...prev,
+          partnerId: '',
+          partnerName: '',
+        };
+      }
+
+      const participantIds = prev.participantIds.includes(id)
+        ? prev.participantIds
+        : [id, ...prev.participantIds];
+      return {
+        ...prev,
+        partnerId: id,
+        partnerName: jugglers.find((juggler) => juggler.id === id)?.name ?? '',
+        participantIds,
+      };
+    });
   };
 
   const updatePatternStatus = useCallback(async (patternId: string, status: PatternStatus) => {
@@ -1504,9 +1565,32 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
       <article className="card half">
         <h2>Roster</h2>
         <p className="muted">Add jugglers you pass with. Saved roster names can seed the MVP group-fit planner.</p>
+        <div className="patternpals-inline-actions">
+          <label>
+            Select existing partner
+            <select
+              value={selectedRosterPartnerId}
+              onChange={(event) => setSelectedRosterPartnerId(event.target.value)}
+            >
+              <option value="">Choose from roster</option>
+              {rosterPartners.map((juggler) => (
+                <option key={juggler.id} value={juggler.id}>
+                  {juggler.name} ({juggler.experience})
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="patternpals-mini-button"
+            onClick={() => handleSetPartner(selectedRosterPartnerId || null)}
+            disabled={!selectedRosterPartnerId}
+          >
+            Use selected partner
+          </button>
+        </div>
         <div className="patternpals-roster">
-          {jugglers
-            .filter((juggler) => juggler.id !== activeId)
+          {rosterPartners
             .map((juggler) => (
               <div key={juggler.id} className="patternpals-roster-row">
                 <div>
@@ -1531,7 +1615,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
                 </div>
               </div>
             ))}
-          {jugglers.filter((juggler) => juggler.id !== activeId).length === 0 ? (
+          {rosterPartners.length === 0 ? (
             <p className="muted small">No partners yet. Add a few below.</p>
           ) : null}
         </div>
@@ -1881,8 +1965,7 @@ export default function PatternPalsApp({ initialPatternId }: PatternPalsAppProps
             <div>
               <p className="muted small">Who is at practice?</p>
               <div className="patternpals-participant-grid">
-                {jugglers
-                  .filter((juggler) => juggler.id !== activeId)
+                {rosterPartners
                   .map((juggler) => (
                     <button
                       key={juggler.id}
