@@ -697,7 +697,7 @@ function createMemoryStorage(): StorageImpl {
         sessionId: input.sessionId,
         verdict: input.verdict,
         note: input.note,
-        rosterSnapshot: input.rosterSnapshot ?? [],
+        rosterSnapshot: (input.rosterSnapshot ?? []).map((j) => ({ ...j, movementComfort: j.movementComfort as import('./types').MovementComfort })),
         createdAt: new Date().toISOString(),
       };
       attempts.push(entry);
