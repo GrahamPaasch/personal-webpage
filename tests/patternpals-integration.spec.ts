@@ -1,8 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 import { assessRosterHealth, recommendGroupPatterns } from '../lib/patternpals/groupRecommendations';
+import {
+  buildRecommendationPlannerRoster,
+  buildSessionPlannerPeople,
+  formatSessionRosterNames,
+  getAutomaticRecommendationMode,
+} from '../lib/patternpals/plannerRoster';
 import { PATTERN_LIBRARY } from '../lib/patternpals/patterns';
-import type { GroupJugglerInput, PracticeAttemptEntry } from '../lib/patternpals/types';
+import type { GroupJugglerInput, JugglerProfile, PracticeAttemptEntry, SessionEntry } from '../lib/patternpals/types';
 
 const buildJuggler = (
   name: string,
@@ -30,7 +36,85 @@ const buildAttempt = (
   createdAt: overrides.createdAt ?? new Date('2026-06-02T12:00:00.000Z').toISOString(),
 });
 
+const buildProfile = (
+  name: string,
+  overrides: Partial<JugglerProfile> = {},
+): JugglerProfile => ({
+  id: overrides.id ?? name.toLowerCase().replace(/\s+/g, '-'),
+  name,
+  experience: overrides.experience ?? 'Intermediate',
+  props: overrides.props ?? ['clubs'],
+  createdAt: overrides.createdAt ?? new Date('2026-06-03T12:00:00.000Z').toISOString(),
+  updatedAt: overrides.updatedAt ?? new Date('2026-06-03T12:00:00.000Z').toISOString(),
+});
+
 test.describe('PatternPals session-mode recommendations', () => {
+  test('planner roster includes host plus selected partners and preserves overrides', () => {
+    const host = buildProfile('Graham Host', { experience: 'Advanced' });
+    const partners = [buildProfile('Nick Partner', { experience: 'Advanced' }), buildProfile('Peter Partner')];
+
+    const roster = buildRecommendationPlannerRoster({
+      activeProfile: host,
+      participants: partners,
+      manualParticipantNames: [],
+      sessionMode: 'group',
+      existingPlanner: [
+        buildJuggler('Nick Partner', {
+          id: partners[0].id,
+          comfortableObjects: 4.5,
+          comfortableCount: 5,
+          movementComfort: 'high',
+        }),
+      ],
+    });
+
+    expect(roster.map((item) => item.name)).toEqual(['Graham Host', 'Nick Partner', 'Peter Partner']);
+    expect(roster).toHaveLength(3);
+    expect(roster[1]).toMatchObject({
+      comfortableObjects: 4.5,
+      comfortableCount: 5,
+      movementComfort: 'high',
+    });
+  });
+
+  test('automatic recommendation mode promotes oversized session rosters', () => {
+    const people = buildSessionPlannerPeople({
+      activeProfile: buildProfile('Graham Host'),
+      participants: [buildProfile('Nick Partner'), buildProfile('Peter Partner')],
+      manualParticipantNames: [],
+      sessionMode: 'group',
+    });
+
+    expect(people).toHaveLength(3);
+    expect(getAutomaticRecommendationMode('group', people.length)).toBe('group');
+    expect(getAutomaticRecommendationMode('duo', people.length)).toBe('duo');
+  });
+
+  test('session roster labels include the host name', () => {
+    const session: SessionEntry = {
+      id: 'session-1',
+      hostId: 'host-1',
+      partnerId: 'partner-1',
+      partnerName: 'Nick Partner',
+      participantIds: ['partner-1', 'partner-2'],
+      participantNames: ['Nick Partner', 'Peter Partner'],
+      sessionMode: 'group',
+      practiceMode: 'passing',
+      scheduledFor: new Date('2026-06-03T12:00:00.000Z').toISOString(),
+      durationMinutes: 90,
+      location: 'Gym',
+      focusPatterns: [],
+      compositionPlan: [],
+      readinessSnapshot: [],
+      status: 'scheduled',
+      outcome: null,
+      completedAt: null,
+      createdAt: new Date('2026-06-03T12:00:00.000Z').toISOString(),
+    };
+
+    expect(formatSessionRosterNames(session, 'Graham Host')).toEqual(['Graham Host', 'Nick Partner', 'Peter Partner']);
+  });
+
   test('solo mode returns shadow-drill recommendations for one juggler', () => {
     const recommendations = recommendGroupPatterns(
       PATTERN_LIBRARY,
