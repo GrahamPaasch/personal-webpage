@@ -1,4 +1,4 @@
-import PatternPalsApp from '@/components/PatternPalsApp';
+import PatternPalsAtlasOnly from '@/components/PatternPalsAtlasOnly';
 
 export const metadata = {
   title: 'PatternPals Pattern Atlas',
@@ -9,7 +9,7 @@ export const metadata = {
 export default function PatternPalsPage() {
   return (
     <div className="patternpals-shell">
-      <PatternPalsApp />
+      <PatternPalsAtlasOnly />
     </div>
   );
 }

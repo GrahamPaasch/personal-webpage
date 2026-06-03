@@ -1,4 +1,4 @@
-import PatternPalsApp from '@/components/PatternPalsApp';
+import PatternPalsAtlasOnly from '@/components/PatternPalsAtlasOnly';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 
 type PatternPageProps = {
@@ -35,7 +35,7 @@ export default async function PatternPalsPatternPage({ params }: PatternPageProp
 
   return (
     <div className="patternpals-shell">
-      <PatternPalsApp initialPatternId={patternId} />
+      <PatternPalsAtlasOnly initialPatternId={patternId} />
     </div>
   );
 }
