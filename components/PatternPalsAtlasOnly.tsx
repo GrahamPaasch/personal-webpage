@@ -70,13 +70,13 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
   return (
     <section className="grid patternpals-grid">
       <article className="card patternpals-randomizer" id="patternpals-randomizer">
-        <div className="patternpals-section-header">
-          <div>
+        <div className="patternpals-randomizer-header">
+          <div className="patternpals-randomizer-title">
             <p className="patternpals-detail-label">🎰 Pattern Randomizer 🎰</p>
             <h2>Spin the Wheel!</h2>
           </div>
         </div>
-        <p className="muted">Set your group size with tokens, spin to draw a pattern — may the odds be ever in your favor.</p>
+        <p className="muted patternpals-randomizer-intro">Set your group size with tokens, spin to draw a pattern — may the odds be ever in your favor.</p>
 
         <div className="patternpals-token-setup">
           <div className="patternpals-tokens-section">

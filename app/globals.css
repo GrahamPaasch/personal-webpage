@@ -3582,6 +3582,16 @@ select:focus {
   padding: 32px;
 }
 
+.patternpals-randomizer-header {
+  display: flex;
+  justify-content: center;
+}
+
+.patternpals-randomizer-title,
+.patternpals-randomizer-intro {
+  text-align: center;
+}
+
 /* ── Token-based juggler input ── */
 .patternpals-token-setup {
   display: flex;
