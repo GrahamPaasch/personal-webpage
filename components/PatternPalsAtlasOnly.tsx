@@ -7,7 +7,6 @@ import { buildEligiblePatternPool, drawRandomPattern } from '@/lib/patternpals/e
 import type { DrawHistoryEntry } from '@/lib/patternpals/eligibility';
 import {
   PATTERN_TYPE_LABELS,
-  buildAtlasHealth,
   getCatalogJugglerCounts,
   getPatternAliases,
   getPatternJugglerCount,
@@ -200,8 +199,6 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
     initialPatternId ? getPatternById(initialPatternId) ?? null : null,
   );
 
-  const atlasHealth = useMemo(() => buildAtlasHealth(PATTERN_LIBRARY), []);
-
   const eligiblePool = useMemo(
     () =>
       buildEligiblePatternPool(PATTERN_LIBRARY, {
@@ -311,29 +308,6 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
 
   return (
     <section className="grid patternpals-grid">
-      <article className="card patternpals-hero">
-        <div className="patternpals-hero-content">
-          <div>
-            <h1>PatternPals Atlas</h1>
-            <p className="muted">A focused atlas experience: find patterns fast, inspect sources, and preserve clear pattern documentation.</p>
-          </div>
-          <div className="patternpals-stat-grid">
-            <div className="patternpals-stat">
-              <span className="patternpals-stat-label">Atlas entries</span>
-              <strong>{atlasHealth.totalPatterns}</strong>
-            </div>
-            <div className="patternpals-stat">
-              <span className="patternpals-stat-label">Source-backed</span>
-              <strong>{atlasHealth.sourceBackedPatterns}</strong>
-            </div>
-            <div className="patternpals-stat">
-              <span className="patternpals-stat-label">Visual excerpts</span>
-              <strong>{atlasHealth.excerptBackedPatterns}</strong>
-            </div>
-          </div>
-        </div>
-      </article>
-
       <article className="card patternpals-randomizer" id="patternpals-randomizer">
         <div className="patternpals-section-header">
           <div>
