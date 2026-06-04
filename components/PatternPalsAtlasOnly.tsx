@@ -76,7 +76,7 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
             <h2>Spin the Wheel!</h2>
           </div>
         </div>
-        <p className="muted patternpals-randomizer-intro">Set your group size with tokens, spin to draw a pattern — may the odds be ever in your favor.</p>
+        <p className="muted patternpals-randomizer-intro">Set your group size, spin to draw a pattern — may the odds be in your favor!</p>
 
         <div className="patternpals-token-setup">
           <div className="patternpals-tokens-section">
