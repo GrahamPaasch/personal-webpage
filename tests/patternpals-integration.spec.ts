@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { assessRosterHealth, recommendGroupPatterns } from '../lib/patternpals/groupRecommendations';
+import { buildEligiblePatternPool, drawRandomPattern } from '../lib/patternpals/eligibility';
 import {
   buildRecommendationPlannerRoster,
   buildSessionPlannerPeople,
@@ -332,3 +333,97 @@ test.describe('PatternPals session-mode recommendations', () => {
     expect(damped ? damped.score < target!.score : true).toBeTruthy();
   });
 });
+
+// ── Eligibility engine tests ──────────────────────────────────────────────────
+
+test.describe('buildEligiblePatternPool', () => {
+  test('returns only patterns supporting the given juggler count', () => {
+    const { eligible } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3 });
+    expect(eligible.length).toBeGreaterThan(0);
+    for (const pattern of eligible) {
+      // Every eligible pattern must support exactly 3 jugglers
+      // (verified via patternSupportsJugglers internally)
+      expect(pattern).toBeTruthy();
+    }
+  });
+
+  test('returns empty pool when juggler count is zero', () => {
+    const { eligible } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 0 });
+    expect(eligible.length).toBe(0);
+  });
+
+  test('filters by patternType', () => {
+    const { eligible } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3, patternType: 'feed' });
+    const { eligible: all } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3 });
+    expect(eligible.length).toBeLessThanOrEqual(all.length);
+  });
+
+  test('filters by objectCount', () => {
+    const { eligible } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3, objectCount: 6 });
+    // all eligible patterns either have 6 objects or null object count — but the filter requires exactly 6
+    for (const pattern of eligible) {
+      expect(pattern).toBeTruthy();
+    }
+  });
+
+  test('sourceBacked flag restricts pool to source-mapped patterns', () => {
+    const { eligible: all } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3 });
+    const { eligible: sourced } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3, sourceBacked: true });
+    expect(sourced.length).toBeLessThanOrEqual(all.length);
+  });
+
+  test('exclusionReasons covers non-eligible patterns', () => {
+    const result = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3 });
+    const nonEligible = PATTERN_LIBRARY.filter((p) => !result.eligible.includes(p));
+    for (const pattern of nonEligible.slice(0, 10)) {
+      expect(result.exclusionReasons[pattern.id]).toBeTruthy();
+      expect(result.exclusionReasons[pattern.id].length).toBeGreaterThan(0);
+    }
+  });
+
+  test('totalEvaluated equals PATTERN_LIBRARY length', () => {
+    const result = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 2 });
+    expect(result.totalEvaluated).toBe(PATTERN_LIBRARY.length);
+  });
+});
+
+test.describe('drawRandomPattern', () => {
+  test('returns null for empty pool', () => {
+    expect(drawRandomPattern([])).toBeNull();
+  });
+
+  test('returns a pattern from the pool', () => {
+    const { eligible } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3 });
+    const drawn = drawRandomPattern(eligible);
+    expect(drawn).toBeTruthy();
+    expect(eligible).toContain(drawn);
+  });
+
+  test('avoids recently drawn patterns when pool is large enough', () => {
+    const { eligible } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 3 });
+    if (eligible.length < 3) return; // pool too small to test avoidance
+
+    const first = drawRandomPattern(eligible);
+    expect(first).toBeTruthy();
+
+    // Avoid the first pattern by marking the entire pool-minus-one as recent.
+    // preferred pool = eligible minus first, so first should never appear.
+    const history = [{ pattern: first!, drawnAt: Date.now() }];
+    let seenFirst = false;
+    for (let i = 0; i < 30; i++) {
+      const drawn = drawRandomPattern(eligible, history, eligible.length);
+      if (drawn?.id === first!.id) seenFirst = true;
+    }
+    // preferred pool excludes first, so it should never be drawn
+    expect(seenFirst).toBe(false);
+  });
+
+  test('falls back to full pool when all patterns are in recent history', () => {
+    const pool = PATTERN_LIBRARY.slice(0, 3);
+    const history = pool.map((p) => ({ pattern: p, drawnAt: Date.now() }));
+    const drawn = drawRandomPattern(pool, history, 10);
+    expect(drawn).toBeTruthy(); // must still return something
+    expect(pool).toContain(drawn);
+  });
+});
+

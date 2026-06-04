@@ -3570,3 +3570,62 @@ select:focus {
     grid-column: span 1;
   }
 }
+
+/* ── Randomizer panel ── */
+.patternpals-randomizer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.patternpals-randomizer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.patternpals-spin-button {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 22px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.patternpals-spin-button:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.patternpals-spin-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.patternpals-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.patternpals-rand-result {
+  border-top: 1px solid var(--border, #333);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.patternpals-rand-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}

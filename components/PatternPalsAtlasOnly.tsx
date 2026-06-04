@@ -3,6 +3,8 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 import { getPatternExcerpt } from '@/lib/patternpals/excerpts';
+import { buildEligiblePatternPool, drawRandomPattern } from '@/lib/patternpals/eligibility';
+import type { DrawHistoryEntry } from '@/lib/patternpals/eligibility';
 import {
   PATTERN_TYPE_LABELS,
   buildAtlasHealth,
@@ -47,6 +49,7 @@ const DEFAULT_PATTERN_LIMIT = 80;
 const PATTERN_PAGE_SIZE = 80;
 const SEARCH_PATTERN_LIMIT = 250;
 const CATALOG_JUGGLER_COUNTS = getCatalogJugglerCounts(PATTERN_LIBRARY).filter((count) => count >= 2);
+const RANDOMIZER_AVOID_RECENT = 5;
 
 const normalizeSearchText = (value: string) =>
   value
@@ -184,11 +187,46 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
   const [patternSearch, setPatternSearch] = useState('');
   const [patternLimit, setPatternLimit] = useState(DEFAULT_PATTERN_LIMIT);
   const [patternFilters, setPatternFilters] = useState<PatternFilterState>(DEFAULT_PATTERN_FILTERS);
+
+  // Randomizer state
+  const [randJugglers, setRandJugglers] = useState<number>(3);
+  const [randPatternType, setRandPatternType] = useState<'all' | PatternType>('all');
+  const [randObjectCount, setRandObjectCount] = useState<'all' | string>('all');
+  const [randSourceBacked, setRandSourceBacked] = useState(false);
+  const [randResult, setRandResult] = useState<import('@/lib/patternpals/types').Pattern | null>(null);
+  const [randHistory, setRandHistory] = useState<DrawHistoryEntry[]>([]);
+  const [randSpinning, setRandSpinning] = useState(false);
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(() =>
     initialPatternId ? getPatternById(initialPatternId) ?? null : null,
   );
 
   const atlasHealth = useMemo(() => buildAtlasHealth(PATTERN_LIBRARY), []);
+
+  const eligiblePool = useMemo(
+    () =>
+      buildEligiblePatternPool(PATTERN_LIBRARY, {
+        jugglerCount: randJugglers,
+        patternType: randPatternType,
+        objectCount: randObjectCount === 'all' ? null : Number(randObjectCount),
+        sourceBacked: randSourceBacked,
+      }),
+    [randJugglers, randPatternType, randObjectCount, randSourceBacked],
+  );
+
+  const handleSpin = useCallback(() => {
+    setRandSpinning(true);
+    // Brief visual delay for effect
+    setTimeout(() => {
+      const drawn = drawRandomPattern(eligiblePool.eligible, randHistory, RANDOMIZER_AVOID_RECENT);
+      if (drawn) {
+        setRandResult(drawn);
+        setRandHistory((prev) => [...prev, { pattern: drawn, drawnAt: Date.now() }]);
+      } else {
+        setRandResult(null);
+      }
+      setRandSpinning(false);
+    }, 300);
+  }, [eligiblePool.eligible, randHistory]);
 
   const filteredPatterns = useMemo(() => {
     const query = patternSearch.trim();
@@ -283,6 +321,121 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
             </div>
           </div>
         </div>
+      </article>
+
+      <article className="card patternpals-randomizer" id="patternpals-randomizer">
+        <div className="patternpals-section-header">
+          <div>
+            <p className="patternpals-detail-label">Pattern randomizer</p>
+            <h2>Spin a random pattern</h2>
+          </div>
+        </div>
+        <p className="muted">Configure your group and hit Spin — the randomizer draws an eligible pattern from the atlas.</p>
+
+        <div className="patternpals-filter-grid" aria-label="Randomizer filters">
+          <label>
+            Jugglers
+            <select
+              value={String(randJugglers)}
+              onChange={(event) => setRandJugglers(Number(event.target.value))}
+            >
+              {CATALOG_JUGGLER_COUNTS.map((count) => (
+                <option key={count} value={String(count)}>{count}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Pattern type
+            <select
+              value={randPatternType}
+              onChange={(event) => setRandPatternType(event.target.value as 'all' | PatternType)}
+            >
+              <option value="all">Any</option>
+              {PATTERN_TYPE_OPTIONS.map((type) => (
+                <option key={type} value={type}>{PATTERN_TYPE_LABELS[type]}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Objects
+            <select
+              value={randObjectCount}
+              onChange={(event) => setRandObjectCount(event.target.value)}
+            >
+              <option value="all">Any</option>
+              {[5, 6, 7, 8, 9, 10, 11].map((count) => (
+                <option key={count} value={String(count)}>{count}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <label className="patternpals-checkbox-label">
+          <input
+            type="checkbox"
+            checked={randSourceBacked}
+            onChange={(event) => setRandSourceBacked(event.target.checked)}
+          />
+          Source-backed patterns only
+        </label>
+
+        <div className="patternpals-randomizer-actions">
+          <button
+            type="button"
+            className="patternpals-spin-button"
+            onClick={handleSpin}
+            disabled={randSpinning || eligiblePool.eligible.length === 0}
+          >
+            {randSpinning ? 'Spinning…' : eligiblePool.eligible.length === 0 ? 'No eligible patterns' : `Spin (${eligiblePool.eligible.length} eligible)`}
+          </button>
+          {randResult ? (
+            <button
+              type="button"
+              className="patternpals-mini-button ghost"
+              onClick={() => { setRandResult(null); setRandHistory([]); }}
+            >
+              Reset
+            </button>
+          ) : null}
+        </div>
+
+        {randResult ? (
+          <div className="patternpals-rand-result">
+            <div className="patternpals-rand-result-header">
+              <div>
+                <p className="patternpals-detail-label">Drawn pattern</p>
+                <h3>{randResult.name}</h3>
+              </div>
+              <div className="patternpals-detail-actions">
+                <button
+                  type="button"
+                  className="patternpals-mini-button"
+                  onClick={() => handleSelectPattern(randResult)}
+                >
+                  View in atlas
+                </button>
+                <button
+                  type="button"
+                  className="patternpals-mini-button ghost"
+                  onClick={handleSpin}
+                  disabled={randSpinning}
+                >
+                  Reroll
+                </button>
+              </div>
+            </div>
+            <p className="muted">{randResult.description}</p>
+            <div className="patternpals-chip-row">
+              <span className="patternpals-metadata-pill curated">{getPatternTypeClassification(randResult).displayName}</span>
+              <span>{getPatternJugglerCount(randResult)} jugglers</span>
+              {getPatternObjectCount(randResult) ? <span>{getPatternObjectCount(randResult)} objects</span> : null}
+              {getPatternRhythm(randResult) ? <span>{getPatternRhythm(randResult)}</span> : null}
+            </div>
+            {randHistory.length > 1 ? (
+              <p className="muted small">Draw history ({randHistory.length} spins): {randHistory.map((e) => e.pattern.name).join(' → ')}</p>
+            ) : null}
+          </div>
+        ) : null}
       </article>
 
       <article className="card patternpals-progress" id="patternpals-library">
