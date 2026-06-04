@@ -7,7 +7,6 @@ import {
   PATTERN_TYPE_LABELS,
   buildAtlasHealth,
   getCatalogJugglerCounts,
-  getDifficultyClassification,
   getPatternAliases,
   getPatternJugglerCount,
   getPatternObjectCount,
@@ -16,20 +15,18 @@ import {
   getPatternTypeClassification,
   patternSupportsJugglers,
 } from '@/lib/patternpals/atlas';
-import type { ExperienceLevel, Pattern, PatternType } from '@/lib/patternpals/types';
+import type { Pattern, PatternType } from '@/lib/patternpals/types';
 
 type PatternPalsAtlasOnlyProps = {
   initialPatternId?: string;
 };
 
 type PatternFilterState = {
-  difficulty: 'all' | ExperienceLevel;
   patternType: 'all' | PatternType;
   jugglers: 'all' | string;
   objects: 'all' | string;
 };
 
-const EXPERIENCE_OPTIONS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
 const PATTERN_TYPE_OPTIONS: PatternType[] = [
   'passing',
   'feed',
@@ -42,7 +39,6 @@ const PATTERN_TYPE_OPTIONS: PatternType[] = [
   'other',
 ];
 const DEFAULT_PATTERN_FILTERS: PatternFilterState = {
-  difficulty: 'all',
   patternType: 'all',
   jugglers: 'all',
   objects: 'all',
@@ -76,13 +72,11 @@ const isSubsequence = (needle: string, haystack: string) => {
 
 const buildPatternSearchFields = (pattern: Pattern) => {
   const sources = getPatternSources(pattern).sources.map((source) => source.title);
-  const difficultyClassification = getDifficultyClassification(pattern);
   const patternTypeClassification = getPatternTypeClassification(pattern);
   return [
     pattern.id,
     pattern.name,
     pattern.description,
-    difficultyClassification.value ? difficultyClassification.displayName : '',
     patternTypeClassification.displayName,
     getPatternRhythm(pattern) ?? '',
     String(getPatternJugglerCount(pattern)),
@@ -127,9 +121,7 @@ const scorePatternSearch = (pattern: Pattern, query: string) => {
 };
 
 const matchesPatternFilters = (pattern: Pattern, filters: PatternFilterState) => {
-  const difficultyClassification = getDifficultyClassification(pattern);
   const patternTypeClassification = getPatternTypeClassification(pattern);
-  if (filters.difficulty !== 'all' && difficultyClassification.value !== filters.difficulty) return false;
   if (filters.patternType !== 'all' && patternTypeClassification.value !== filters.patternType) return false;
   if (filters.jugglers !== 'all' && !patternSupportsJugglers(pattern, Number(filters.jugglers))) return false;
   if (filters.objects !== 'all' && getPatternObjectCount(pattern) !== Number(filters.objects)) return false;
@@ -154,7 +146,6 @@ const PatternList = memo(({ patterns, total, searchActive, hasMore, onSelect, on
       </div>
       <div className="patternpals-pattern-list">
         {patterns.map((pattern) => {
-          const difficultyClassification = getDifficultyClassification(pattern);
           const patternTypeClassification = getPatternTypeClassification(pattern);
           const objectCount = getPatternObjectCount(pattern);
           return (
@@ -164,9 +155,6 @@ const PatternList = memo(({ patterns, total, searchActive, hasMore, onSelect, on
                   <h3>{pattern.name}</h3>
                   <p className="muted">{pattern.description}</p>
                   <div className="patternpals-chip-row">
-                    <span className={`patternpals-metadata-pill ${difficultyClassification.provenance.confidence}`}>
-                      {difficultyClassification.displayName}
-                    </span>
                     <span className={`patternpals-metadata-pill ${patternTypeClassification.provenance.confidence}`}>
                       {patternTypeClassification.displayName}
                     </span>
@@ -227,7 +215,6 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
   const patternFiltersActive = useMemo(
     () =>
       Boolean(patternSearch.trim())
-      || patternFilters.difficulty !== 'all'
       || patternFilters.patternType !== 'all'
       || patternFilters.jugglers !== 'all'
       || patternFilters.objects !== 'all',
@@ -313,18 +300,6 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
               />
             </div>
             <div className="patternpals-filter-grid" aria-label="Pattern filters">
-              <label>
-                Verified difficulty
-                <select
-                  value={patternFilters.difficulty}
-                  onChange={(event) => setPatternFilters((prev) => ({ ...prev, difficulty: event.target.value as PatternFilterState['difficulty'] }))}
-                >
-                  <option value="all">Any / unclassified</option>
-                  {EXPERIENCE_OPTIONS.map((level) => (
-                    <option key={level} value={level}>{level}</option>
-                  ))}
-                </select>
-              </label>
               <label>
                 Pattern type
                 <select
