@@ -3897,6 +3897,43 @@ select:focus {
   cursor: not-allowed;
 }
 
+/* ── Inline source excerpt (no modal) ── */
+.patternpals-inline-excerpt,
+.patternpals-inline-sources {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(var(--accent-rgb, 255, 100, 0), 0.2);
+}
+
+.patternpals-inline-excerpt .patternpals-excerpt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.patternpals-inline-excerpt .patternpals-excerpt-header div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.patternpals-inline-excerpt img {
+  width: 100%;
+  border-radius: 6px;
+  display: block;
+}
+
+.patternpals-sources-label {
+  font-weight: 600;
+  color: var(--accent, #ff6400);
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
 /* ── Draw history ── */
 .patternpals-history {
   margin-top: 20px;

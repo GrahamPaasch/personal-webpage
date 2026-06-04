@@ -183,21 +183,16 @@ const PatternList = memo(({ patterns, total, searchActive, hasMore, onSelect, on
 PatternList.displayName = 'PatternList';
 
 export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAtlasOnlyProps = {}) {
-  const [patternSearch, setPatternSearch] = useState('');
-  const [patternLimit, setPatternLimit] = useState(DEFAULT_PATTERN_LIMIT);
-  const [patternFilters, setPatternFilters] = useState<PatternFilterState>(DEFAULT_PATTERN_FILTERS);
-
   // Randomizer state
   const [randJugglers, setRandJugglers] = useState<number>(3);
   const [randPatternType, setRandPatternType] = useState<'all' | PatternType>('all');
   const [randObjectCount, setRandObjectCount] = useState<'all' | string>('all');
   const [randSourceBacked, setRandSourceBacked] = useState(false);
-  const [randResult, setRandResult] = useState<import('@/lib/patternpals/types').Pattern | null>(null);
-  const [randHistory, setRandHistory] = useState<DrawHistoryEntry[]>([]);
-  const [randSpinning, setRandSpinning] = useState(false);
-  const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(() =>
+  const [randResult, setRandResult] = useState<Pattern | null>(() =>
     initialPatternId ? getPatternById(initialPatternId) ?? null : null,
   );
+  const [randHistory, setRandHistory] = useState<DrawHistoryEntry[]>([]);
+  const [randSpinning, setRandSpinning] = useState(false);
 
   const eligiblePool = useMemo(
     () =>
@@ -210,23 +205,27 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
     [randJugglers, randPatternType, randObjectCount, randSourceBacked],
   );
 
+  const randSources = useMemo(() => {
+    if (!randResult) return { sources: [], missing: [] as string[] };
+    return getPatternSources(randResult);
+  }, [randResult]);
+
+  const randExcerpt = useMemo(() => {
+    if (!randResult) return undefined;
+    return getPatternExcerpt(randResult.id);
+  }, [randResult]);
+
   const handleSpin = useCallback(() => {
     setRandSpinning(true);
-    // Longer animation for dramatic effect
     setTimeout(() => {
-      // Debug: log the eligible pool size and verify juggler count
       if (process.env.NODE_ENV === 'development') {
         console.log(`[Randomizer] Drawing from pool of ${eligiblePool.eligible.length} patterns for ${randJugglers} jugglers`);
       }
-      
       const drawn = drawRandomPattern(eligiblePool.eligible, randHistory, RANDOMIZER_AVOID_RECENT);
       if (drawn) {
-        // Verify the drawn pattern actually supports the juggler count
-        const actualJugglerCount = getPatternJugglerCount(drawn);
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[Randomizer] Drew "${drawn.name}" which supports ${actualJugglerCount} jugglers`);
+          console.log(`[Randomizer] Drew "${drawn.name}"`);
         }
-        
         setRandResult(drawn);
         setRandHistory((prev) => [...prev, { pattern: drawn, drawnAt: Date.now() }]);
       } else {
@@ -235,76 +234,6 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
       setRandSpinning(false);
     }, 1200);
   }, [eligiblePool.eligible, randHistory]);
-
-  const filteredPatterns = useMemo(() => {
-    const query = patternSearch.trim();
-    const scored = PATTERN_LIBRARY.map((pattern, index) => ({
-      pattern,
-      index,
-      score: scorePatternSearch(pattern, query),
-    })).filter(({ pattern, score }) => score > 0 && matchesPatternFilters(pattern, patternFilters));
-
-    if (query) scored.sort((a, b) => b.score - a.score || a.index - b.index);
-    return scored.map(({ pattern }) => pattern);
-  }, [patternFilters, patternSearch]);
-
-  const visiblePatterns = useMemo(() => {
-    if (patternSearch.trim()) return filteredPatterns.slice(0, SEARCH_PATTERN_LIMIT);
-    return filteredPatterns.slice(0, patternLimit);
-  }, [filteredPatterns, patternLimit, patternSearch]);
-
-  const hasMorePatterns = useMemo(() => {
-    if (patternSearch.trim()) return filteredPatterns.length > SEARCH_PATTERN_LIMIT;
-    return filteredPatterns.length > patternLimit;
-  }, [filteredPatterns.length, patternLimit, patternSearch]);
-
-  const patternFiltersActive = useMemo(
-    () =>
-      Boolean(patternSearch.trim())
-      || patternFilters.patternType !== 'all'
-      || patternFilters.jugglers !== 'all'
-      || patternFilters.objects !== 'all',
-    [patternFilters, patternSearch],
-  );
-
-  const selectedSources = useMemo(() => {
-    if (!selectedPattern) return { sources: [], missing: [] as string[] };
-    return getPatternSources(selectedPattern);
-  }, [selectedPattern]);
-
-  const selectedExcerpt = useMemo(() => {
-    if (!selectedPattern) return undefined;
-    return getPatternExcerpt(selectedPattern.id);
-  }, [selectedPattern]);
-
-  const selectedPatternPath = selectedPattern ? `/patternpals/patterns/${selectedPattern.id}` : '/patternpals';
-
-  useEffect(() => {
-    setPatternLimit(DEFAULT_PATTERN_LIMIT);
-  }, [patternSearch, patternFilters]);
-
-  const closePatternDetail = useCallback(() => {
-    setSelectedPattern(null);
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/patternpals/patterns/')) {
-      window.history.pushState({}, '', '/patternpals');
-    }
-  }, []);
-
-  const handleSelectPattern = useCallback((pattern: Pattern) => {
-    setSelectedPattern(pattern);
-    if (typeof window !== 'undefined') {
-      window.history.pushState({}, '', `/patternpals/patterns/${pattern.id}`);
-    }
-  }, []);
-
-  const handleLoadMorePatterns = useCallback(() => {
-    setPatternLimit((prev) => prev + PATTERN_PAGE_SIZE);
-  }, []);
-
-  const resetPatternBrowser = useCallback(() => {
-    setPatternSearch('');
-    setPatternFilters(DEFAULT_PATTERN_FILTERS);
-  }, []);
 
   return (
     <section className="grid patternpals-grid">
@@ -420,13 +349,6 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
               <div className="patternpals-result-actions">
                 <button
                   type="button"
-                  className="patternpals-result-button primary"
-                  onClick={() => handleSelectPattern(randResult)}
-                >
-                  📖 Learn More
-                </button>
-                <button
-                  type="button"
                   className="patternpals-result-button secondary"
                   onClick={handleSpin}
                   disabled={randSpinning}
@@ -441,6 +363,32 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
                   Reset
                 </button>
               </div>
+
+              {randExcerpt ? (
+                <div className="patternpals-inline-excerpt">
+                  <div className="patternpals-excerpt-header">
+                    <div>
+                      <strong>{randExcerpt.sourceTitle}</strong>
+                      <span>Page {randExcerpt.page}</span>
+                    </div>
+                    <a href={`${randExcerpt.bookFile}#page=${randExcerpt.page}`} target="_blank" rel="noreferrer">Open PDF</a>
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={randExcerpt.image} alt={randExcerpt.alt} loading="lazy" />
+                </div>
+              ) : randSources.sources.length > 0 ? (
+                <div className="patternpals-inline-sources">
+                  <p className="patternpals-sources-label">📚 Source books</p>
+                  <div className="patternpals-book-list">
+                    {randSources.sources.map((book) => (
+                      <a key={book.tag} className="patternpals-book-link" href={book.file} target="_blank" rel="noreferrer" download>
+                        <span>{book.title}</span>
+                        <span className="patternpals-book-action">Download PDF</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {randHistory.length > 1 ? (
                 <div className="patternpals-history">
                   <span className="patternpals-history-label">🎰 Draw history:</span>
@@ -457,75 +405,6 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
           </div>
         ) : null}
       </article>
-
-      {selectedPattern ? (
-        <div
-          className="patternpals-detail-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="patternpals-detail-title"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) closePatternDetail();
-          }}
-        >
-          <div className="patternpals-detail-card">
-            <div className="patternpals-detail-header">
-              <div>
-                <p className="patternpals-detail-label">Canonical atlas entry</p>
-                <h3 id="patternpals-detail-title">{selectedPattern.name}</h3>
-              </div>
-              <div className="patternpals-detail-actions">
-                <a className="patternpals-mini-button" href={selectedPatternPath}>Share link</a>
-                <button type="button" className="patternpals-mini-button ghost" onClick={closePatternDetail}>Close</button>
-              </div>
-            </div>
-
-            <p className="muted">{selectedPattern.description}</p>
-
-            <div className="patternpals-detail-meta">
-              <span>{getPatternJugglerCount(selectedPattern)} jugglers</span>
-              <span>{selectedPattern.props.join(', ')}</span>
-              {getPatternObjectCount(selectedPattern) ? <span>{getPatternObjectCount(selectedPattern)} objects</span> : null}
-              {getPatternRhythm(selectedPattern) ? <span>{getPatternRhythm(selectedPattern)}</span> : null}
-            </div>
-
-            <div className="patternpals-detail-section">
-              <h4>Source excerpt</h4>
-              {selectedExcerpt ? (
-                <div className="patternpals-excerpt-card">
-                  <div className="patternpals-excerpt-header">
-                    <div>
-                      <strong>{selectedExcerpt.sourceTitle}</strong>
-                      <span>Page {selectedExcerpt.page}</span>
-                    </div>
-                    <a href={`${selectedExcerpt.bookFile}#page=${selectedExcerpt.page}`} target="_blank" rel="noreferrer">Open PDF page</a>
-                  </div>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={selectedExcerpt.image} alt={selectedExcerpt.alt} loading="lazy" />
-                </div>
-              ) : (
-                <p className="muted small">No automatic source snapshot is available for this pattern yet.</p>
-              )}
-            </div>
-
-            <div className="patternpals-detail-section">
-              <h4>Source citations</h4>
-              {selectedSources.sources.length > 0 ? (
-                <div className="patternpals-book-list">
-                  {selectedSources.sources.map((book) => (
-                    <a key={book.tag} className="patternpals-book-link" href={book.file} target="_blank" rel="noreferrer" download>
-                      <span>{book.title}</span>
-                      <span className="patternpals-book-action">Download PDF</span>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted small">No mapped source books for this pattern yet.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
