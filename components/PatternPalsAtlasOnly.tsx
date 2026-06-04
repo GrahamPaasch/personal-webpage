@@ -120,7 +120,7 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
             aria-label="Spin the randomizer"
           >
             <span className="patternpals-spin-text">
-                {randSpinning ? '🤹 WHIRLING... 🤹' : eligiblePool.eligible.length === 0 ? '⚠️ No patterns' : '🎪 SPIN THE BIG TOP 🎪'}
+              {randSpinning ? '🎪 SPINNING... 🎪' : eligiblePool.eligible.length === 0 ? '⚠️ No patterns' : '🎪 SPIN 🎪'}
             </span>
             <span className="patternpals-spin-count">({eligiblePool.eligible.length} eligible)</span>
           </button>
