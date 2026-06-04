@@ -253,7 +253,7 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
             </div>
             <div className="patternpals-tokens-display">
               {Array.from({ length: randJugglers }).map((_, i) => (
-                <div key={i} className="patternpals-token">🎪</div>
+                <div key={i} className="patternpals-token">🤹</div>
               ))}
             </div>
             <div className="patternpals-tokens-controls">
