@@ -217,8 +217,19 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
     setRandSpinning(true);
     // Longer animation for dramatic effect
     setTimeout(() => {
+      // Debug: log the eligible pool size and verify juggler count
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Randomizer] Drawing from pool of ${eligiblePool.eligible.length} patterns for ${randJugglers} jugglers`);
+      }
+      
       const drawn = drawRandomPattern(eligiblePool.eligible, randHistory, RANDOMIZER_AVOID_RECENT);
       if (drawn) {
+        // Verify the drawn pattern actually supports the juggler count
+        const actualJugglerCount = getPatternJugglerCount(drawn);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Randomizer] Drew "${drawn.name}" which supports ${actualJugglerCount} jugglers`);
+        }
+        
         setRandResult(drawn);
         setRandHistory((prev) => [...prev, { pattern: drawn, drawnAt: Date.now() }]);
       } else {
@@ -426,7 +437,7 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
               <p className="patternpals-result-description">{randResult.description}</p>
               <div className="patternpals-result-metadata">
                 <span className="patternpals-metadata-badge">{getPatternTypeClassification(randResult).displayName}</span>
-                <span className="patternpals-metadata-badge">👥 {getPatternJugglerCount(randResult)}</span>
+                <span className="patternpals-metadata-badge">👥 {randJugglers} (playing this version)</span>
                 {getPatternObjectCount(randResult) ? (
                   <span className="patternpals-metadata-badge">🎪 {getPatternObjectCount(randResult)}</span>
                 ) : null}

@@ -425,5 +425,31 @@ test.describe('drawRandomPattern', () => {
     expect(drawn).toBeTruthy(); // must still return something
     expect(pool).toContain(drawn);
   });
+
+  test('all eligible patterns for juggler count 2 actually support 2 jugglers', () => {
+    const { eligible } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 2 });
+    
+    // Verify that every eligible pattern actually supports 2 jugglers
+    for (const pattern of eligible) {
+      // Reconstruct the bounds the same way atlas.ts does
+      let minJugglers = 2;
+      let maxJugglers: number | null = 2;
+      
+      if (pattern.scaling) {
+        minJugglers = Math.max(1, Math.round(pattern.scaling.minJugglers));
+        maxJugglers = pattern.scaling.maxJugglers ? Math.max(minJugglers, Math.round(pattern.scaling.maxJugglers)) : null;
+      } else {
+        const count = pattern.numJugglers ?? pattern.requiredJugglers;
+        minJugglers = count;
+        maxJugglers = count;
+      }
+      
+      // Pattern should support 2 jugglers
+      expect(2 >= minJugglers).toBe(true);
+      if (typeof maxJugglers === 'number') {
+        expect(2 <= maxJugglers).toBe(true);
+      }
+    }
+  });
 });
 

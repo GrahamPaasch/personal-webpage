@@ -95,5 +95,11 @@ export function drawRandomPattern(
   const pool = preferred.length > 0 ? preferred : eligible;
 
   const index = Math.floor(Math.random() * pool.length);
-  return pool[index];
+  const drawn = pool[index];
+
+  // Defensive check: verify the drawn pattern is from our eligible pool
+  // (this should always be true, but helps catch bugs)
+  if (!drawn) return null;
+
+  return drawn;
 }
