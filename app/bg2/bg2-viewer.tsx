@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   LiveKitRoom,
@@ -9,10 +9,11 @@ import {
   RoomAudioRenderer,
   useTracks,
   VideoTrack,
+  useRoomContext,
 } from '@livekit/components-react';
 import type { TrackReference, TrackReferenceOrPlaceholder } from '@livekit/components-react';
 import '@livekit/components-styles';
-import { Track } from 'livekit-client';
+import { Track, RoomEvent, ConnectionState } from 'livekit-client';
 
 const NEKO_URL = 'https://bg2.grahampaasch.com/?pwd=bg2play';
 const BG2_ROOM = 'bg2-voice';
@@ -33,6 +34,42 @@ type Assignment = { sid: string; side: 'left' | 'right' };
 // Module-level: dragging SID + drop callback registered by ConnectedLayout
 let _draggingSid: string | null = null;
 let onSidebarDrop: ((side: 'left' | 'right', clientY: number, sidebarEl: HTMLElement | null) => void) | null = null;
+
+/**
+ * Handles enabling audio/video after the room connection is established.
+ * This prevents the "publishing rejected as engine not connected" error
+ * by waiting for the connection to be fully ready before publishing tracks.
+ */
+function AutoPublish() {
+  const room = useRoomContext();
+  const hasPublished = useRef(false);
+
+  useEffect(() => {
+    if (hasPublished.current) return;
+
+    const enableTracks = async () => {
+      if (room.state === ConnectionState.Connected && !hasPublished.current) {
+        hasPublished.current = true;
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true);
+        } catch (e) {
+          console.warn('Failed to enable microphone:', e);
+        }
+      }
+    };
+
+    if (room.state === ConnectionState.Connected) {
+      enableTracks();
+    } else {
+      room.on(RoomEvent.Connected, enableTracks);
+      return () => {
+        room.off(RoomEvent.Connected, enableTracks);
+      };
+    }
+  }, [room]);
+
+  return null;
+}
 
 function ConnectedLayout({
   leftRef, rightRef, controlsRef, onLeave,
@@ -207,6 +244,7 @@ export default function BG2Viewer() {
   const [token, setToken] = useState('');
   const [username] = useState(randomName);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const outerRef = useRef<HTMLDivElement>(null);
   const nekoIframeRef = useRef<HTMLIFrameElement>(null);
@@ -227,16 +265,42 @@ export default function BG2Viewer() {
 
   useEffect(() => {
     if (!chatOpen || token) return;
+    let cancelled = false;
     fetch('/api/meet/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ room: BG2_ROOM, username }),
     })
       .then(r => r.json())
-      .then(d => { if (d.token) setToken(d.token); });
+      .then(d => {
+        if (!cancelled && d.token) setToken(d.token);
+      })
+      .catch(err => {
+        if (!cancelled) {
+          console.error('Failed to fetch token:', err);
+          setConnectionError('Failed to get connection token. Please try again.');
+        }
+      });
+    return () => { cancelled = true; };
   }, [chatOpen, token, username]);
 
-  const handleLeave = () => { setChatOpen(false); setToken(''); };
+  const handleLeave = useCallback(() => {
+    setChatOpen(false);
+    setToken('');
+    setConnectionError(null);
+  }, []);
+
+  const handleError = useCallback((err: Error) => {
+    console.error('LiveKit connection error:', err);
+    setConnectionError(`Connection failed: ${err.message}. Click Join to retry.`);
+    setChatOpen(false);
+    setToken('');
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    setConnectionError(null);
+    setChatOpen(true);
+  }, []);
 
   const sideStyle: React.CSSProperties = {
     flex: 1, minWidth: 0, background: '#0a0a0f',
@@ -260,11 +324,16 @@ export default function BG2Viewer() {
             <span style={{ color: '#c8a96e', fontFamily: 'serif', fontSize: '0.8rem' }}>🎙 Party Chat</span>
             {!chatOpen && (
               <button
-                onClick={() => setChatOpen(true)}
+                onClick={connectionError ? handleRetry : () => setChatOpen(true)}
                 style={{ background: '#1a2a1a', border: '1px solid #c8a96e55', borderRadius: 4, color: '#c8a96e', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
-              >Join</button>
+              >{connectionError ? 'Retry' : 'Join'}</button>
             )}
           </div>
+          {connectionError && (
+            <div style={{ color: '#e88', fontSize: '0.65rem', marginBottom: '0.3rem' }}>
+              {connectionError}
+            </div>
+          )}
           {/* Controls portalled here when connected */}
           <div ref={controlsRef} />
         </div>
@@ -308,11 +377,16 @@ export default function BG2Viewer() {
             token={token}
             serverUrl={LIVEKIT_URL}
             connect={true}
-            audio={true}
-            video={true}
+            audio={false}
+            video={false}
             onDisconnected={handleLeave}
+            onError={handleError}
+            options={{
+              disconnectOnPageLeave: true,
+            }}
           >
             <RoomAudioRenderer />
+            <AutoPublish />
             <ConnectedLayout
               leftRef={leftSidebarRef}
               rightRef={rightSidebarRef}
