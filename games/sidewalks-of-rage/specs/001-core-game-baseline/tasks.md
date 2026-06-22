@@ -118,10 +118,11 @@ battle-line-driven adaptive difficulty.
 **Purpose**: Cross-cutting requirements and a documented offline-degradation behavior.
 
 - [ ] T028 [P] Verify full input parity per quickstart.md V4: every action works keyboard-only and touch-only with identical effect; touch UI shows only on touch devices, via src/ui/VirtualDPad.js + index.html + src/scenes/GameScene.js (SC-002, FR-007/FR-008, Constitution IV)
-- [ ] T029 Verify/implement graceful offline degradation (research R2): with the server unavailable or dropped, the P1 brawl loop remains playable and multiplayer meta pauses cleanly (no crash, no "game over"); decide reconnection strategy in src/network/Client.js + src/scenes/GameScene.js (Edge Cases, SC-005)
+- [ ] T029 Verify graceful offline degradation FIRST (research R2): with the server unavailable or dropped, confirm the P1 brawl loop remains playable and multiplayer meta pauses cleanly (no crash, no "game over") in src/network/Client.js + src/scenes/GameScene.js. **Scope decision**: if and only if verification shows a crash/break, implement the MINIMUM fix — a single bounded auto-reconnect attempt with a short backoff in src/network/Client.js, no client-side simulation of authoritative state (Constitution II/V). Do not build a full reconnection framework. (Edge Cases, SC-005)
 - [ ] T030 [P] Verify all centralized tunables remain named constants with no new magic numbers introduced by T004–T006 in src/utils/CombatSystem.js and related files (Constitution III)
 - [ ] T031 [P] Update README/quickstart references for running client + server together if any drift is found during verification (docs only)
 - [ ] T032 Run the complete quickstart.md (V1–V5) as a final acceptance pass and record any deviations as new findings (all SC-### )
+- [ ] T033 [P] Verify HUD completeness as a whole (FR-028): health bar, local score, global faction score, battle-line bar with per-faction counts, wave announcements, combo/streak text, kill messages, death overlay, and round-end banners all render correctly in src/scenes/GameScene.js (FR-028)
 
 ---
 
@@ -155,7 +156,7 @@ battle-line-driven adaptive difficulty.
 - US1: T008, T009, T010, T015, T016, T017 in parallel; then T011→T012→T013→T014.
 - US2: T018, T019, T022 in parallel; T020→T021→T023 sequential.
 - US3: T024, T025 in parallel; then T026, T027.
-- Polish: T028, T030, T031 in parallel; T029 and T032 stand alone.
+- Polish: T028, T030, T031, T033 in parallel; T029 and T032 stand alone.
 
 ---
 
