@@ -1,0 +1,6 @@
+# Claude Code / Spec Kit — ignore local + credential artifacts, keep skills tracked
+.claude/settings.local.json
+.claude/*.local.json
+.claude/.credentials.json
+.claude/auth*.json
+.specify/init-options.json
