@@ -12,11 +12,20 @@ export default class Client {
   }
 
   static defaultUrl() {
+    // 1) Build-time override (production / cross-host), inlined by Vite. Must be wss:// for an
+    //    https page (mixed-content). See specs/005-server-hosting.
+    const fromEnv = typeof import.meta !== 'undefined' && import.meta.env
+      ? import.meta.env.VITE_WS_URL
+      : undefined;
+    if (fromEnv && String(fromEnv).trim()) {
+      return String(fromEnv).trim();
+    }
+    // 2) Dev / same-host fallback: pick ws|wss from the page protocol (mixed-content-safe).
     if (typeof window !== 'undefined') {
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
       return `${protocol}://${window.location.hostname}:8080`;
     }
-
+    // 3) Node (test scripts) fallback.
     return 'ws://localhost:8080';
   }
 

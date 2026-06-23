@@ -2,6 +2,9 @@
 server/state.json
 server/state.json.tmp
 
+# Local env overrides (committed .env.development/.env.production hold only a public ws URL)
+.env*.local
+
 # Spec Kit working scratch (intermediate design notes; durable records live in specs/)
 .specify/scratch/
 

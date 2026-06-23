@@ -1,0 +1,16 @@
+# Keep the server image lean — only server/, src/, and package manifests are needed.
+node_modules
+public
+specs
+art-pipeline
+assets
+.specify
+.claude
+.github
+*.md
+index.html
+vite.config.js
+postcss.config.js
+server/state.json
+server/state.json.tmp
+.env*

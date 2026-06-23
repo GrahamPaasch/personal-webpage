@@ -1,0 +1,35 @@
+# Fly.io config for the Sidewalks of Rage WebSocket server.
+# Deploy: `fly launch --no-deploy` (first time) then `fly deploy`. See specs/005-server-hosting.
+app = "sidewalks-of-rage-ws"   # must be globally unique; if you change it, update .env.production too
+primary_region = "ord"          # pick the region nearest your players: `fly platform regions`
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080           # matches Dockerfile EXPOSE / server PORT
+  force_https = true             # http -> https redirect; wss handshake then uses edge TLS
+
+  # CRITICAL for a 24/7 realtime server: NEVER scale to zero. Fly's default is scale-to-zero,
+  # which would drop every live WebSocket connection when it judges the machine idle. Pin it.
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+  # Long-lived connections: raise concurrency so the proxy doesn't mis-scale/reject.
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 250
+
+  # Liveness probe uses the server's own /health endpoint.
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"               # bump to "512mb" (~$3.32/mo) if you see OOM restarts
