@@ -10,6 +10,11 @@ const TAGLINES = [
   'Double-blind, double-fisted!',
   'Funded by Big Pharma (we wish)',
   'No essential oils were harmed in the making of this game',
+  'Now with 99.9% fewer microchips',
+  'Ask your doctor if rage is right for you',
+  'Two weeks to flatten the comment section',
+  'Results may vary (they will not)',
+  'Sponsored by Big Fist',
 ];
 
 export default class TitleScene extends Phaser.Scene {

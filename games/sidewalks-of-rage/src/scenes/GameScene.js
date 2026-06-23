@@ -55,6 +55,12 @@ const DEATH_MESSAGES = [
   'Your YouTube degree was revoked!',
   'Turns out Google is not a doctor!',
   'The conspiracy was... your health plan!',
+  "You've been Community Noted!",
+  "Ratio'd in the real world!",
+  'De-platformed by reality!',
+  'The algorithm has forsaken you!',
+  'Demonetized!',
+  'Touch grass... too late!',
 ];
 
 const WAVE_ANNOUNCEMENTS = [
@@ -66,6 +72,11 @@ const WAVE_ANNOUNCEMENTS = [
   'WAVE {n}: Podcast listeners unite!',
   'WAVE {n}: The comments section is here!',
   'WAVE {n}: They watched a documentary!',
+  'WAVE {n}: A new podcast just dropped!',
+  'WAVE {n}: The group chat mobilized!',
+  'WAVE {n}: Someone said "sheeple" unironically!',
+  "WAVE {n}: Brunch is over, they're outside!",
+  'WAVE {n}: The algorithm sent backup!',
 ];
 
 // ─── GameScene ──────────────────────────────────────────────────────────────

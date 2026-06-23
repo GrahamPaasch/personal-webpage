@@ -286,6 +286,8 @@ export class ComboTracker {
   }
 
   getStreakMessage() {
+    if (this.count >= 21) return '🏆 NOBEL PRIZE! 🏆';
+    if (this.count >= 18) return '🌍 HERD IMMUNITY! 🌍';
     if (this.count >= 15) return '☣ PANDEMIC! ☣';
     if (this.count >= 12) return '💉 MASS VACCINATION! 💉';
     if (this.count >= 9) return '🔬 CLINICAL TRIAL!';
