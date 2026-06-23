@@ -10,7 +10,9 @@
     "server": "node server/index.js",
     "check:protocol": "node scripts/check-protocol.mjs",
     "smoke": "node scripts/smoke-multiplayer.mjs",
-    "check": "npm run check:protocol && npm run build && npm run smoke"
+    "test:persistence": "node scripts/test-persistence.mjs",
+    "test:kill-limit": "node scripts/test-kill-limit.mjs",
+    "check": "npm run check:protocol && npm run build && npm run smoke && npm run test:persistence && npm run test:kill-limit"
   },
   "dependencies": {
     "phaser": "^3.80.1",

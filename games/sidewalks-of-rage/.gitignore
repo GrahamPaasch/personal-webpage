@@ -1,3 +1,10 @@
+# Server runtime state (file-based persistence; not source)
+server/state.json
+server/state.json.tmp
+
+# Spec Kit working scratch (intermediate design notes; durable records live in specs/)
+.specify/scratch/
+
 # Claude Code / Spec Kit — ignore local + credential artifacts, keep skills tracked
 .claude/settings.local.json
 .claude/*.local.json

@@ -8,6 +8,7 @@
 // Usage: node scripts/smoke-multiplayer.mjs
 
 import { spawn } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { WebSocket } from 'ws';
@@ -17,6 +18,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const PORT = 8123;
 const URL = `ws://localhost:${PORT}`;
+
+// Start from clean persisted state so prior runs don't leak score into assertions.
+const clearState = () => {
+  rmSync(resolve(root, 'server/state.json'), { force: true });
+  rmSync(resolve(root, 'server/state.json.tmp'), { force: true });
+};
+clearState();
 
 const fail = (msg) => { console.error('✗ smoke FAILED:', msg); process.exit(1); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -90,9 +98,11 @@ try {
   // Send one kill at a time and STOP as soon as a round ends, so we don't push the
   // freshly-reset line back up with extra kills. ---
   a.received.length = 0;
+  // ~10 kills end a round; well under the flood cap (60/10s), so spacing only needs to let
+  // each ROUND_STATE round-trip before we check for ROUND_END.
   for (let i = 0; i < 30 && !last(a, MESSAGE_TYPES.ROUND_END); i++) {
     send(a, MESSAGE_TYPES.PLAYER_KILL);
-    await sleep(60);
+    await sleep(80);
   }
   await sleep(300);
   const roundEnd = last(a, MESSAGE_TYPES.ROUND_END);
@@ -118,4 +128,5 @@ try {
   fail(err.message);
 } finally {
   server.kill();
+  clearState();
 }

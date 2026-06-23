@@ -1,4 +1,7 @@
 import { randomUUID } from 'crypto';
+import { readFileSync, writeFileSync, renameSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { WebSocket, WebSocketServer } from 'ws';
 // Canonical network protocol — single source of truth shared with the client.
 // See specs/001-core-game-baseline/contracts/network-protocol.md (Constitution I, FR-026).
@@ -37,6 +40,25 @@ const ROSTER_ARCHETYPES = {
 };
 const BATTLE_LINE_STEP = 5;
 
+// Flood mitigation for PLAYER_KILL. Enemies are simulated client-side, so the server cannot
+// truly validate a kill it never saw — and crucially, ONE legitimate swing can kill several
+// low-HP enemies in the same frame, firing multiple PLAYER_KILL messages microseconds apart.
+// So we DO NOT rate-limit per-kill (that would silently drop legitimate multi-kills). Instead
+// we cap accepted kills over a rolling window: high enough to never clip real play, low enough
+// to bound a runaway/garbage flood (resource + magnitude protection). This is mitigation, NOT
+// exploit prevention — a true fix requires server-authoritative enemy simulation, tracked as a
+// future feature (see specs/ "server-authoritative enemies").
+const KILL_LIMITS = {
+  KILL_WINDOW_MS: 10000, // rolling window for the flood cap
+  MAX_KILLS_PER_WINDOW: 60 // ~6 kills/sec sustained: above any plausible human rate, bounds floods
+};
+
+// File-based persistence so global score / battle line survive a server restart (no DB,
+// per Constitution V). Resolved relative to this module (not process.cwd()), so it is stable
+// regardless of how the server is launched.
+const STATE_FILE = join(dirname(fileURLToPath(import.meta.url)), 'state.json');
+const STATE_TMP = `${STATE_FILE}.tmp`;
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const normalizeFacing = (facing) => (facing === 'left' ? 'left' : 'right');
@@ -45,6 +67,36 @@ const toNumber = (value, fallback) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
 };
+
+// Load persisted state on boot. Never crash boot on a missing/corrupt file — fall back to
+// defaults. 'active' is never persisted (a round is always live on boot).
+const loadState = () => {
+  try {
+    const raw = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
+    globalScore.fauci = Math.max(0, Math.floor(toNumber(raw?.globalScore?.fauci, 0)));
+    globalScore.rogan = Math.max(0, Math.floor(toNumber(raw?.globalScore?.rogan, 0)));
+    roundState.battleLinePosition = clamp(toNumber(raw?.battleLinePosition, 50), 0, 100);
+  } catch (error) {
+    // Missing or unreadable state file — start fresh.
+  }
+  roundState.active = true;
+};
+
+// Atomic write: stage to a tmp file then rename over the target.
+const saveState = () => {
+  try {
+    const data = JSON.stringify({
+      globalScore: { ...globalScore },
+      battleLinePosition: roundState.battleLinePosition
+    });
+    writeFileSync(STATE_TMP, data);
+    renameSync(STATE_TMP, STATE_FILE);
+  } catch (error) {
+    console.error('Failed to persist state:', error);
+  }
+};
+
+loadState();
 
 const sendMessage = (socket, type, payload = {}) => {
   if (socket.readyState !== WebSocket.OPEN) {
@@ -138,6 +190,7 @@ const endRound = (winner) => {
   roundState.battleLinePosition = 50;
   roundState.active = true;
   broadcastRoundState();
+  saveState();
 };
 
 const applyKillToBattleLine = (faction) => {
@@ -155,6 +208,7 @@ const applyKillToBattleLine = (faction) => {
   }
 
   broadcastRoundState();
+  saveState();
 };
 
 wss.on('connection', (socket) => {
@@ -189,7 +243,8 @@ wss.on('connection', (socket) => {
         facing: normalizeFacing(payload.facing),
         isAttacking: Boolean(payload.isAttacking),
         faction,
-        archetype
+        archetype,
+        killTimes: []
       };
 
       players.set(playerId, player);
@@ -259,6 +314,17 @@ wss.on('connection', (socket) => {
     }
 
     if (type === MESSAGE_TYPES.PLAYER_KILL) {
+      // Flood cap only (see KILL_LIMITS): never per-kill throttle, so legitimate same-frame
+      // multi-kills all count. Rejected kills are silently dropped — no broadcast, no disconnect.
+      if (!roundState.active) {
+        return;
+      }
+      const now = Date.now();
+      player.killTimes = player.killTimes.filter((t) => now - t < KILL_LIMITS.KILL_WINDOW_MS);
+      if (player.killTimes.length >= KILL_LIMITS.MAX_KILLS_PER_WINDOW) {
+        return;
+      }
+      player.killTimes.push(now);
       applyKillToBattleLine(player.faction);
     }
   });
