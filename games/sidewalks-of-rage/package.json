@@ -12,7 +12,8 @@
     "smoke": "node scripts/smoke-multiplayer.mjs",
     "test:persistence": "node scripts/test-persistence.mjs",
     "test:kill-limit": "node scripts/test-kill-limit.mjs",
-    "check": "npm run check:protocol && npm run build && npm run smoke && npm run test:persistence && npm run test:kill-limit"
+    "test:stats": "node scripts/test-stats.mjs",
+    "check": "npm run check:protocol && npm run build && npm run smoke && npm run test:persistence && npm run test:kill-limit && npm run test:stats"
   },
   "dependencies": {
     "phaser": "^3.80.1",

@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { createServer } from 'http';
 import { readFileSync, writeFileSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -8,13 +9,21 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { MESSAGE_TYPES } from '../src/network/protocol.js';
 
 const port = Number(process.env.PORT) || 8080;
-const wss = new WebSocketServer({ port });
+const startedAt = Date.now();
 const clients = new Set();
 const players = new Map();
 const socketToPlayerId = new Map();
 
 const globalScore = { fauci: 0, rogan: 0 };
 const roundState = { active: true, battleLinePosition: 50 };
+
+// Observability counters; peak/totals persist across restarts (see specs/004-observability).
+const metrics = { peakConcurrent: 0, totalConnections: 0, totalRounds: 0, totalKills: 0 };
+
+// Structured one-line JSON events for log aggregation (concurrency, churn, rounds).
+const logEvent = (evt, extra = {}) => {
+  console.log(JSON.stringify({ evt, ts: new Date().toISOString(), concurrent: players.size, ...extra }));
+};
 const FACTIONS = ['fauci', 'rogan'];
 const ROSTER_ARCHETYPES = {
   fauci: [
@@ -76,6 +85,10 @@ const loadState = () => {
     globalScore.fauci = Math.max(0, Math.floor(toNumber(raw?.globalScore?.fauci, 0)));
     globalScore.rogan = Math.max(0, Math.floor(toNumber(raw?.globalScore?.rogan, 0)));
     roundState.battleLinePosition = clamp(toNumber(raw?.battleLinePosition, 50), 0, 100);
+    metrics.peakConcurrent = Math.max(0, Math.floor(toNumber(raw?.metrics?.peakConcurrent, 0)));
+    metrics.totalConnections = Math.max(0, Math.floor(toNumber(raw?.metrics?.totalConnections, 0)));
+    metrics.totalRounds = Math.max(0, Math.floor(toNumber(raw?.metrics?.totalRounds, 0)));
+    metrics.totalKills = Math.max(0, Math.floor(toNumber(raw?.metrics?.totalKills, 0)));
   } catch (error) {
     // Missing or unreadable state file — start fresh.
   }
@@ -87,7 +100,8 @@ const saveState = () => {
   try {
     const data = JSON.stringify({
       globalScore: { ...globalScore },
-      battleLinePosition: roundState.battleLinePosition
+      battleLinePosition: roundState.battleLinePosition,
+      metrics: { ...metrics }
     });
     writeFileSync(STATE_TMP, data);
     renameSync(STATE_TMP, STATE_FILE);
@@ -184,6 +198,8 @@ const endRound = (winner) => {
 
   roundState.active = false;
   globalScore[winner] += 1;
+  metrics.totalRounds += 1;
+  logEvent('round_end', { winner, globalScore: { ...globalScore } });
   broadcast(MESSAGE_TYPES.ROUND_END, { winner });
   broadcastGlobalScore();
 
@@ -210,6 +226,41 @@ const applyKillToBattleLine = (faction) => {
   broadcastRoundState();
   saveState();
 };
+
+const statsPayload = () => {
+  const { fauciPlayers, roganPlayers } = getFactionCounts();
+  return {
+    concurrent: players.size,
+    fauci: fauciPlayers,
+    rogan: roganPlayers,
+    battleLine: roundState.battleLinePosition,
+    globalScore: { ...globalScore },
+    peakConcurrent: metrics.peakConcurrent,
+    totalConnections: metrics.totalConnections,
+    totalRounds: metrics.totalRounds,
+    totalKills: metrics.totalKills,
+    uptimeSec: Math.floor((Date.now() - startedAt) / 1000)
+  };
+};
+
+// HTTP surface for observability: GET /stats (live + cumulative metrics) and GET /health.
+// CORS-open so a dashboard / the game site can poll cross-origin. ws is attached to this server.
+const httpServer = createServer((req, res) => {
+  if (req.method === 'GET' && (req.url === '/stats' || req.url === '/stats/')) {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(statsPayload()));
+    return;
+  }
+  if (req.method === 'GET' && (req.url === '/health' || req.url === '/')) {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('ok');
+    return;
+  }
+  res.writeHead(404);
+  res.end();
+});
+
+const wss = new WebSocketServer({ server: httpServer });
 
 wss.on('connection', (socket) => {
   clients.add(socket);
@@ -249,6 +300,9 @@ wss.on('connection', (socket) => {
 
       players.set(playerId, player);
       socketToPlayerId.set(socket, playerId);
+      metrics.totalConnections += 1;
+      metrics.peakConcurrent = Math.max(metrics.peakConcurrent, players.size);
+      logEvent('join', { id: playerId, faction });
 
       sendMessage(socket, MESSAGE_TYPES.PLAYER_ID, { id: playerId });
       sendMessage(socket, MESSAGE_TYPES.FACTION_ASSIGNED, { faction });
@@ -325,6 +379,7 @@ wss.on('connection', (socket) => {
         return;
       }
       player.killTimes.push(now);
+      metrics.totalKills += 1;
       applyKillToBattleLine(player.faction);
     }
   });
@@ -335,6 +390,7 @@ wss.on('connection', (socket) => {
     if (playerId) {
       socketToPlayerId.delete(socket);
       players.delete(playerId);
+      logEvent('leave', { id: playerId });
       broadcast(MESSAGE_TYPES.PLAYER_LEFT, { id: playerId }, socket);
       broadcastRoundState();
     }
@@ -345,4 +401,7 @@ wss.on('connection', (socket) => {
   });
 });
 
-console.log(`WebSocket server listening on ws://localhost:${port}`);
+httpServer.listen(port, () => {
+  logEvent('server_start', { port });
+  console.log(`Server listening on :${port} — ws + http GET /stats`);
+});
