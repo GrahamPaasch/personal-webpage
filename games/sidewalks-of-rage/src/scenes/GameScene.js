@@ -973,7 +973,9 @@ export default class GameScene extends Phaser.Scene {
     this.roundEndBanner.setAlpha(0);
     this.roundEndBanner.setScale(0.98);
 
-    this.roundEndBannerTween = this.tweens.timeline({
+    // Phaser 3.60 removed TweenManager#timeline; use tweens.chain() (same sequential
+    // segments). Without this, showRoundEndBanner() throws on every ROUND_END.
+    this.roundEndBannerTween = this.tweens.chain({
       targets: this.roundEndBanner,
       tweens: [
         { alpha: 1, scale: 1, duration: 200, ease: 'Quad.out' },

@@ -1,0 +1,55 @@
+name: Sidewalks of Rage CI
+
+# Scoped to the game subproject so it only runs when its files (or this workflow) change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'games/sidewalks-of-rage/**'
+      - '.github/workflows/sidewalks-of-rage-ci.yml'
+  pull_request:
+    paths:
+      - 'games/sidewalks-of-rage/**'
+      - '.github/workflows/sidewalks-of-rage-ci.yml'
+
+concurrency:
+  group: sidewalks-of-rage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: games/sidewalks-of-rage
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: games/sidewalks-of-rage/package-lock.json
+
+      # A lockfile exists, so prefer reproducible installs.
+      - name: Install dependencies
+        run: npm ci
+
+      # Discrete steps so a failure names the stage that broke.
+      - name: Protocol single-source-of-truth guard
+        run: npm run check:protocol
+
+      - name: Production build
+        run: npm run build
+
+      - name: Multiplayer smoke test
+        run: npm run smoke
+
+      - name: Persistence test
+        run: npm run test:persistence
+
+      - name: Kill flood-cap test
+        run: npm run test:kill-limit
