@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server/index.js"
+    "server": "node server/index.js",
+    "check:protocol": "node scripts/check-protocol.mjs",
+    "smoke": "node scripts/smoke-multiplayer.mjs",
+    "check": "npm run check:protocol && npm run build && npm run smoke"
   },
   "dependencies": {
     "phaser": "^3.80.1",

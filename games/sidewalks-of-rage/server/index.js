@@ -1,26 +1,14 @@
 import { randomUUID } from 'crypto';
 import { WebSocket, WebSocketServer } from 'ws';
+// Canonical network protocol — single source of truth shared with the client.
+// See specs/001-core-game-baseline/contracts/network-protocol.md (Constitution I, FR-026).
+import { MESSAGE_TYPES } from '../src/network/protocol.js';
 
 const port = Number(process.env.PORT) || 8080;
 const wss = new WebSocketServer({ port });
 const clients = new Set();
 const players = new Map();
 const socketToPlayerId = new Map();
-
-const MESSAGE_TYPES = {
-  PLAYER_JOIN: 'PLAYER_JOIN',
-  PLAYER_MOVE: 'PLAYER_MOVE',
-  PLAYER_ATTACK: 'PLAYER_ATTACK',
-  PLAYER_KILL: 'PLAYER_KILL',
-  PLAYER_ID: 'PLAYER_ID',
-  PLAYER_JOINED: 'PLAYER_JOINED',
-  PLAYER_LEFT: 'PLAYER_LEFT',
-  GAME_STATE: 'GAME_STATE',
-  FACTION_ASSIGNED: 'FACTION_ASSIGNED',
-  ROUND_STATE: 'ROUND_STATE',
-  ROUND_END: 'ROUND_END',
-  GLOBAL_SCORE: 'GLOBAL_SCORE'
-};
 
 const globalScore = { fauci: 0, rogan: 0 };
 const roundState = { active: true, battleLinePosition: 50 };
