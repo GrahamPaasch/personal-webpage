@@ -34,6 +34,8 @@ const nextConfig = {
       },
       { source: '/wellness/time-timer', destination: '/wellness/time-timer.html' },
       { source: '/wellness/time-timer/', destination: '/wellness/time-timer.html' },
+      { source: '/panelclash', destination: '/panelclash/index.html' },
+      { source: '/panelclash/', destination: '/panelclash/index.html' },
     ];
   },
   env: {

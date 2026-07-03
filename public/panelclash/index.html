@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/panelclash/favicon.svg" />
+    <title>panelclash</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { height: 100%; }
+      body {
+        margin: 0; overflow: hidden;
+        background: #06080c; color: #e6e8ec;
+        font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      /* fallback when no art has shipped: a clean dimmed gradient, never pure black */
+      #stage {
+        position: fixed; inset: 0; display: grid; place-items: center;
+        background: radial-gradient(120% 90% at 50% 30%, #12151c 0%, #06080c 70%);
+      }
+
+      /* full-bleed character key-art (832x1216) flanking the arena */
+      .poster {
+        position: absolute; top: 0; height: 100vh; width: auto; z-index: 0;
+        display: none; object-fit: cover; object-position: top center;
+        filter: brightness(.85) saturate(1.06);
+        pointer-events: none; user-select: none;
+      }
+      .poster-left  { left: 0; }
+      .poster-right { right: 0; transform: scaleX(-1); } /* opponent faces inward */
+      /* solo: the right flank is the cute mystery challenger — slightly quieter
+         than the player, but still bright and friendly (never gloomy). */
+      #stage[data-mode="solo"] .poster-right { filter: brightness(.78) saturate(.95); }
+
+      /* dark stage pool behind the board + cinematic top/bottom vignette, so the
+         opaque board floats on a deliberate "stage" and the posters' inner edges
+         recede; the outer flanks stay bright/vivid. */
+      #scrim {
+        position: absolute; inset: 0; z-index: 1; pointer-events: none;
+        background:
+          radial-gradient(58% 76% at 50% 50%, rgba(6,8,12,.88) 0%, rgba(6,8,12,.72) 46%, rgba(6,8,12,0) 78%),
+          linear-gradient(180deg, rgba(6,8,12,.55) 0%, rgba(6,8,12,0) 20%, rgba(6,8,12,0) 70%, rgba(6,8,12,.72) 100%);
+      }
+
+      /* small logotype — game identity while playing (select screen draws its own) */
+      #wordmark {
+        position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+        z-index: 3; display: none; pointer-events: none; user-select: none;
+        font: 900 15px ui-monospace, monospace; letter-spacing: .42em; text-indent: .42em;
+        background: linear-gradient(180deg, #fff, #9aa3b2);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        filter: drop-shadow(0 1px 4px rgba(0,0,0,.9));
+      }
+      #stage[data-mode] #wordmark { display: block; }
+
+      #arena {
+        position: relative; z-index: 2;
+        display: flex; flex-direction: column; align-items: center; gap: 12px;
+      }
+
+      /* glass VS scoreboard — hidden during character-select, shown once a mode is set */
+      #scoreboard {
+        display: none; align-items: stretch; gap: 14px;
+        padding: 8px 14px; border-radius: 12px;
+        background: rgba(8,10,14,.62); border: 1px solid rgba(255,255,255,.08);
+        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+        box-shadow: 0 8px 30px -12px rgba(0,0,0,.8);
+      }
+      #stage[data-mode] #scoreboard { display: flex; }
+      .plate { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 8px; }
+      .plate-self { border-bottom: 3px solid var(--self, #8b93a3); }
+      .plate-opp  { border-bottom: 3px solid var(--opp, #8b93a3); flex-direction: row-reverse; text-align: right; }
+      .plate-av { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; object-position: top center; background: #0e1016; visibility: hidden; }
+      .plate-id { display: flex; flex-direction: column; line-height: 1.15; }
+      .plate-id b { font-size: 15px; }
+      .plate-id i { font-size: 11px; color: #9aa3b2; font-style: normal; }
+      .plate-stat { display: flex; gap: 14px; margin-left: 10px; }
+      .plate-stat span { display: flex; flex-direction: column; align-items: center; }
+      .plate-stat label {
+        font-size: 9px; color: #7a8290; text-transform: uppercase; letter-spacing: .18em;
+      }
+      .plate-stat b { font-size: 18px; color: #e6e8ec; font-variant-numeric: tabular-nums; }
+      .vs {
+        align-self: center; font: 900 24px ui-monospace, monospace; color: #fff;
+        text-shadow: 0 0 12px rgba(0,0,0,.9); transform: skewX(-8deg);
+      }
+      /* the self plate flushes red while your stack is in the danger rows */
+      #stage[data-danger="1"] .plate-self { border-bottom-color: #ff3d50; animation: dangerplate 0.9s ease-in-out infinite; }
+      @keyframes dangerplate {
+        0%, 100% { background: rgba(255,45,64,0); }
+        50% { background: rgba(255,45,64,.16); }
+      }
+
+      #status { min-height: 18px; color: #ffd23e; font-weight: bold; text-shadow: 0 1px 6px rgba(0,0,0,.8); }
+
+      /* --- the board frame: a real bezel, not a canvas floating in the void --- */
+      #framewrap {
+        position: relative; padding: 10px; border-radius: 18px;
+        background:
+          linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,0) 34%),
+          linear-gradient(180deg, #1c202b 0%, #12151d 45%, #0c0e14 100%);
+        border: 1px solid rgba(255,255,255,.12);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.10),
+          0 26px 80px -22px rgba(0,0,0,.9),
+          0 0 52px -12px var(--self, #4f86ff);
+      }
+      /* accent inner trim ring, tinted by the player's theme */
+      #framewrap::before {
+        content: ''; position: absolute; inset: 6px; border-radius: 13px;
+        border: 1px solid color-mix(in srgb, var(--self, #4f86ff) 55%, transparent);
+        pointer-events: none;
+      }
+      /* accent corner ticks — arcade cabinet screws */
+      #framewrap::after {
+        content: ''; position: absolute; inset: 0; border-radius: 18px; pointer-events: none;
+        background:
+          radial-gradient(3px 3px at 9px 9px, var(--self, #4f86ff) 45%, transparent 55%),
+          radial-gradient(3px 3px at calc(100% - 9px) 9px, var(--self, #4f86ff) 45%, transparent 55%),
+          radial-gradient(3px 3px at 9px calc(100% - 9px), var(--self, #4f86ff) 45%, transparent 55%),
+          radial-gradient(3px 3px at calc(100% - 9px) calc(100% - 9px), var(--self, #4f86ff) 45%, transparent 55%);
+        opacity: .8;
+      }
+      #stage[data-danger="1"] #framewrap {
+        animation: dangerframe 0.9s ease-in-out infinite;
+      }
+      @keyframes dangerframe {
+        0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 26px 80px -22px rgba(0,0,0,.9), 0 0 52px -12px var(--self, #4f86ff); }
+        50% { box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 26px 80px -22px rgba(0,0,0,.9), 0 0 64px -8px #ff3d50; }
+      }
+      #board { display: block; border-radius: 8px; }
+
+      /* chain badge — pops over the board when a chain is running */
+      #chainbadge {
+        position: absolute; top: -6px; left: 50%; z-index: 4;
+        transform: translate(-50%, -100%) skewX(-8deg);
+        font: 900 30px ui-monospace, monospace; white-space: nowrap;
+        color: #fff; pointer-events: none; opacity: 0;
+        text-shadow: 0 0 14px var(--self, #4f86ff), 0 2px 6px rgba(0,0,0,.9);
+        transition: opacity .35s ease;
+      }
+      #chainbadge.show { opacity: 1; animation: chainpop .28s cubic-bezier(.2, 2.2, .4, 1); }
+      @keyframes chainpop {
+        0% { transform: translate(-50%, -100%) skewX(-8deg) scale(1.75); }
+        100% { transform: translate(-50%, -100%) skewX(-8deg) scale(1); }
+      }
+
+      /* incoming-garbage warning chip — only exists while an attack is queued */
+      #incoming {
+        position: absolute; top: 14px; right: 14px; z-index: 4;
+        display: none; align-items: center; gap: 6px;
+        padding: 3px 10px; border-radius: 999px;
+        background: rgba(40,8,12,.78); border: 1px solid rgba(255,61,80,.65);
+        color: #ff8d9a; font: bold 13px ui-monospace, monospace;
+        pointer-events: none; animation: incoming 0.9s ease-in-out infinite;
+      }
+      #incoming.show { display: flex; }
+      @keyframes incoming {
+        0%, 100% { box-shadow: 0 0 4px rgba(255,61,80,.3); }
+        50% { box-shadow: 0 0 16px rgba(255,61,80,.8); }
+      }
+
+      /* controls under the board — visible whenever a mode is running */
+      #controls { display: none; gap: 8px; }
+      #stage[data-mode] #controls { display: flex; }
+      #controls button {
+        font: bold 12px ui-monospace, monospace; color: #cfd4dc; cursor: pointer;
+        padding: 6px 12px; border-radius: 8px;
+        background: rgba(8,10,14,.62); border: 1px solid rgba(255,255,255,.12);
+        -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+      }
+      #controls button:hover { border-color: var(--self, #8b93a3); color: #fff; }
+      #controls kbd {
+        font: inherit; color: #7a8290; border: 1px solid rgba(255,255,255,.14);
+        border-radius: 4px; padding: 0 4px; margin-left: 6px;
+      }
+
+      #help {
+        position: fixed; left: 14px; bottom: 12px; z-index: 3; margin: 0;
+        font-size: 11px; color: #8b93a3; white-space: pre-wrap;
+        background: rgba(8,10,14,.6); border: 1px solid rgba(255,255,255,.07);
+        padding: 7px 11px; border-radius: 8px;
+        -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+      }
+    </style>
+    <script type="module" crossorigin src="/panelclash/assets/index-DbImrSu_.js"></script>
+  </head>
+  <body>
+    <div id="stage">
+      <img id="poster-self" class="poster poster-left"  alt="" />
+      <img id="poster-opp"  class="poster poster-right" alt="" />
+      <div id="scrim"></div>
+      <div id="wordmark">PANEL CLASH</div>
+      <main id="arena">
+        <header id="scoreboard">
+          <div class="plate plate-self">
+            <img id="av-self" class="plate-av" alt="" />
+            <div class="plate-id"><b id="name-self">—</b><i id="pet-self"></i></div>
+            <div class="plate-stat">
+              <span><b id="score">0</b><label>score</label></span>
+              <span><b id="clock">0:00</b><label>time</label></span>
+            </div>
+          </div>
+          <div class="vs" id="vs">VS</div>
+          <div class="plate plate-opp">
+            <img id="av-opp" class="plate-av" alt="" />
+            <div class="plate-id"><b id="name-opp">—</b><i id="pet-opp"></i></div>
+          </div>
+        </header>
+        <div id="status"></div>
+        <div id="framewrap">
+          <canvas id="board"></canvas>
+          <div id="chainbadge"></div>
+          <div id="incoming">⚠ <b id="incoming-n">0</b></div>
+        </div>
+        <div id="controls">
+          <button id="btn-change" type="button">change character<kbd>C</kbd></button>
+          <button id="btn-restart" type="button">restart<kbd>R</kbd></button>
+          <button id="btn-mute" type="button">mute<kbd>M</kbd></button>
+        </div>
+      </main>
+      <pre id="help">arrows move · space/J swap · shift/K raise · G garbage · R restart · C characters · M mute
+Online: open ?room=NAME in two browsers (match server must be running).</pre>
+    </div>
+  </body>
+</html>
