@@ -1,4 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Aversion Factoring',
+  description: 'Unpack the hidden reasons you avoid important actions.',
+};
 
 const htmlContent = `<!DOCTYPE html>
 <html lang="en">

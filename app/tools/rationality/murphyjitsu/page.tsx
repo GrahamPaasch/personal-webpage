@@ -1,4 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Murphyjitsu',
+  description: 'Pre-hindsight your plans - imagine failure and patch the holes.',
+};
 
 const htmlContent = `
 <!DOCTYPE html>

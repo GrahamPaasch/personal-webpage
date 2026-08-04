@@ -1,4 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Bucket Errors',
+  description: 'Identify when you\'re lumping distinct things into one category.',
+};
 
 const htmlContent = `<!DOCTYPE html>
 <html lang="en">

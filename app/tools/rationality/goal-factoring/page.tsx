@@ -1,4 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Goal Factoring',
+  description: 'Decompose goals to find what you actually want and better ways to get it.',
+};
 
 const htmlContent = `
 <!DOCTYPE html>

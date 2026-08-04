@@ -1,4 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Trigger-Action Planning',
+  description: 'Wire new behaviors to reliable triggers so they actually happen.',
+};
 
 const htmlContent = `<!DOCTYPE html>
 <html lang="en">

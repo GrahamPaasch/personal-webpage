@@ -1,4 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Resolve Cycles',
+  description: 'Break through loops of indecision and stuck patterns.',
+};
 
 const htmlContent = `
 <!DOCTYPE html>

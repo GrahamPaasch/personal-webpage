@@ -1,3 +1,10 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Voice System',
+  description: 'How typography signals authorship on this site: AI, human, and collaborative voices.',
+};
+
 import Link from 'next/link';
 
 const samples = [

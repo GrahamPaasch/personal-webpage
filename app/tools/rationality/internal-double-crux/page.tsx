@@ -1,4 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Internal Double Crux',
+  description: 'Resolve inner conflicts by finding the crux between competing parts of yourself.',
+};
 
 const htmlContent = `
 <!DOCTYPE html>

@@ -1,4 +1,9 @@
-'use client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Freedom of Action',
+  description: 'Expand your option space by noticing invisible constraints.',
+};
 
 const htmlContent = `
 <!DOCTYPE html>

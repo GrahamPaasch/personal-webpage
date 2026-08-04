@@ -55,9 +55,9 @@ export const metadata = {
   },
   description: 'Hobbies, writings, and professional work by Graham Paasch.',
   openGraph: {
-    title: 'Graham Paasch',
-    description: 'Hobbies, writings, and professional life.',
-    url: 'https://www.grahampaasch.com',
+    // Deliberately no title/description/url here. Setting them at the root
+    // pins every page's link preview to the homepage's text; omitting them
+    // lets Next derive og:title/og:description from each route's own metadata.
     siteName: 'Graham Paasch',
     locale: 'en_US',
     type: 'website',
