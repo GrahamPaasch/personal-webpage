@@ -4,23 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { NOTE_OPTIONS, clamp, frequencyFromMidi } from '@/lib/music/notes';
 import { chordForKey, PROGRESSION_PRESETS, type ProgressionPreset, type ScaleType } from '@/lib/music/harmony';
+import { getAudioContext, safeResume } from '@/lib/music/audioContext';
 
 type Waveform = OscillatorType;
-
-function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const AnyWindow = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
-  const Ctor = AnyWindow.AudioContext || AnyWindow.webkitAudioContext;
-  return Ctor ? new Ctor() : null;
-}
-
-async function safeResume(ctx: AudioContext) {
-  try {
-    if (ctx.state !== 'running') await ctx.resume();
-  } catch {
-    // ignore
-  }
-}
 
 function scheduleChord(
   ctx: AudioContext,

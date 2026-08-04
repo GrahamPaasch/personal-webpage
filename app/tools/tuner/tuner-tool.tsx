@@ -4,23 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { clamp, pitchToNote } from '@/lib/music/notes';
 import { detectPitchAutocorrelation } from '@/lib/music/pitchDetect';
+import { getAudioContext, safeResume } from '@/lib/music/audioContext';
 
 type Status = 'idle' | 'requesting' | 'listening' | 'error';
-
-function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const AnyWindow = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
-  const Ctor = AnyWindow.AudioContext || AnyWindow.webkitAudioContext;
-  return Ctor ? new Ctor() : null;
-}
-
-async function safeResume(ctx: AudioContext) {
-  try {
-    if (ctx.state !== 'running') await ctx.resume();
-  } catch {
-    // ignore
-  }
-}
 
 export default function TunerTool() {
   const [status, setStatus] = useState<Status>('idle');

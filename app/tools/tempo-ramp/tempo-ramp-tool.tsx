@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { getAudioContext, safeResume } from '@/lib/music/audioContext';
 
 type SubdivisionOption = { id: number; label: string };
 
@@ -30,13 +31,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const AnyWindow = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
-  const Ctor = AnyWindow.AudioContext || AnyWindow.webkitAudioContext;
-  return Ctor ? new Ctor() : null;
-}
-
 function scheduleClick(ctx: AudioContext, time: number, opts: { frequency: number; gain: number }) {
   const osc = ctx.createOscillator();
   const g = ctx.createGain();
@@ -53,14 +47,6 @@ function scheduleClick(ctx: AudioContext, time: number, opts: { frequency: numbe
 
   osc.start(time);
   osc.stop(time + 0.05);
-}
-
-async function safeResume(ctx: AudioContext) {
-  try {
-    if (ctx.state !== 'running') await ctx.resume();
-  } catch {
-    // ignore
-  }
 }
 
 export default function TempoRampTool() {

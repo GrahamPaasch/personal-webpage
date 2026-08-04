@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { clamp } from '@/lib/music/notes';
+import { getAudioContext, safeResume } from '@/lib/music/audioContext';
 
 type Segment = {
   id: string;
@@ -20,21 +21,6 @@ function formatClock(ms: number): string {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const AnyWindow = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
-  const Ctor = AnyWindow.AudioContext || AnyWindow.webkitAudioContext;
-  return Ctor ? new Ctor() : null;
-}
-
-async function safeResume(ctx: AudioContext) {
-  try {
-    if (ctx.state !== 'running') await ctx.resume();
-  } catch {
-    // ignore
-  }
 }
 
 function beep(ctx: AudioContext, opts: { freq: number; durationMs: number; gain: number }) {

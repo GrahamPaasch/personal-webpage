@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { clamp, frequencyFromMidi, midiToNoteName } from '@/lib/music/notes';
+import { getAudioContext, safeResume } from '@/lib/music/audioContext';
 
 type Interval = {
   id: string;
@@ -35,21 +36,6 @@ type Question = {
   intervalId: string;
   direction: 'up' | 'down';
 };
-
-function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const AnyWindow = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
-  const Ctor = AnyWindow.AudioContext || AnyWindow.webkitAudioContext;
-  return Ctor ? new Ctor() : null;
-}
-
-async function safeResume(ctx: AudioContext) {
-  try {
-    if (ctx.state !== 'running') await ctx.resume();
-  } catch {
-    // ignore
-  }
-}
 
 function scheduleTone(ctx: AudioContext, opts: { time: number; freq: number; duration: number; gain: number }) {
   const osc = ctx.createOscillator();
