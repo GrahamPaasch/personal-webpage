@@ -22,7 +22,7 @@ export default function HomePage() {
           <span className="announcement-text">
             <span className="announcement-highlight">NEW:</span> I&apos;m building a beat-em-up game!
           </span>
-          <Link className="announcement-link" href="/sidewalks-of-rage/">
+          <Link className="announcement-link" href="/sidewalks-of-rage">
             Play the demo &rarr;
           </Link>
         </div>
@@ -84,7 +84,7 @@ export default function HomePage() {
           <p className="muted">
             Interactive canvas art powered by particle physics and generative styles. Draw, explore, and create something unexpected.
           </p>
-          <a className="button primary" href="/create-now/index.html">
+          <a className="button primary" href="/create-now">
             Launch playground &rarr;
           </a>
         </div>
@@ -118,7 +118,7 @@ export default function HomePage() {
             <Link className="button" href="/tools">Toolbox</Link>
             <Link className="button" href="/prompt-pack">Prompt Studio</Link>
             <Link className="button" href="/agent">Chat with my Agent</Link>
-            <a className="button primary" href="/create-now/index.html">AI Creative Playground</a>
+            <a className="button primary" href="/create-now">AI Creative Playground</a>
           </div>
         </div>
 

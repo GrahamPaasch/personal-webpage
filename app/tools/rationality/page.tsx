@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Rationality Toolkit — Graham Paasch',
-  description: 'A suite of 12 interactive tools inspired by CFAR applied rationality techniques.',
+  description: 'A suite of 11 interactive tools inspired by CFAR applied rationality techniques.',
 };
 
 const skills = [
@@ -16,9 +16,8 @@ const skills = [
   { slug: 'hamming-questions', title: 'Hamming Questions', description: 'Ask yourself: what\'s the most important problem you could be working on?' },
   { slug: 'internal-double-crux', title: 'Internal Double Crux', description: 'Resolve inner conflicts by finding the crux between competing parts of yourself.' },
   { slug: 'murphyjitsu', title: 'Murphyjitsu', description: 'Pre-hindsight your plans — imagine failure and patch the holes.' },
-  { slug: 'pride-self-recognition', title: 'Pride & Self-Recognition', description: 'Build the habit of noticing and reinforcing your wins.' },
   { slug: 'resolve-cycles', title: 'Resolve Cycles', description: 'Break through loops of indecision and stuck patterns.' },
-  { slug: 'trigger-action-planning', title: 'Trigger-Action Planning', description: 'Wire new behaviors to reliable triggers so they actually happen.' },
+  { slug: 'trigger-action-plans', title: 'Trigger-Action Planning', description: 'Wire new behaviors to reliable triggers so they actually happen.' },
 ];
 
 export default function RationalityToolkit() {
@@ -30,7 +29,7 @@ export default function RationalityToolkit() {
           <span className="prompt-header-badge">CFAR-INSPIRED</span>
         </div>
         <p className="muted">
-          Twelve interactive tools drawn from CFAR&rsquo;s applied rationality curriculum.
+          Eleven interactive tools drawn from CFAR&rsquo;s applied rationality curriculum.
           Each one guides you through a structured thinking technique — designed to
           help you make clearer decisions, resolve internal conflicts, and actually
           follow through on what matters.
