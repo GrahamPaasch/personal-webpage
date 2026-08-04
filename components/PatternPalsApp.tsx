@@ -1,5 +1,19 @@
 'use client';
 
+/**
+ * PARKED — intentionally not imported by any route.
+ *
+ * This is the full PatternPals session planner (roster building, session modes,
+ * group recommendations, roster health). The live /patternpals route currently
+ * renders the read-only atlas view in PatternPalsAtlasOnly.tsx instead; this
+ * planner was rolled back on 2025-09-15 and kept for a future revival.
+ *
+ * It is NOT dead code to be swept: deleting it also orphans
+ * lib/patternpals/groupRecommendations.ts, lib/patternpals/plannerRoster.ts,
+ * their coverage in tests/unit/patternpals.test.ts, and roughly 90 `.patternpals*`
+ * rules in app/globals.css. Remove all of those together or none of them.
+ */
+
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 import { assessRosterHealth, createDefaultGroupJugglers, recommendGroupPatterns } from '@/lib/patternpals/groupRecommendations';
