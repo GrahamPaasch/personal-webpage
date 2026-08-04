@@ -70,20 +70,41 @@ a:visited { color: var(--link-visited); }
 .container { max-width: 960px; margin: 0 auto; padding: 0 16px; }
 
 .site-header { position: sticky; top: 0; z-index: 10; background: rgba(11,13,18,0.8); backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
-.brand { font-weight: 700; letter-spacing: 0.2px; color: var(--text); text-decoration: none; }
+/* The header needs more room than the 960px reading column: brand + version
+   chip + nine nav links do not fit in 928px, which wrapped the nav onto a
+   second line inside a fixed 60px header at every desktop width. */
+.site-header .container { max-width: 1200px; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
+.brand { font-weight: 700; letter-spacing: 0.2px; color: var(--text); text-decoration: none; white-space: nowrap; }
 .brand:hover { color: #93c5fd; }
 .version-chip { margin-left: 8px; font-size: 0.8rem; padding: 2px 8px; border-radius: 9999px; border: 1px solid var(--border); background: #1a1f2d; color: var(--muted); text-decoration: none; }
 .version-chip:hover { color: var(--text); border-color: #334155; }
 .nav { display: flex; gap: 16px; }
 .nav a { color: var(--muted); text-decoration: none; padding: 8px 10px; border-radius: 8px; }
+/* Tightened so nine links fit on one line; labels must never wrap mid-word. */
+.nav-desktop { gap: 6px; font-size: 0.875rem; flex-wrap: nowrap; }
+.nav-desktop a { padding: 8px 6px; white-space: nowrap; }
+.version-chip { white-space: nowrap; }
+
+/* The chip carries a full build string in production ("v0.1.1+a651d94", ~122px).
+   Between the 1100px hamburger breakpoint and 1200px that is the difference
+   between fitting and overflowing, and the same version is already in the
+   footer and on /version. */
+@media (max-width: 1200px) {
+  .version-chip { display: none; }
+}
 .nav a:hover { color: var(--text); background: rgba(59, 130, 246, 0.18); }
 .nav a.active { color: var(--text); background: rgba(59, 130, 246, 0.25); }
 
 /* Mobile Navigation */
 .mobile-nav-container { display: none; }
 
-@media (max-width: 768px) {
+/* 1100px, not 768px: nine desktop nav links (742px) plus the brand (141px) and
+   the version chip need ~1035px once the chip carries a real production build
+   string like "v0.1.1+a651d94". Below 768px the desktop nav overflowed the
+   header at every width; the hamburger drawer now covers everything narrower
+   than 1100px, leaving the desktop nav ~85px of headroom where it does show. */
+@media (max-width: 1100px) {
   /* Hide desktop nav on mobile */
   .nav-desktop { display: none !important; }
   
