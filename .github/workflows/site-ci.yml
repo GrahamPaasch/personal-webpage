@@ -1,0 +1,77 @@
+name: Site CI
+
+# The main Next.js site. Scoped away from games/sidewalks-of-rage, which has its
+# own workflow, so a change to one subproject does not run the other's suite.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'games/sidewalks-of-rage/**'
+      - '**/*.md'
+  pull_request:
+    paths-ignore:
+      - 'games/sidewalks-of-rage/**'
+      - '**/*.md'
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Discrete steps so a red build names the stage that broke.
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Production build
+        run: npm run build
+
+  a11y:
+    runs-on: ubuntu-latest
+    # Browser tests are slower and need a running server, so they only gate a
+    # build that already passed the fast checks.
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Accessibility tests
+        run: npm run test:a11y
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
