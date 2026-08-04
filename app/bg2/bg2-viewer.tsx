@@ -71,27 +71,31 @@ function AutoPublish() {
   return null;
 }
 
+// Portal targets arrive as state-held elements rather than refs: a ref's
+// `.current` read during render is not a reactive value, so the portals would
+// only appear if some unrelated re-render happened to follow ref attachment.
 function ConnectedLayout({
-  leftRef, rightRef, controlsRef, onLeave,
+  leftEl, rightEl, controlsEl, onLeave,
 }: {
-  leftRef: React.RefObject<HTMLDivElement | null>;
-  rightRef: React.RefObject<HTMLDivElement | null>;
-  controlsRef: React.RefObject<HTMLDivElement | null>;
+  leftEl: HTMLDivElement | null;
+  rightEl: HTMLDivElement | null;
+  controlsEl: HTMLDivElement | null;
   onLeave: () => void;
 }) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const participants = useParticipants();
   const videoTracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [draggingSid, setDraggingSid] = useState<string | null>(null);
   const [expandedSid, setExpandedSid] = useState<string | null>(null);
 
-  // Sync assignments as participants join/leave
+  // Sync assignments as participants join/leave. This genuinely is state
+  // mirrored from an external system (the LiveKit room), which the
+  // set-state-in-effect rule cannot distinguish from derived render state.
   useEffect(() => {
     const tracks = videoTracks.filter(isTrackReference);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAssignments(prev => {
       const activeSids = new Set(tracks.map(t => t.participant.sid));
       const kept = prev.filter(a => activeSids.has(a.sid));
@@ -181,16 +185,19 @@ function ConnectedLayout({
   );
 
   const btn = (active: boolean, bg: string, label: string, onClick: () => void) => (
-    <button onClick={onClick} style={{
-      background: active ? bg : '#2a2a3a',
-      border: '1px solid #c8a96e44', borderRadius: 4,
-      color: '#fff', cursor: 'pointer', fontSize: '1rem',
-      padding: '0.25rem 0.5rem', lineHeight: 1,
-    }}>{label}</button>
+    <button
+      onClick={onClick}
+      style={{
+        background: active ? bg : '#2a2a3a',
+        border: '1px solid #c8a96e44', borderRadius: 4,
+        color: '#fff', cursor: 'pointer', fontSize: '1rem',
+        padding: '0.25rem 0.5rem', lineHeight: 1,
+      }}
+    >{label}</button>
   );
 
-  if (!mounted) return null;
-
+  // No mount guard needed: every portal target below is null until its node
+  // attaches on the client, so this renders nothing during SSR.
   const expandedTrack = expandedSid ? getTrack(expandedSid) : null;
 
   return (
@@ -224,17 +231,17 @@ function ConnectedLayout({
         </div>,
         document.body
       )}
-      {controlsRef.current && createPortal(
+      {controlsEl && createPortal(
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0.3rem 0', flexWrap: 'wrap' }}>
           <span style={{ color: '#c8a96e88', fontSize: '0.7rem' }}>👥 {participants.length}</span>
           {btn(isMicrophoneEnabled, '#2d5a2d', isMicrophoneEnabled ? '🎙' : '🔇', () => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled))}
           {btn(isCameraEnabled, '#2d4a6a', isCameraEnabled ? '📷' : '📵', () => localParticipant.setCameraEnabled(!isCameraEnabled))}
           {btn(false, '#5a2d2d', '✕ Leave', onLeave)}
         </div>,
-        controlsRef.current
+        controlsEl
       )}
-      {leftRef.current && createPortal(renderTiles('left'), leftRef.current)}
-      {rightRef.current && createPortal(renderTiles('right'), rightRef.current)}
+      {leftEl && createPortal(renderTiles('left'), leftEl)}
+      {rightEl && createPortal(renderTiles('right'), rightEl)}
     </>
   );
 }
@@ -248,9 +255,11 @@ export default function BG2Viewer() {
 
   const outerRef = useRef<HTMLDivElement>(null);
   const nekoIframeRef = useRef<HTMLIFrameElement>(null);
-  const leftSidebarRef = useRef<HTMLDivElement>(null);
-  const rightSidebarRef = useRef<HTMLDivElement>(null);
-  const controlsRef = useRef<HTMLDivElement>(null);
+  // Portal targets live in state, not refs, so ConnectedLayout re-renders once
+  // the nodes actually attach (see the note on ConnectedLayout above).
+  const [leftSidebarEl, setLeftSidebarEl] = useState<HTMLDivElement | null>(null);
+  const [rightSidebarEl, setRightSidebarEl] = useState<HTMLDivElement | null>(null);
+  const [controlsEl, setControlsEl] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(document.fullscreenElement === outerRef.current);
@@ -314,10 +323,10 @@ export default function BG2Viewer() {
       <div
         style={sideStyle}
         onDragOver={e => e.preventDefault()}
-        onDrop={e => onSidebarDrop?.('left', e.clientY, leftSidebarRef.current)}
+        onDrop={e => onSidebarDrop?.('left', e.clientY, leftSidebarEl)}
       >
         {/* Left video tiles portalled here */}
-        <div ref={leftSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
+        <div ref={setLeftSidebarEl} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
         {/* Party Chat controls pinned to bottom */}
         <div style={{ padding: '0.5rem 0.6rem', borderTop: '1px solid #c8a96e22', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
@@ -335,7 +344,7 @@ export default function BG2Viewer() {
             </div>
           )}
           {/* Controls portalled here when connected */}
-          <div ref={controlsRef} />
+          <div ref={setControlsEl} />
         </div>
       </div>
 
@@ -365,9 +374,9 @@ export default function BG2Viewer() {
       <div
         style={sideStyle}
         onDragOver={e => e.preventDefault()}
-        onDrop={e => onSidebarDrop?.('right', e.clientY, rightSidebarRef.current)}
+        onDrop={e => onSidebarDrop?.('right', e.clientY, rightSidebarEl)}
       >
-        <div ref={rightSidebarRef} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
+        <div ref={setRightSidebarEl} style={{ flex: 1, overflowY: 'auto', padding: 4 }} />
       </div>
 
       {/* LiveKit — hidden from layout, portals content into sidebars */}
@@ -388,9 +397,9 @@ export default function BG2Viewer() {
             <RoomAudioRenderer />
             <AutoPublish />
             <ConnectedLayout
-              leftRef={leftSidebarRef}
-              rightRef={rightSidebarRef}
-              controlsRef={controlsRef}
+              leftEl={leftSidebarEl}
+              rightEl={rightSidebarEl}
+              controlsEl={controlsEl}
               onLeave={handleLeave}
             />
           </LiveKitRoom>

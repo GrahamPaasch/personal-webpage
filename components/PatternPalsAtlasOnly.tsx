@@ -65,7 +65,7 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
       }
       setRandSpinning(false);
     }, 1200);
-  }, [eligiblePool.eligible, randHistory]);
+  }, [eligiblePool.eligible, randHistory, randJugglers]);
 
   return (
     <section className="grid patternpals-grid">

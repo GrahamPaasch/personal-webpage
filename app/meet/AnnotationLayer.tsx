@@ -66,7 +66,7 @@ export default function AnnotationLayer({ active, clearTrigger, color }: Props) 
 
   // ── receive remote annotations ───────────────────────────────────
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     function onData(payload: Uint8Array) {
       try {
         const msg = JSON.parse(dec.decode(payload)) as StrokeMsg;

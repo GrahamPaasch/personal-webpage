@@ -11,9 +11,6 @@ export default function FullScreenChat() {
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const pathname = usePathname();
 
-  // Don't show on the BG2 page — it clutters the Neko control panel
-  if (pathname === '/bg2') return null;
-
   useEffect(() => {
     if (!open) return;
 
@@ -26,6 +23,11 @@ export default function FullScreenChat() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
+
+  // Don't show on the BG2 page — it clutters the Neko control panel.
+  // This must come *after* every hook: an early return above them changes the
+  // hook count between routes and crashes React on client-side navigation.
+  if (pathname === '/bg2') return null;
 
   return (
     <>
