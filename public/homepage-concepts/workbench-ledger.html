@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Graham Paasch — The Workbench Ledger</title>
+    <link rel="icon" type="image/png" href="./assets/graham-gp-orbit-mark.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+    <style>
+      /* Concept 01 — Literary editorial ledger: warm paper, vermilion annotations, a fixed folio and off-axis working notes. */
+      :root { --paper:#f6f0e7; --ink:#20201d; --mute:#69665f; --line:#d6cec1; --red:#c8482f; --moss:#3f5949; }
+      * { box-sizing:border-box; }
+      html { scroll-behavior:smooth; }
+      body { margin:0; color:var(--ink); background:var(--paper); font-family:"DM Mono", monospace; }
+      .serif { font-family:"Fraunces", Georgia, serif; }
+      .instrument { font-family:"Instrument Serif", Georgia, serif; }
+      .folio { position:fixed; inset:0 auto 0 0; z-index:10; width:20.5rem; padding:1.8rem; display:flex; flex-direction:column; justify-content:space-between; background:#e8dfd0; border-right:1px solid var(--line); }
+      .monogram { position:relative; width:4.4rem; height:4.4rem; display:grid; place-items:center; border:1px solid var(--red); color:var(--red); font:600 1.25rem/1 "Fraunces", serif; transform:rotate(-5deg); }
+      .monogram:before,.monogram:after { content:""; position:absolute; background:var(--red); opacity:.78; }
+      .monogram:before { width:1px; height:5.3rem; transform:rotate(48deg); }
+      .monogram:after { width:5.3rem; height:1px; transform:rotate(48deg); }
+      .folio-link { display:flex; align-items:center; gap:.6rem; padding:.6rem 0; color:var(--mute); font-size:.68rem; letter-spacing:.06em; text-decoration:none; border-bottom:1px solid transparent; transition:color .18s ease, border-color .18s ease; }
+      .folio-link:hover,.folio-link:focus-visible { color:var(--red); border-color:var(--red); outline:none; }
+      .folio-link span { color:var(--red); }
+      .main { margin-left:20.5rem; }
+      .intro { display:grid; min-height:77vh; grid-template-columns:minmax(0,1.15fr) minmax(22rem,.85fr); border-bottom:1px solid var(--line); }
+      .intro-copy { padding:clamp(4.5rem,11vw,10rem) clamp(2rem,7vw,7rem) 4rem; display:flex; flex-direction:column; justify-content:flex-end; }
+      .eyebrow { color:var(--red); font-size:.65rem; letter-spacing:.14em; text-transform:uppercase; }
+      .display { max-width:12ch; margin:1rem 0 1.4rem; font-size:clamp(3.5rem,7.4vw,7.5rem); line-height:.88; letter-spacing:-.06em; font-weight:500; }
+      .hero-art { position:relative; overflow:hidden; min-height:32rem; background:linear-gradient(120deg,rgba(30,25,20,.05),rgba(30,25,20,.3)), url('./assets/graham-ledger-workbench.jpg') center/cover; }
+      .hero-art .caption { position:absolute; right:1.2rem; bottom:1.2rem; max-width:14rem; padding:.7rem .8rem; background:rgba(246,240,231,.91); color:var(--mute); font-size:.62rem; line-height:1.5; }
+      .hero-mark { position:absolute; top:clamp(2rem,6vw,5rem); right:clamp(2rem,5vw,5rem); width:6rem; height:6rem; display:grid; place-items:center; color:var(--red); font:600 2rem/1 "Fraunces",serif; border:1px solid currentColor; transform:rotate(-7deg); }
+      .hero-mark:before,.hero-mark:after { content:""; position:absolute; width:7rem; height:1px; background:currentColor; transform:rotate(42deg); } .hero-mark:after { transform:rotate(-42deg); }
+      .read-more { display:inline-flex; width:max-content; align-items:center; gap:.8rem; margin-top:1.25rem; padding-bottom:.4rem; color:var(--ink); font-size:.74rem; letter-spacing:.08em; text-decoration:none; text-transform:uppercase; border-bottom:1px solid var(--red); transition:gap .2s ease, color .2s ease; }
+      .read-more:hover { gap:1.2rem; color:var(--red); }
+      .ledger-section { display:grid; grid-template-columns:minmax(10rem,.3fr) minmax(0,1fr); gap:2rem; padding:clamp(3.75rem,8vw,8rem) clamp(2rem,7vw,7rem); border-bottom:1px solid var(--line); }
+      .section-no { color:var(--red); font-size:.66rem; letter-spacing:.1em; }
+      .section-title { margin:0 0 2.2rem; font-size:clamp(2.25rem,4vw,4.25rem); line-height:.98; letter-spacing:-.05em; font-weight:500; }
+      .body-copy { max-width:42rem; color:#383630; font:400 1.05rem/1.7 "Fraunces", Georgia, serif; }
+      .note { position:relative; margin:2.5rem 0 0 8%; padding:1.15rem 1.35rem 1.2rem 1.8rem; max-width:30rem; color:var(--moss); background:#e4eadc; font-size:.72rem; line-height:1.75; transform:rotate(-1deg); }
+      .note:before { content:"↳ margin note"; position:absolute; left:-.2rem; top:-1.05rem; color:var(--red); font-size:.59rem; letter-spacing:.08em; text-transform:uppercase; }
+      .index { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:0; border-top:1px solid var(--line); }
+      .index-item { position:relative; min-height:17rem; padding:1.5rem; overflow:hidden; color:var(--ink); text-decoration:none; background:var(--paper); border-right:1px solid var(--line); border-bottom:1px solid var(--line); transition:background .2s ease; }
+      .index-item:nth-child(1) { grid-column:1 / span 3; } .index-item:nth-child(2) { grid-column:4 / span 3; margin-top:3.2rem; } .index-item:nth-child(3) { grid-column:2 / span 3; margin-top:-.1rem; } .index-item:nth-child(4) { grid-column:5 / span 2; margin-top:4.8rem; }
+      .index-item:hover { background:#eee6d9; }
+      .index-item:after { content:"open note ↗"; position:absolute; bottom:1.3rem; left:1.5rem; color:var(--red); font-size:.62rem; letter-spacing:.07em; opacity:0; transform:translateY(5px); transition:.2s ease; }
+      .index-item:hover:after { opacity:1; transform:translateY(0); }
+      .index-kicker { display:block; margin-bottom:3.4rem; color:var(--red); font-size:.6rem; letter-spacing:.11em; text-transform:uppercase; }
+      .index-margin { position:absolute; right:1.3rem; bottom:1.25rem; max-width:8.5rem; color:var(--moss); font:italic 1.1rem/1 "Instrument Serif",serif; transform:rotate(-5deg); opacity:.78; }
+      .index-item h3 { max-width:11ch; margin:0 0 .8rem; font:500 clamp(1.6rem,2.3vw,2.4rem)/.95 "Fraunces", serif; letter-spacing:-.045em; }
+      .index-item p { max-width:25rem; color:var(--mute); font-size:.68rem; line-height:1.7; }
+      .closing { padding:clamp(4rem,9vw,9rem) clamp(2rem,7vw,7rem); background:var(--ink); color:var(--paper); }
+      .closing h2 { max-width:10ch; margin:0; font:500 clamp(3rem,6vw,6.5rem)/.87 "Fraunces", serif; letter-spacing:-.06em; }
+      .closing a { display:inline-flex; margin-top:2rem; color:#f4ae9f; font-size:.7rem; letter-spacing:.1em; text-decoration:none; text-transform:uppercase; border-bottom:1px solid #f4ae9f; }
+      .mobile-top { display:none; }
+      @media (max-width:900px) { .folio { display:none; } .mobile-top { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; background:rgba(246,240,231,.94); border-bottom:1px solid var(--line); backdrop-filter:blur(10px); } .mobile-top a { color:var(--ink); font-size:.66rem; letter-spacing:.1em; text-decoration:none; text-transform:uppercase; } .main { margin-left:0; } .intro { min-height:auto; grid-template-columns:1fr; } .intro-copy { min-height:33rem; } .hero-art { min-height:26rem; } .ledger-section { grid-template-columns:1fr; gap:1.4rem; } }
+      @media (max-width:600px) { .display { font-size:clamp(3.5rem,17vw,5.6rem); } .index { grid-template-columns:1fr; } .index-item,.index-item:nth-child(n) { grid-column:auto; min-height:15rem; margin-top:0; border-right:0; } .note { margin-left:0; } }
+      @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; transition:none !important; } }
+    </style>
+  </head>
+  <body>
+    <header class="mobile-top" aria-label="Mobile navigation"><a href="#top">Graham Paasch</a><a href="#work">Index ↓</a></header>
+    <aside class="folio" aria-label="Site navigation">
+      <div>
+        <div class="monogram" aria-label="Graham Paasch monogram">GP</div>
+        <p class="mt-6 text-[.62rem] leading-relaxed tracking-[.08em] text-[#69665f]">GRAHAM PAASCH<br />SYSTEMS · SOUND · PRACTICE</p>
+      </div>
+      <nav aria-label="Sections">
+        <a class="folio-link" href="#note"><span>01</span> A note on practice</a>
+        <a class="folio-link" href="#work"><span>02</span> Selected work</a>
+        <a class="folio-link" href="https://www.grahampaasch.com/writings"><span>03</span> Writings</a>
+        <a class="folio-link" href="https://www.grahampaasch.com/professional"><span>04</span> Professional</a>
+      </nav>
+      <p class="text-[.58rem] leading-relaxed text-[#69665f]">Austin, TX<br />a personal working journal<br /><span class="text-[#c8482f]">v0.2 / 2026</span></p>
+    </aside>
+
+    <main class="main" id="top">
+      <section class="intro" aria-labelledby="ledger-title">
+        <div class="intro-copy">
+          <p class="eyebrow">Notebook / in public</p>
+          <h1 class="display serif" id="ledger-title">The work is not all in one key.</h1>
+          <p class="max-w-md text-sm leading-7 text-[#69665f]">I’m Graham Paasch—a network engineer, violist, composer, juggler, and builder of local-first AI systems. This is where the experiments leave their pencil marks.</p>
+          <a class="read-more" href="#work">Read the current index <span aria-hidden="true">↓</span></a>
+        </div>
+        <div class="hero-art" role="img" aria-label="A warm workbench with a notebook, viola bow, tools and creative annotations"><div class="hero-mark" aria-label="Graham Paasch compass-stroke monogram">GP</div><p class="caption">A reliable route and a good phrase both ask the same thing: attention to what the system is doing right now.</p></div>
+      </section>
+
+      <section class="ledger-section" id="note" aria-labelledby="note-title">
+        <p class="section-no">01 / field note</p>
+        <div>
+          <h2 class="section-title serif" id="note-title">A practice can be both precise and alive.</h2>
+          <p class="body-copy">For more than a decade I have worked in networks: designing the conditions under which systems keep their promises. Away from the rack, I practice the same attention with a viola, with a set of juggling clubs, and with small local machines that can tell stories, speak, and make sound without sending the raw material somewhere else.</p>
+          <aside class="note">Current curiosity: can a fairytale film studio run with enough character, craft, and restraint on one person’s own GPU? I’m finding out by building the tools as I need them.</aside>
+        </div>
+      </section>
+
+      <section class="ledger-section" id="work" aria-labelledby="work-title">
+        <p class="section-no">02 / selected index</p>
+        <div><h2 class="section-title serif" id="work-title">A few durable systems. A few beautiful accidents.</h2></div>
+      </section>
+      <div class="index" aria-label="Selected projects">
+        <a class="index-item" href="https://www.grahampaasch.com/local"><span class="index-kicker">01 / local AI</span><h3>Fairytales, rendered close to home.</h3><p>A one-GPU film studio under construction: image, voice, story, and an opinionated workflow for experimenting locally.</p><em class="index-margin">keep it near</em></a>
+        <a class="index-item" href="https://www.grahampaasch.com/agent"><span class="index-kicker">02 / voice agent</span><h3>A voice that can keep a thread.</h3><p>Conversational experiments designed around useful presence, small rituals, and real privacy boundaries.</p><em class="index-margin">listen first</em></a>
+        <a class="index-item" href="https://www.grahampaasch.com/synthwave"><span class="index-kicker">03 / generative music</span><h3>Pattern, pulse, possibility.</h3><p>Tools and playable sketches for procedural rhythm, music practice, and the moment after the next note.</p><em class="index-margin">again, softer</em></a>
+        <a class="index-item" href="https://www.grahampaasch.com/professional"><span class="index-kicker">04 / network engineering</span><h3>Infrastructure that earns trust.</h3><p>Network design, Python automation, documentation, and the calm that comes from knowing how a system fails.</p><em class="index-margin">test the route</em></a>
+      </div>
+
+      <section class="closing" aria-labelledby="closing-title"><p class="eyebrow !text-[#f4ae9f]">A continuing index</p><h2 id="closing-title">Looking for the human in the loop?</h2><a href="mailto:hello@grahampaasch.com">Write a note ↗</a></section>
+    </main>
+  </body>
+</html>

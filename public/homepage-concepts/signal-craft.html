@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Graham Paasch — Signal / Craft</title>
+    <link rel="icon" type="image/png" href="./assets/graham-gp-orbit-mark.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* Concept 02 — Operational signal console: charcoal, chartreuse routing, system signals and human practice as first-class telemetry. */
+      :root { --bg:#101210; --panel:#151815; --panel2:#1b1f1b; --hair:#313832; --text:#f1f2e9; --muted:#9ca49a; --acid:#cbff47; --orange:#ff7548; }
+      * { box-sizing:border-box; } html { scroll-behavior:smooth; } body { margin:0; overflow-x:hidden; background:var(--bg); color:var(--text); font-family:"Space Grotesk",sans-serif; }
+      .mono { font-family:"DM Mono",monospace; }
+      .grain { pointer-events:none; position:fixed; z-index:30; inset:0; opacity:.055; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E"); }
+      .shell { position:relative; display:grid; min-height:100vh; grid-template-columns:13.75rem minmax(28rem,1fr) minmax(17rem,.47fr); }
+      .rail { position:sticky; top:0; align-self:start; height:100vh; padding:1.25rem; display:flex; flex-direction:column; justify-content:space-between; border-right:1px solid var(--hair); background:#121412; }
+      .brand-mark { display:flex; align-items:center; gap:.65rem; font-weight:700; letter-spacing:-.05em; font-size:1.2rem; }
+      .packet { position:relative; width:1.8rem; height:1.15rem; border:2px solid var(--acid); } .packet:before { content:""; position:absolute; top:50%; right:-.64rem; width:.55rem; height:2px; background:var(--acid); } .packet:after { content:""; position:absolute; right:-.87rem; top:calc(50% - .18rem); width:.32rem; height:.32rem; border:2px solid var(--acid); border-radius:50%; }
+      .rail-label { margin:2.7rem 0 .65rem; color:var(--muted); font-size:.56rem; letter-spacing:.13em; text-transform:uppercase; }
+      .navlink { display:flex; align-items:center; justify-content:space-between; padding:.6rem 0; color:var(--muted); font:400 .64rem/1 "DM Mono",monospace; text-decoration:none; border-bottom:1px solid var(--hair); transition:color .16s ease; } .navlink:hover { color:var(--acid); } .navlink b { color:inherit; font-weight:400; }
+      .health { padding-top:.85rem; border-top:1px solid var(--hair); } .health-line { display:flex; align-items:center; gap:.4rem; margin-top:.35rem; color:var(--muted); font-size:.58rem; } .led { width:.38rem; height:.38rem; border-radius:50%; background:var(--acid); box-shadow:0 0 10px rgba(203,255,71,.5); animation:pulse 2.6s infinite; }
+      .field { position:relative; min-width:0; overflow:hidden; border-right:1px solid var(--hair); background:linear-gradient(120deg,rgba(15,17,15,.95),rgba(15,17,15,.68)),url('./assets/graham-signal-cabinet.jpg') center/cover fixed; }
+      .field:before { content:""; position:absolute; inset:0; opacity:.28; background-image:linear-gradient(rgba(203,255,71,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(203,255,71,.055) 1px,transparent 1px); background-size:34px 34px; }
+      .mast { position:relative; z-index:1; display:flex; align-items:flex-start; justify-content:space-between; padding:1.3rem 1.5rem; border-bottom:1px solid var(--hair); }
+      .mast h1 { max-width:8ch; margin:3rem 0 1rem; font-size:clamp(3.6rem,7vw,7.6rem); line-height:.8; letter-spacing:-.09em; }
+      .status { padding:.55rem .7rem; color:var(--acid); font:500 .58rem/1 "DM Mono",monospace; border:1px solid rgba(203,255,71,.6); }
+      .route-map { position:relative; z-index:1; min-height:27rem; margin:1.4rem; border:1px solid var(--hair); background:rgba(16,18,16,.72); overflow:hidden; }
+      .human-signal { position:absolute; z-index:2; right:1rem; bottom:1rem; padding:.55rem .65rem; color:var(--orange); background:rgba(16,18,16,.82); border:1px solid rgba(255,117,72,.55); font:.55rem "DM Mono",monospace; letter-spacing:.08em; text-transform:uppercase; }
+      .route-map svg { position:absolute; inset:0; width:100%; height:100%; } .route { fill:none; stroke:#65715f; stroke-width:1.5; vector-effect:non-scaling-stroke; transition:stroke .22s ease,stroke-width .22s ease,opacity .22s ease; } .route.active { stroke:var(--acid); stroke-width:2; stroke-dasharray:5 7; animation:dash 4s linear infinite; } .route.human { stroke:var(--orange); }
+      .node { cursor:pointer; } .node circle { fill:var(--bg); stroke:#778075; stroke-width:1.5; transition:.2s ease; } .node text { fill:var(--muted); font:11px "DM Mono",monospace; } .node.active circle { fill:var(--acid); stroke:var(--acid); } .node.active text { fill:var(--text); } .node.human circle { fill:var(--orange); stroke:var(--orange); }
+      .field-blurb { position:relative; z-index:1; max-width:38rem; padding:0 2.5rem 3rem; color:#d0d5cc; font-size:1.05rem; line-height:1.55; }
+      .side { padding:1.25rem; background:var(--panel); } .side-title { margin:.2rem 0 1.2rem; color:var(--muted); font:400 .58rem/1.4 "DM Mono",monospace; letter-spacing:.11em; text-transform:uppercase; }
+      .clock { padding:.95rem 0; font:500 clamp(1.7rem,2.4vw,2.5rem)/1 "DM Mono",monospace; letter-spacing:-.08em; border-bottom:1px solid var(--hair); }
+      .filter { display:flex; flex-wrap:wrap; gap:.4rem; margin:1.35rem 0 1.2rem; } .filter button { padding:.4rem .5rem; border:1px solid var(--hair); color:var(--muted); background:transparent; font:.55rem "DM Mono",monospace; text-transform:uppercase; cursor:pointer; transition:.17s ease; } .filter button:hover,.filter button[aria-pressed="true"] { color:var(--bg); background:var(--acid); border-color:var(--acid); }
+      .project { padding:1rem 0; border-top:1px solid var(--hair); cursor:pointer; transition:padding-left .18s ease; } .project:hover { padding-left:.45rem; } .project[data-hidden="true"] { display:none; } .project-kicker { color:var(--acid); font:.55rem "DM Mono",monospace; letter-spacing:.08em; text-transform:uppercase; } .project h2 { margin:.5rem 0 .4rem; font-size:1.3rem; letter-spacing:-.05em; line-height:.95; } .project p { margin:0; color:var(--muted); font-size:.67rem; line-height:1.55; }
+      .notice { margin-top:1.8rem; padding:1rem; background:var(--panel2); border-left:2px solid var(--orange); color:#cbd1c7; font:.63rem/1.6 "DM Mono",monospace; }
+      .mobile-status { display:none; }
+      @keyframes dash { to { stroke-dashoffset:-48; } } @keyframes pulse { 50% { opacity:.45; transform:scale(.75); } }
+      @media (max-width:1000px) { .shell { grid-template-columns:12rem minmax(0,1fr); } .side { grid-column:2; border-top:1px solid var(--hair); } .side-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.6rem; } }
+      @media (max-width:680px) { .shell { display:block; } .rail { position:relative; height:auto; min-height:4rem; padding:1rem; flex-direction:row; align-items:center; border-bottom:1px solid var(--hair); border-right:0; } .rail nav,.health { display:none; } .mobile-status { display:block; color:var(--acid); font:.58rem "DM Mono",monospace; } .field { border-right:0; background-attachment:scroll; } .mast h1 { margin-top:1.5rem; font-size:clamp(3.25rem,18vw,5rem); } .route-map { min-height:21rem; margin:1rem; } .field-blurb { padding:0 1.35rem 2.5rem; font-size:.95rem; } .side { padding:1.25rem; } .side-grid { display:block; } .clock { font-size:2.2rem; } }
+      @media (prefers-reduced-motion:reduce) { *,*:before,*:after { animation:none !important; transition:none !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="grain"></div>
+    <main class="shell" id="top">
+      <aside class="rail" aria-label="Signal Craft navigation">
+        <div><a class="brand-mark text-[#f1f2e9] no-underline" href="#top"><span class="packet" aria-hidden="true"></span>GRAHAM<sup class="text-[.5rem] text-[#cbff47]">/GP</sup></a><p class="rail-label">routes</p><nav><a class="navlink" href="#systems">SYSTEMS <b>01</b></a><a class="navlink" href="#craft">CRAFT <b>02</b></a><a class="navlink" href="https://www.grahampaasch.com/writings">WRITINGS <b>03</b></a><a class="navlink" href="https://www.grahampaasch.com/professional">PROFILE <b>04</b></a></nav></div>
+        <div class="health"><p class="rail-label !mt-0">system state</p><p class="health-line"><span class="led"></span>LOCAL / ONLINE</p><p class="health-line">GPU → READY</p><p class="health-line">PRACTICE → ACTIVE</p></div><span class="mobile-status">LOCAL / ONLINE</span>
+      </aside>
+
+      <section class="field" aria-labelledby="signal-title">
+        <header class="mast"><div><p class="mono text-[.57rem] tracking-[.12em] text-[#9ca49a]">GRAHAM PAASCH / OPERATING SINCE 2014</p><h1 id="signal-title">Route toward the interesting.</h1></div><p class="status">NODE 0.1<br />HEALTHY</p></header>
+        <div class="route-map" id="systems" aria-label="Interactive map showing Graham's systems and creative practices">
+          <svg viewBox="0 0 720 420" role="img" aria-label="Routes connect network engineering, local AI, voice, composition and juggling">
+            <path class="route active" data-route="all infra" d="M112 90 C235 80 248 150 360 157 S517 116 614 80" />
+            <path class="route active" data-route="all creative" d="M112 90 C166 234 268 304 375 279 S553 299 619 356" />
+            <path class="route human" data-route="all physical" d="M111 90 C122 178 125 225 217 244 S319 230 374 280" />
+            <path class="route human" data-route="all creative" d="M360 157 C435 164 471 214 375 279" />
+            <path class="route human" data-route="all creative" d="M614 80 C524 151 566 252 619 356" />
+            <g class="node active" data-kind="infra"><circle cx="112" cy="90" r="10"/><text x="128" y="94">NETWORK / 10Y</text></g>
+            <g class="node active" data-kind="infra"><circle cx="360" cy="157" r="10"/><text x="376" y="161">LOCAL AI / 3090</text></g>
+            <g class="node active" data-kind="creative"><circle cx="614" cy="80" r="10"/><text x="460" y="64">FAIRYTALE STUDIO</text></g>
+            <g class="node human" data-kind="physical"><circle cx="217" cy="244" r="10"/><text x="115" y="266">JUGGLING / PATTERN</text></g>
+            <g class="node human" data-kind="creative"><circle cx="375" cy="279" r="10"/><text x="391" y="284">COMPOSITION / VIOLA</text></g>
+            <g class="node human" data-kind="creative"><circle cx="619" cy="356" r="10"/><text x="468" y="382">VOICE / MUSIC TOOLS</text></g>
+          </svg>
+          <p class="human-signal">human signal / in band</p>
+        </div>
+        <p class="field-blurb" id="craft">Network engineer, Python developer, violist, composer, juggler. I build dependable routes through systems—and occasionally the systems that let stories, speech, and music happen entirely on my own hardware.</p>
+      </section>
+
+      <aside class="side" aria-label="System readout">
+        <div class="side-grid"><div><p class="side-title">Austin, Texas / local time</p><time class="clock" id="clock" aria-live="polite">--:--:--</time></div><div><p class="side-title">Tune the map</p><div class="filter" role="group" aria-label="Filter projects"><button type="button" aria-pressed="true" data-filter="all">all</button><button type="button" aria-pressed="false" data-filter="infra">infra</button><button type="button" aria-pressed="false" data-filter="creative">creative</button><button type="button" aria-pressed="false" data-filter="physical">physical</button></div></div></div>
+        <section aria-labelledby="readout-title"><p class="side-title" id="readout-title">live readout / selected work</p>
+          <article class="project" data-kinds="infra creative"><span class="project-kicker">01 / architecture</span><h2>NAF Discovery</h2><p>An AI-assisted path from network conversation to meaningful architecture documentation.</p></article>
+          <article class="project" data-kinds="creative"><span class="project-kicker">02 / local model</span><h2>Fairytale Film Studio</h2><p>A personal GPU becomes a small creative production house—image, story, and iteration in one place.</p></article>
+          <article class="project" data-kinds="creative"><span class="project-kicker">03 / signal generation</span><h2>Generative Music Tooling</h2><p>Procedural rhythm and musical instruments that reward listening, not only clicking.</p></article>
+          <article class="project" data-kinds="physical creative"><span class="project-kicker">04 / embodied practice</span><h2>PatternPals</h2><p>Passing-session memory and pattern recommendations for juggling practice in motion.</p></article>
+        </section>
+        <p class="notice">NO CLOUD THEATER.<br />The machine is close enough to hear it work. <a class="text-[#cbff47]" href="https://www.grahampaasch.com/local">ENTER LOCAL LAB ↗</a></p>
+      </aside>
+    </main>
+    <script>
+      const clock = document.getElementById('clock');
+      const updateClock = () => { clock.textContent = new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date()); };
+      updateClock(); setInterval(updateClock,1000);
+      const buttons = document.querySelectorAll('[data-filter]'); const projects = document.querySelectorAll('.project'); const routes = document.querySelectorAll('[data-route]'); const nodes = document.querySelectorAll('.node');
+      buttons.forEach(button => button.addEventListener('click', () => { const filter = button.dataset.filter; buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button))); projects.forEach(project => project.dataset.hidden = String(filter !== 'all' && !project.dataset.kinds.includes(filter))); routes.forEach(route => route.classList.toggle('active', route.dataset.route.includes(filter) || filter === 'all')); nodes.forEach(node => node.classList.toggle('active', node.dataset.kind === filter || filter === 'all' || (filter === 'creative' && node.dataset.kind === 'physical'))); }));
+    </script>
+  </body>
+</html>
