@@ -17,14 +17,14 @@ export default function HomePage() {
         </summary>
         <div className="announcement-content">
           <span className="announcement-emoji" aria-hidden="true">
-            &#x1F3AE;
+            &#x1F3AC;
           </span>
           <span className="announcement-text">
-            <span className="announcement-highlight">NEW:</span> I&apos;m building a beat-em-up game!
+            <span className="announcement-highlight">NEW:</span> 90+ AI-generated films now streaming on my own video platform — hosted on my own hardware.
           </span>
-          <Link className="announcement-link" href="/sidewalks-of-rage">
-            Play the demo &rarr;
-          </Link>
+          <a className="announcement-link" href="https://videos.grahampaasch.com">
+            Watch now &rarr;
+          </a>
         </div>
       </details>
 
@@ -59,6 +59,23 @@ export default function HomePage() {
       </div>
 
       <section className="grid">
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
+              <span aria-hidden="true">&#x1F3AC;</span> The Video Platform
+            </h2>
+            <span className="prompt-header-badge">THE BIG THING</span>
+          </div>
+          <p className="muted">
+            My video library now lives on hardware I own: 90+ films generated end-to-end by my
+            local AI pipeline — animated Grimm fairy tales, scrolling score videos of my
+            compositions, and experiments. No algorithm, no platform that can delete it.
+          </p>
+          <a className="button primary" href="https://videos.grahampaasch.com">
+            Browse the library &rarr;
+          </a>
+        </div>
+
         <div className="card">
           <div className="prompt-header">
             <h2>
