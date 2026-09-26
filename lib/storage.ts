@@ -52,6 +52,9 @@ function createPgStorage(conn: string): StorageImpl {
     password: decodeURIComponent(parsed.password),
     database: parsed.pathname.replace(/^\//, ''),
     ssl: sslOption,
+    // Fail fast when the home-hosted DB is unreachable instead of hanging the
+    // serverless function until the platform timeout.
+    connectionTimeoutMillis: 8_000,
   } as const;
 
   const pool = new Pool(connectionConfig);
