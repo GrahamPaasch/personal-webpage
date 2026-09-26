@@ -28,36 +28,6 @@ export default function HomePage() {
         </div>
       </details>
 
-      {/* Voice System Explainer */}
-      <div className="voice-system-banner">
-        <div className="voice-banner-content">
-          <h3 className="voice-banner-title">
-            <span className="voice-icon" aria-hidden="true">
-              &#x2726;
-            </span>
-            Reading Guide: Authorship by Typography
-          </h3>
-          <div className="voice-samples">
-            <div className="voice-sample-item">
-              <span className="voice-badge" data-voice="ai">AI</span>
-              <span className="voice-description" data-voice="ai">Terminal mono = 100% AI generated</span>
-            </div>
-            <div className="voice-sample-item">
-              <span className="voice-badge" data-voice="human">Human</span>
-              <span className="voice-description" data-voice="human">Ornate serif = Graham wrote it</span>
-            </div>
-            <div className="voice-sample-item">
-              <span className="voice-badge" data-voice="unified">Hybrid</span>
-              <span className="voice-description" data-voice="unified">Clean sans = We collaborated</span>
-            </div>
-          </div>
-          <p className="voice-banner-note">
-            Every word on this site signals its author through font choice.{' '}
-            <Link href="/voice-specimen">Learn more &rarr;</Link>
-          </p>
-        </div>
-      </div>
-
       <section className="grid">
         <div className="card">
           <div className="prompt-header">
