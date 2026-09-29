@@ -79,6 +79,21 @@ export default function HomePage() {
         <div className="card">
           <div className="prompt-header">
             <h2>
+              <span aria-hidden="true">&#x1F3AE;</span> Sidewalks of Rage
+            </h2>
+            <span className="prompt-header-badge">IN DEVELOPMENT</span>
+          </div>
+          <p className="muted">
+            A side-scrolling beat-em-up I&apos;m building in the browser. Rough around the edges, and getting better.
+          </p>
+          <Link className="button primary" href="/sidewalks-of-rage">
+            Play the demo &rarr;
+          </Link>
+        </div>
+
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
               <span aria-hidden="true">&#x1F3B5;</span> Synthwave Beats
             </h2>
             <span className="prompt-header-badge">NEW</span>
