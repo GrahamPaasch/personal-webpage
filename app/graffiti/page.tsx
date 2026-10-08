@@ -7,15 +7,14 @@ export const metadata = {
 
 export default function GraffitiPage() {
   return (
-    <section className="grid">
-      <article className="card" style={{ gridColumn: 'span 12' }}>
+    <section>
+      <GraffitiWall>
         <h1>Graffiti Wall</h1>
         <p className="muted">
           Leave a mark. This is a public graffiti wall—anonymous, ephemeral, and mostly unmoderated.
           Spray responsibly. I reserve the right to wipe it clean if things get out of hand.
         </p>
-        <GraffitiWall />
-      </article>
+      </GraffitiWall>
     </section>
   );
 }

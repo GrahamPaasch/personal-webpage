@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not enough points' }, { status: 400, headers: rateLimitHeaders(rl) });
   }
 
-  const tag = await addGraffiti({ color, size, points });
+  const tag = await addGraffiti(data.v === 2 ? { color, size, points, v: 2 } : { color, size, points });
   return NextResponse.json(tag, { status: 201, headers: rateLimitHeaders(rl) });
 }
 

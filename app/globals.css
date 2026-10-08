@@ -1084,18 +1084,50 @@ select:focus {
   font-size: 0.9rem;
 }
 
-.graffiti-wrapper {
-  margin-top: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.graffiti-viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+}
+
+.graffiti-wall {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  background-color: #0f172a;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Page text sits under the canvas so it can be sprayed over; only the
+   controls rise above it (no z-index here, so they stack against the canvas). */
+.graffiti-content {
+  position: relative;
+  padding: 24px;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .graffiti-controls {
+  position: relative;
+  z-index: 2;
+  margin-top: 24px;
+  pointer-events: auto;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+}
+
+/* The wall is laid out at desktop width and scaled, so skip the phone full-width button. */
+.graffiti-controls .button {
+  width: auto;
 }
 
 .color-row {
@@ -1125,17 +1157,10 @@ select:focus {
   color: var(--muted);
 }
 
-.graffiti-canvas {
-  position: relative;
-  width: 100%;
-  height: min(540px, 60vh);
-  border: 2px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  overflow: hidden;
-  background: #0f172a;
-}
-
-.graffiti-canvas canvas {
+.graffiti-wall canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
   cursor: crosshair;
@@ -1151,6 +1176,7 @@ select:focus {
   left: 16px;
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
 }
 
 .graffiti-status {

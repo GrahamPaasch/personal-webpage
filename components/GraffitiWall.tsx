@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 type Stroke = {
   id: string;
@@ -12,9 +12,19 @@ type Stroke = {
 
 const COLORS = ['#f97316', '#facc15', '#22c55e', '#0ea5e9', '#8b5cf6', '#ec4899', '#f5f5f5'];
 
-export default function GraffitiWall() {
+// The wall is a fixed-size surface scaled to fit the screen, so the page text lands
+// under the same wall coordinates on every device and a cross-out stays on its word.
+const WALL_WIDTH = 920;
+const WALL_HEIGHT = 2400;
+
+// Tags saved before the wall grew (no `v` in the payload) were drawn on the old
+// canvas that sat under the controls; shift them to where that canvas now is.
+const LEGACY_OFFSET = { x: 0, y: 300 };
+
+export default function GraffitiWall({ children }: { children?: ReactNode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [color, setColor] = useState(COLORS[0]);
   const [size, setSize] = useState(10);
@@ -30,12 +40,18 @@ export default function GraffitiWall() {
         if (!res.ok) throw new Error('failed');
         const data = await res.json();
         if (cancelled) return;
-        const items: Stroke[] = (data.items ?? []).map((item: any) => ({
-          id: item.id,
-          color: item.payload?.color || COLORS[0],
-          size: item.payload?.size || 10,
-          points: item.payload?.points || [],
-        }));
+        const items: Stroke[] = (data.items ?? []).map((item: any) => {
+          const points: Array<{ x: number; y: number }> = item.payload?.points || [];
+          const legacy = item.payload?.v !== 2;
+          return {
+            id: item.id,
+            color: item.payload?.color || COLORS[0],
+            size: item.payload?.size || 10,
+            points: legacy
+              ? points.map((pt) => ({ x: pt.x + LEGACY_OFFSET.x, y: pt.y + LEGACY_OFFSET.y }))
+              : points,
+          };
+        });
         setStrokes(items);
       } catch {
         if (!cancelled) setStatus('Could not load the current wall.');
@@ -51,15 +67,10 @@ export default function GraffitiWall() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.fillStyle = '#111827';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    for (let x = 0; x < canvas.width; x += 40) {
-      ctx.fillRect(x, 0, 1, canvas.height);
-    }
-    for (let y = 0; y < canvas.height; y += 40) {
-      ctx.fillRect(0, y, canvas.width, 1);
-    }
+    // Transparent canvas over the page text; the wall background is CSS underneath.
+    const dpr = canvas.width / WALL_WIDTH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, WALL_WIDTH, WALL_HEIGHT);
     const everything = current.length ? [...strokes, { id: 'preview', color, size, points: current }] : strokes;
     for (const stroke of everything) {
       if (stroke.points.length < 2) continue;
@@ -78,12 +89,14 @@ export default function GraffitiWall() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
+    const viewport = viewportRef.current;
+    if (!canvas || !viewport) return;
     const resize = () => {
-      const rect = container.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const nextScale = viewport.getBoundingClientRect().width / WALL_WIDTH;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2) * nextScale;
+      canvas.width = Math.round(WALL_WIDTH * dpr);
+      canvas.height = Math.round(WALL_HEIGHT * dpr);
+      setScale(nextScale);
       drawAll();
     };
     resize();
@@ -100,8 +113,8 @@ export default function GraffitiWall() {
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: ((event.clientX - rect.left) / rect.width) * WALL_WIDTH,
+      y: ((event.clientY - rect.top) / rect.height) * WALL_HEIGHT,
     };
   }
 
@@ -142,7 +155,7 @@ export default function GraffitiWall() {
       const res = await fetch('/api/graffiti', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ points: strokePoints, color, size }),
+        body: JSON.stringify({ points: strokePoints, color, size, v: 2 }),
       });
       if (!res.ok) throw new Error('Failed to save');
       const saved = await res.json();
@@ -166,35 +179,42 @@ export default function GraffitiWall() {
   }
 
   return (
-    <div className="graffiti-wrapper">
-      <div className="graffiti-controls">
-        <div className="color-row">
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`color-swatch${c === color ? ' active' : ''}`}
-              style={{ background: c }}
-              onClick={() => setColor(c)}
-            />
-          ))}
+    <div className="graffiti-viewport" ref={viewportRef} style={{ height: WALL_HEIGHT * scale }}>
+      <div
+        className="graffiti-wall"
+        style={{ width: WALL_WIDTH, height: WALL_HEIGHT, transform: `scale(${scale})` }}
+      >
+        <div className="graffiti-content">
+          {children}
+          <div className="graffiti-controls">
+            <div className="color-row">
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`color-swatch${c === color ? ' active' : ''}`}
+                  style={{ background: c }}
+                  onClick={() => setColor(c)}
+                />
+              ))}
+            </div>
+            <label className="size-control">
+              Size
+              <input
+                type="range"
+                min={4}
+                max={40}
+                step={1}
+                value={size}
+                onChange={(event) => setSize(Number(event.target.value))}
+              />
+            </label>
+            <button type="button" className="button" onClick={clearWall}>
+              Clear wall
+            </button>
+          </div>
+          {status ? <p className="graffiti-status">{status}</p> : null}
         </div>
-        <label className="size-control">
-          Size
-          <input
-            type="range"
-            min={4}
-            max={40}
-            step={1}
-            value={size}
-            onChange={(event) => setSize(Number(event.target.value))}
-          />
-        </label>
-        <button type="button" className="button" onClick={clearWall}>
-          Clear wall
-        </button>
-      </div>
-      <div className="graffiti-canvas" ref={containerRef}>
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointerDown}
@@ -202,9 +222,8 @@ export default function GraffitiWall() {
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerLeave}
         />
-        <div className="graffiti-message">Spray anywhere. Tags are public and stick around.</div>
+        <div className="graffiti-message">Spray anywhere — even on the words. Tags are public and stick around.</div>
       </div>
-      {status ? <p className="graffiti-status">{status}</p> : null}
     </div>
   );
 }
