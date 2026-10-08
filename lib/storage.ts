@@ -5,8 +5,8 @@ export type GraffitiPayload = {
   color: string;
   size: number;
   points: Array<{ x: number; y: number }>;
-  // 2 = drawn on the full-page wall; absent = old under-the-controls canvas.
-  v?: 2;
+  // Wall layout version (see GraffitiWall); absent = old under-the-controls canvas.
+  v?: 2 | 3;
 };
 
 export type StoredGraffiti = {

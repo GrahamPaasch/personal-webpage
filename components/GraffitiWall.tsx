@@ -14,12 +14,21 @@ const COLORS = ['#f97316', '#facc15', '#22c55e', '#0ea5e9', '#8b5cf6', '#ec4899'
 
 // The wall is a fixed-size surface scaled to fit the screen, so the page text lands
 // under the same wall coordinates on every device and a cross-out stays on its word.
-const WALL_WIDTH = 920;
+const WALL_WIDTH = 1440;
 const WALL_HEIGHT = 2400;
 
-// Tags saved before the wall grew (no `v` in the payload) were drawn on the old
-// canvas that sat under the controls; shift them to where that canvas now is.
-const LEGACY_OFFSET = { x: 0, y: 300 };
+// The page text keeps its old reading width, centred on the wall.
+const CONTENT_WIDTH = 920;
+const CONTENT_LEFT = (WALL_WIDTH - CONTENT_WIDTH) / 2;
+
+// Older tags were drawn on smaller surfaces; shift them to where those now sit.
+// No `v`: the original canvas under the controls. v2: the 920-wide wall.
+const WALL_VERSION = 3;
+function offsetFor(version: unknown): { x: number; y: number } {
+  if (version === WALL_VERSION) return { x: 0, y: 0 };
+  if (version === 2) return { x: CONTENT_LEFT, y: 0 };
+  return { x: CONTENT_LEFT, y: 300 };
+}
 
 export default function GraffitiWall({ children }: { children?: ReactNode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -42,14 +51,12 @@ export default function GraffitiWall({ children }: { children?: ReactNode }) {
         if (cancelled) return;
         const items: Stroke[] = (data.items ?? []).map((item: any) => {
           const points: Array<{ x: number; y: number }> = item.payload?.points || [];
-          const legacy = item.payload?.v !== 2;
+          const offset = offsetFor(item.payload?.v);
           return {
             id: item.id,
             color: item.payload?.color || COLORS[0],
             size: item.payload?.size || 10,
-            points: legacy
-              ? points.map((pt) => ({ x: pt.x + LEGACY_OFFSET.x, y: pt.y + LEGACY_OFFSET.y }))
-              : points,
+            points: points.map((pt) => ({ x: pt.x + offset.x, y: pt.y + offset.y })),
           };
         });
         setStrokes(items);
@@ -155,7 +162,7 @@ export default function GraffitiWall({ children }: { children?: ReactNode }) {
       const res = await fetch('/api/graffiti', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ points: strokePoints, color, size, v: 2 }),
+        body: JSON.stringify({ points: strokePoints, color, size, v: WALL_VERSION }),
       });
       if (!res.ok) throw new Error('Failed to save');
       const saved = await res.json();
@@ -184,7 +191,7 @@ export default function GraffitiWall({ children }: { children?: ReactNode }) {
         className="graffiti-wall"
         style={{ width: WALL_WIDTH, height: WALL_HEIGHT, transform: `scale(${scale})` }}
       >
-        <div className="graffiti-content">
+        <div className="graffiti-content" style={{ width: CONTENT_WIDTH, marginLeft: CONTENT_LEFT }}>
           {children}
           <div className="graffiti-controls">
             <div className="color-row">

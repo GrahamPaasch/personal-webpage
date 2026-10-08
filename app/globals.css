@@ -1086,10 +1086,11 @@ select:focus {
 
 .graffiti-viewport {
   position: relative;
-  width: 100%;
+  /* Full-bleed: break out of the page container to the window edges. */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
   overflow: hidden;
-  border: 2px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
+  border-top: 2px dashed rgba(255, 255, 255, 0.12);
 }
 
 .graffiti-wall {
@@ -4030,4 +4031,9 @@ select:focus {
     padding: 8px 14px;
     font-size: 0.85rem;
   }
+}
+
+/* 100vw includes the vertical scrollbar; don't let the full-bleed wall add a sideways scroll. */
+body:has(.graffiti-viewport) {
+  overflow-x: clip;
 }
