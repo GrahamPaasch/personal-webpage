@@ -56,6 +56,7 @@ function listAppRoutes(): string[] {
 /** Standalone HTML apps under public/ that have a clean URL via next.config rewrites. */
 const STATIC_APP_ROUTES = [
   '/breathing',
+  '/cadence',
   '/create-now',
   '/panelclash',
   '/sidewalks-of-rage',

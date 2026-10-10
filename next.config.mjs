@@ -11,6 +11,7 @@ const composedVersion = short ? `${baseVersion}+${short}` : baseVersion;
  */
 const STATIC_APP_DIRS = [
   'breathing',
+  'cadence',
   'create-now',
   'panelclash',
   'sidewalks-of-rage',

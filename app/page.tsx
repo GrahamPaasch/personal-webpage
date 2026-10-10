@@ -17,18 +17,35 @@ export default function HomePage() {
         </summary>
         <div className="announcement-content">
           <span className="announcement-emoji" aria-hidden="true">
-            &#x1F3AC;
+            &#x1F399;
           </span>
           <span className="announcement-text">
-            <span className="announcement-highlight">NEW:</span> 90+ AI-generated films now streaming on my own video platform — hosted on my own hardware.
+            <span className="announcement-highlight">NEW:</span> Meet Cadence — the voice-first AI agent I talk to all day. Here&apos;s how the whole system works.
           </span>
-          <a className="announcement-link" href="https://videos.grahampaasch.com">
-            Watch now &rarr;
+          <a className="announcement-link" href="/cadence">
+            See how it works &rarr;
           </a>
         </div>
       </details>
 
       <section className="grid">
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
+              <span aria-hidden="true">&#x1F399;</span> Cadence: My Voice AI Agent
+            </h2>
+            <span className="prompt-header-badge">NEW</span>
+          </div>
+          <p className="muted">
+            A voice-first agent I built around Claude. I talk to it through a stenographer&apos;s mask
+            in public and headphones at home, and it acts on my machines, phone, browser, calendar,
+            and creative pipelines — all on hardware I own. A full tour of the voice loop, network,
+            tools, memory, and what it does on a real afternoon.
+          </p>
+          <a className="button primary" href="/cadence">
+            How Cadence works &rarr;
+          </a>
+        </div>
         <div className="card">
           <div className="prompt-header">
             <h2>

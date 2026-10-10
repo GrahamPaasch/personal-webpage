@@ -1,0 +1,125 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cadence — how it works</title>
+<meta name="description" content="Cadence: a voice-first AI agent Graham Paasch built around Claude — the voice loop, network, tools, memory, and creative pipelines.">
+<style>
+:root{--bg:#0f1115;--card:#171a21;--ink:#e8e6e1;--mute:#9aa0aa;--acc:#e0a458;--acc2:#6fb3d2;--ok:#7fbf7f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:860px;margin:auto;padding:22px 16px 60px}h1{font-size:30px;margin:.2em 0}h2{color:var(--acc);font-size:21px;margin:1.8em 0 .5em;border-bottom:1px solid #2a2f3a;padding-bottom:.25em}
+h3{font-size:16px;margin:1.2em 0 .3em;color:var(--acc2)}p,li{color:#d6d3cc}.lede{color:var(--mute);font-size:17px}
+.card{background:var(--card);border:1px solid #262b35;border-radius:12px;padding:14px 16px;margin:12px 0}
+code{background:#222733;padding:1px 5px;border-radius:4px;font-size:.9em;color:#f0d9b5}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+.live{background:#1f3a24;color:var(--ok)}.proto{background:#3a321f;color:var(--acc)}
+svg{width:100%;height:auto;display:block}table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px solid #262b35;padding:7px 6px;text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
+.small{font-size:13px;color:var(--mute)}
+</style></head><body><main>
+<h1>Cadence</h1>
+<p class="lede">A voice-first AI agent Graham built around Claude. He talks to it all day: through a stenographer's mask in public, headphones at home. It acts on his machines, phone, browser, calendar, email, and creative pipelines, and talks back in short spoken turns.</p>
+
+<h2>1. The voice loop</h2>
+<svg viewBox="0 0 820 300" font-family="sans-serif" font-size="13">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#e0a458"/></marker></defs>
+<g fill="#171a21" stroke="#3a4150">
+<rect x="10" y="30" width="140" height="64" rx="10"/><rect x="185" y="30" width="140" height="64" rx="10"/><rect x="360" y="30" width="140" height="64" rx="10"/><rect x="535" y="30" width="140" height="64" rx="10"/>
+<rect x="535" y="190" width="140" height="64" rx="10"/><rect x="360" y="190" width="140" height="64" rx="10"/><rect x="185" y="190" width="140" height="64" rx="10"/><rect x="10" y="190" width="140" height="64" rx="10"/>
+<rect x="700" y="110" width="112" height="64" rx="10"/></g>
+<g fill="#e8e6e1" text-anchor="middle">
+<text x="80" y="58">Stenomask mic</text><text x="80" y="76" fill="#9aa0aa">Privo, voice muffled</text>
+<text x="255" y="58">Phone browser</text><text x="255" y="76" fill="#9aa0aa">mic → 16 kHz PCM</text>
+<text x="430" y="58">VPN → pfSense</text><text x="430" y="76" fill="#9aa0aa">into home LAN</text>
+<text x="605" y="58">Speech-to-text</text><text x="605" y="76" fill="#9aa0aa">GPU sidecar + VAD</text>
+<text x="756" y="138">Claude brain</text><text x="756" y="156" fill="#9aa0aa">claude -p + tools</text>
+<text x="605" y="218">Sentence chunker</text><text x="605" y="236" fill="#9aa0aa">sanitize for speech</text>
+<text x="430" y="218">Text-to-speech</text><text x="430" y="236" fill="#9aa0aa">Kokoro, GPU</text>
+<text x="255" y="218">Stream back</text><text x="255" y="236" fill="#9aa0aa">24 kHz, gapless</text>
+<text x="80" y="218">Ear</text><text x="80" y="236" fill="#9aa0aa">+ live transcript</text></g>
+<g stroke="#e0a458" stroke-width="2" marker-end="url(#a)" fill="none">
+<path d="M150,62 H183"/><path d="M325,62 H358"/><path d="M500,62 H533"/><path d="M675,62 Q745,62 756,108"/><path d="M756,176 Q745,222 677,222"/><path d="M535,222 H502"/><path d="M360,222 H327"/><path d="M185,222 H152"/></g>
+<text x="410" y="290" fill="#9aa0aa" text-anchor="middle">Full duplex: the mic stays live while it talks, and Graham can interrupt (barge-in) mid-sentence.</text>
+</svg>
+<div class="card">
+<h3>Details</h3>
+<ul>
+<li><b>End of turn</b> is a 4-second silence detected by a streaming Silero VAD. He chose 4 s on purpose: room to think mid-sentence without being cut off.</li>
+<li><b>Barge-in</b>: if he talks over the reply, the brain's turn is interrupted in-band without losing context. A backchannel filter ignores "mm-hm" and "yeah".</li>
+<li><b>Brain</b>: a warm, long-lived <code>claude -p</code> process in stream-JSON mode (Claude Opus 5.5, high effort). One process per session keeps context across turns.</li>
+<li><b>Replies are chunked by sentence</b> so speech starts before the full answer is written; markdown is stripped so nothing reads "asterisk asterisk."</li>
+<li><b>Mind vs. mouth</b>: the transcript shows tool calls and work in progress; only the conversational reply is spoken.</li>
+<li><b>Voices</b>: several TTS voices, auditioned and rated by Graham. Voice changes are a tool the brain can call.</li>
+<li><b>Fallback</b>: if the GPU sidecar is down, the browser's built-in Web Speech takes over.</li>
+</ul></div>
+
+<h2>2. Why a stenographer's mask</h2>
+<p>A court-reporter stenomask seals around the mouth, so a microphone inside hears him clearly while people nearby barely hear anything. That makes it possible to talk to an AI in a cafe or a store without broadcasting the conversation. Audio comes back through an earbud. <span class="tag live">working</span></p>
+
+<h2>3. Network topology</h2>
+<svg viewBox="0 0 820 360" font-family="sans-serif" font-size="13">
+<defs><marker id="b" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#6fb3d2"/></marker></defs>
+<g fill="#171a21" stroke="#3a4150"><rect x="20" y="20" width="170" height="70" rx="10"/><rect x="20" y="140" width="170" height="70" rx="10"/>
+<rect x="320" y="140" width="170" height="70" rx="10"/><rect x="600" y="20" width="200" height="90" rx="10"/><rect x="600" y="135" width="200" height="90" rx="10"/><rect x="600" y="250" width="200" height="90" rx="10"/><rect x="320" y="270" width="170" height="70" rx="10"/></g>
+<g fill="#e8e6e1"><text x="35" y="48">Phone (Android)</text><text x="35" y="68" fill="#9aa0aa">cell data, VPN client</text>
+<text x="35" y="168">Laptop / any browser</text><text x="35" y="188" fill="#9aa0aa">same VPN</text>
+<text x="335" y="168">pfSense firewall</text><text x="335" y="188" fill="#9aa0aa">VPN endpoint, routing</text>
+<text x="615" y="45">Main box</text><text x="615" y="65" fill="#9aa0aa">RTX 3090: brain host, vision,</text><text x="615" y="83" fill="#9aa0aa">image + video generation</text>
+<text x="615" y="160">Voice box</text><text x="615" y="180" fill="#9aa0aa">RTX 2060: speech-to-text +</text><text x="615" y="198" fill="#9aa0aa">TTS; media archive</text>
+<text x="615" y="275">Lab box</text><text x="615" y="295" fill="#9aa0aa">24 cores, 94 GB RAM: music</text><text x="615" y="313" fill="#9aa0aa">rendering, co-drive browser, DB</text>
+<text x="335" y="298">Home cameras</text><text x="335" y="318" fill="#9aa0aa">Tapo, RTSP → vision</text></g>
+<g stroke="#6fb3d2" stroke-width="2" fill="none" marker-end="url(#b)"><path d="M190,55 Q260,60 318,160"/><path d="M190,175 H318"/><path d="M490,165 Q540,90 598,65"/><path d="M490,175 H598"/><path d="M490,190 Q540,280 598,295"/><path d="M405,268 V214"/></g>
+</svg>
+<div class="card"><ul>
+<li>Everything runs on Graham's own hardware. Only the language model itself is a cloud API (Claude via his subscription).</li>
+<li>Machines talk over key-based SSH. GPU memory is the scarce resource, so heavy jobs are scheduled around it: the voice was moved to the small 2060 so the 3090 stays free for film and image generation.</li>
+<li>The phone is controllable too: an <code>adb</code> bridge over the VPN lets Cadence open apps, start navigation, and read the screen.</li>
+</ul></div>
+
+<h2>4. Tools (what the brain can do)</h2>
+<table><tr><th>Tool / MCP server</th><th>What it does</th></tr>
+<tr><td>Shell + files</td><td>Full Claude Code toolset on the main box: read, write, run, git, SSH to other machines.</td></tr>
+<tr><td>Browser</td><td>Navigate, click, type, read, and screenshot in a real Chrome. Used for shopping, forms, research.</td></tr>
+<tr><td>Co-drive browser <span class="tag live">working</span></td><td>A shared browser (neko, on 5.8) that both Graham and Cadence see live. Cadence's actions show up as its own drawn cursor, so he can watch and take over.</td></tr>
+<tr><td>Vision</td><td>A local vision model looks at camera frames and keeps a timestamped journal. "What did you see at 4 pm?" pulls up that frame. <span class="tag proto">parked</span></td></tr>
+<tr><td>Image generation</td><td>Local diffusion on the 3090, including edits of camera frames; results shown in the transcript and a gallery.</td></tr>
+<tr><td>Audiate (music)</td><td>Records his viola, checks intonation and fifths, compares takes, and plays rendered compositions back in his ear.</td></tr>
+<tr><td>Control</td><td>Switch voices, restart the app, steer the co-drive.</td></tr>
+<tr><td>Email + calendar</td><td>Command-line Gmail and Google Calendar. It confirms before sending anything outward.</td></tr>
+<tr><td>Web search</td><td>For facts that change: hours, prices, news.</td></tr>
+<tr><td>Local fallback model</td><td>An open-weights model served on the 3090 that takes over if the cloud model refuses a benign request. <span class="tag proto">prototype</span></td></tr>
+</table>
+
+<h2>5. Thinking in parallel</h2>
+<div class="card"><ul>
+<li><b>Subagents</b>: for anything long, the voice brain spins off a background agent (often a bigger creative model) and keeps talking. It's told when the agent finishes and relays a two-sentence summary.</li>
+<li><b>Detached jobs</b>: renders that take hours run as standalone headless Claude processes with a written brief and a PROGRESS.md, so they survive the chat session ending or a usage limit and can be resumed.</li>
+<li><b>Cron pipelines</b>: e.g. the fairy-tale film pipeline builds one film, publishes it, and starts the next on its own.</li>
+<li><b>Safety model</b>: reversible actions run freely and are shown; irreversible or outward-facing ones (sending email, purchases, posting) get a quick spoken confirm.</li>
+</ul></div>
+
+<h2>6. Memory and specs</h2>
+<div class="card"><ul>
+<li><b>Persistent memory</b>: one small markdown file per fact (preferences, project state, decisions, lessons), plus an index loaded into every new session. Memories link to each other and get corrected when they turn out wrong.</li>
+<li><b>Spec-driven development</b>: new ideas start with a "grill-me" interview, one spoken question at a time, until both sides share a design. Only then does it become a numbered spec (28 so far). The specs are the source of truth, and code follows them.</li>
+<li><b>Conversation style is itself a spec</b>, grounded in voice-UX research: spoken attention fades after ~8–10 s, so 1–3 sentences, one question max, lead with the answer, no lists read aloud.</li>
+</ul></div>
+
+<h2>7. Creative pipelines</h2>
+<h3>String quartets for a live sight-reading night</h3>
+<p>Graham and Cadence compose pieces for Classical Jams Austin, where strong sight-readers play a new piece each night. The flow: talk through the idea → LilyPond engraving → full score + parts PDFs → playability and sight-reading checks → rendered with real orchestral samples (sfizz + VPO on the lab box, never General MIDI) → played back in his ear for a verdict. Several pieces are ready for performance.</p>
+<h3>FilmForge</h3>
+<p>Narrated Grimm fairy tales: a TTS narrator reads the text, keyframes are generated per shot, animated with an open video model, kept character-consistent, scored, and published to <code>videos.grahampaasch.com</code>, a self-hosted video site. Being upgraded right now (see below).</p>
+<h3>Design rules Graham applies to everything</h3>
+<ul><li><b>Voice-first, no buttons</b>: any feature has to work by talking.</li><li><b>Handcuffs test</b>: can Cadence do it on its own, with no human needed to trigger it?</li><li><b>Touch-it test</b>: is it open, ours, and modifiable? Third-party SaaS in the critical path is a liability.</li></ul>
+
+<h2>8. A real afternoon (Oct 10, 2026)</h2>
+<div class="card"><ul>
+<li>The printer was out of black ink. Cadence dug through his email, found an unused $50 Walmart gift card, and he picked up the cartridge for free, with $1 left over.</li>
+<li>It logs his daily routine anchors (wake, first contact, meals, sleep) as they come up in conversation. He couldn't remember when he was at Walmart, so it worked the time out from the conversation timestamps.</li>
+<li>He'd watched the latest generated film, Cinderella, and asked why the characters' shoes kept catching fire. A background agent traced it: the animation prompts said "the fire flickers" when there was no fire in the picture, so the video model set the brightest object alight, the golden slipper. It also found too few shots per minute of story and every shot framed like a portrait. A fix pass and an "A+ quality" research pass are running now, and the next film is held until they land.</li>
+<li>He asked for a fifth quartet: a string-quartet reimagining of Vaughan Williams' <i>Fantasia on a Theme by Thomas Tallis</i>, under 6 minutes, built around the two moments that move him most. That's composing in a detached job right now.</li>
+<li>He took a wrong turn on the way here. With the phone link down on cell data, it talked him back onto Lamar.</li>
+<li>And this page, written while he sat with a friend who wanted to know how it all works.</li>
+</ul></div>
+
+<h2>9. Honest status</h2>
+<p>Daily-driver solid: the voice loop, tools, memory, subagents, music pipeline, and co-drive browser. Rough edges: Bluetooth and the phone link are flaky, GPU memory juggling is constant, the film pipeline is mid-upgrade, and the proactive camera coach is parked. It's one person's system, held together by specs, tests, and a lot of conversation.</p>
+<p class="small">Generated by Cadence, Oct 10 2026. <a href="/" style="color:#6fb3d2">&larr; grahampaasch.com</a></p>
+</main></body></html>
