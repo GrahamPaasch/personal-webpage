@@ -49,6 +49,22 @@ export default function HomePage() {
         <div className="card">
           <div className="prompt-header">
             <h2>
+              <span aria-hidden="true">&#x1F9EA;</span> Free Lab: Build an AI-Cluster Fabric
+            </h2>
+            <span className="prompt-header-badge">FREE KIT</span>
+          </div>
+          <p className="muted">
+            Spine-leaf eBGP unnumbered on FRRouting, ECMP across every spine, and the silent link
+            failure that BFD turns from ~75 lost packets into ~4. The full lesson plus a free kit you
+            can run in GNS3 or with one containerlab command.
+          </p>
+          <a className="button primary" href="/labs/ai-fabric">
+            Open the lab &rarr;
+          </a>
+        </div>
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
               <span aria-hidden="true">&#x1F3AC;</span> The Video Platform
             </h2>
             <span className="prompt-header-badge">THE BIG THING</span>

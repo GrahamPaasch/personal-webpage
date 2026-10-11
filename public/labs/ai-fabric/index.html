@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build an AI-Cluster Fabric: BGP Unnumbered, ECMP and BFD on FRR | Graham Paasch</title>
+<meta name="description" content="A free lab: a 2-spine / 3-leaf AI-style fabric with eBGP unnumbered on FRRouting, ECMP across every spine, and the 9-second silent failure BFD fixes. Run it in GNS3 or with one containerlab command.">
+<meta property="og:title" content="Build an AI-cluster fabric: BGP unnumbered, ECMP and BFD (free lab)">
+<meta property="og:description" content="Spine-leaf eBGP unnumbered on FRRouting, ECMP, and BFD turning ~75 lost packets into ~4. Free GNS3 / containerlab kit.">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://www.grahampaasch.com/labs/ai-fabric">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c232d; --line: #30363d;
+    --text: #e6edf3; --muted: #9aa7b4; --accent: #58a6ff; --spine: #d2a8ff;
+    --leaf: #7ee787; --host: #ffa657; --bad: #ff7b72; --good: #3fb950; --warn: #e3b341;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 21px/1.6 -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 0 32px 120px; }
+  header.hero { padding: 90px 0 50px; border-bottom: 1px solid var(--line); margin-bottom: 30px; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 17px; }
+  h1 { font-size: 58px; line-height: 1.12; margin: 14px 0 22px; letter-spacing: -.01em; }
+  h1 .hl { color: var(--leaf); }
+  .hook { font-size: 27px; color: var(--muted); max-width: 900px; margin: 0; }
+  h2 { font-size: 40px; margin: 80px 0 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+  h2 .num { color: var(--accent); margin-right: 14px; }
+  h3 { font-size: 28px; margin: 40px 0 10px; color: var(--text); }
+  p, li { max-width: 960px; }
+  a { color: var(--accent); }
+  strong { color: #fff; }
+  code { font-family: "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; font-size: .88em;
+    background: var(--panel2); padding: 2px 7px; border-radius: 5px; color: #ffd8a8; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px;
+    overflow-x: auto; font: 18px/1.5 "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; margin: 14px 0 22px; }
+  pre code { background: none; padding: 0; color: var(--text); font-size: inherit; }
+  .term { position: relative; }
+  .term .tag { position: absolute; top: -12px; right: 16px; font: 700 13px/1 Inter, sans-serif; letter-spacing: .08em;
+    text-transform: uppercase; padding: 6px 10px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+  .term .tag.real { color: var(--good); border-color: var(--good); }
+  .term .tag.sample { color: var(--warn); border-color: var(--warn); }
+  .prompt { color: var(--leaf); }
+  .c { color: #8b949e; font-style: italic; }
+  .k { color: var(--spine); }
+  .v { color: var(--host); }
+  .ok { color: var(--good); font-weight: 700; }
+  .bad { color: var(--bad); font-weight: 700; }
+  .callout { border-left: 5px solid var(--accent); background: var(--panel); padding: 18px 24px; border-radius: 0 10px 10px 0; margin: 22px 0; }
+  .callout.wow { border-color: var(--leaf); }
+  .callout.warn { border-color: var(--warn); }
+  .callout.bad { border-color: var(--bad); }
+  .callout p { margin: 6px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; }
+  .card h4 { margin: 0 0 8px; font-size: 23px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0 26px; font-size: 19px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 11px 14px; text-align: left; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 15px; letter-spacing: .06em; }
+  tr:hover td { background: var(--panel); }
+  td.spine { color: var(--spine); font-weight: 700; } td.leaf { color: var(--leaf); font-weight: 700; } td.host { color: var(--host); font-weight: 700; }
+  .anno { display: grid; grid-template-columns: minmax(380px, 1fr) 1.15fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 16px 0 28px; }
+  .anno > div { padding: 9px 18px; border-bottom: 1px solid var(--line); }
+  .anno .cfg { background: var(--panel); font: 18px/1.45 "JetBrains Mono", Menlo, Consolas, monospace; white-space: pre; color: var(--text); }
+  .anno .why { background: var(--bg); color: var(--muted); font-size: 18px; line-height: 1.45; }
+  .anno .why b { color: var(--text); }
+  .anno .cfg.hot { color: var(--leaf); }
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding: 4px 0 18px 64px; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel2); border: 2px solid var(--accent); color: var(--accent); font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin: 26px 0; }
+  .score { border-radius: 14px; padding: 26px; text-align: center; border: 2px solid; }
+  .score.before { border-color: var(--bad); background: rgba(255,123,114,.07); }
+  .score.after { border-color: var(--good); background: rgba(63,185,80,.07); }
+  .score .big { font-size: 84px; font-weight: 800; line-height: 1; }
+  .score.before .big { color: var(--bad); } .score.after .big { color: var(--good); }
+  .score .lbl { color: var(--muted); font-size: 19px; margin-top: 8px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 22px; margin: 14px 0 30px; }
+  summary { cursor: pointer; font-weight: 700; color: var(--accent); font-size: 20px; }
+  details[open] summary { margin-bottom: 10px; }
+  .objectives li { margin: 6px 0; }
+  .lablink { display: inline-block; margin-top: 10px; font-size: 28px; font-weight: 800; padding: 16px 28px; border-radius: 12px;
+    background: var(--panel2); border: 2px solid var(--accent); text-decoration: none; }
+  .toc { columns: 2; font-size: 19px; color: var(--muted); padding-left: 22px; }
+  .toc a { color: var(--muted); text-decoration: none; } .toc a:hover { color: var(--accent); }
+  svg text { font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin: 18px 0 26px; }
+  footer { color: var(--muted); font-size: 16px; margin-top: 80px; border-top: 1px solid var(--line); padding-top: 20px; }
+  @media (max-width: 860px) { .grid2, .scoreboard, .anno { grid-template-columns: 1fr; } h1 { font-size: 42px; } .toc { columns: 1; } }
+</style>
+</head>
+<body>
+<main>
+
+<header class="hero">
+  <div class="kicker">Free lab kit &middot; GNS3 or containerlab &middot; FRRouting 10.5 &middot; ~15 minutes</div>
+  <h1>Build an <span class="hl">AI-cluster fabric</span>: BGP unnumbered, ECMP, and the 9-second failure BFD fixes</h1>
+  <p class="hook">Five routers, zero IP addresses on the fabric links, every flow spread across every spine, and one silent cable fault that drops 70 to 80 packets &mdash; until one line of config turns it into about 4.</p>
+  <p style="margin:18px 0 0;font-size:20px"><a href="/labs/ai-fabric/bom">Bill of materials &rarr;</a> <span style="color:var(--muted)">build this fabric on real hardware</span></p>
+  <p style="margin:22px 0 0"><a class="lablink" href="/labs/ai-fabric/ai-fabric-bgp-unnumbered-lab.zip" download>Download the free lab kit (.zip)</a></p>
+  <p style="margin:10px 0 0;font-size:18px;color:var(--muted)">GNS3 portable project + one-command containerlab topology, all configs, the demo script and exercise answers. MIT licensed. <a href="#try">How to run it &darr;</a></p>
+<div id="video" class="video-slot" style="margin:34px 0 10px">
+  <!-- YOUTUBE: replace this whole div's inner placeholder with:
+  <div style="position:relative;padding-top:56.25%"><iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" title="Build an AI-cluster fabric" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:14px" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+  -->
+  <div style="aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:var(--panel);border:1px dashed var(--line);border-radius:14px;color:var(--muted);font-size:22px">Video coming soon</div>
+</div>
+</header>
+
+<ol class="toc">
+  <li><a href="#why">Why this matters</a></li>
+  <li><a href="#topo">The topology</a></li>
+  <li><a href="#plan">IP &amp; ASN plan</a></li>
+  <li><a href="#config">Config walkthrough</a></li>
+  <li><a href="#verify">Verification</a></li>
+  <li><a href="#demo">The demo: gray failure vs BFD</a></li>
+  <li><a href="#exercises">Hands-on exercises</a></li>
+  <li><a href="#recap">Recap &amp; try it yourself</a></li>
+</ol>
+
+<div class="callout">
+  <p><strong>By the end you can:</strong></p>
+  <ol class="objectives">
+    <li>Explain why AI and data-center fabrics run an L3 Clos with eBGP instead of an IGP or a big L2.</li>
+    <li>Configure BGP unnumbered in FRR &mdash; peer by interface name, no per-link IPs &mdash; and explain RFC 8950.</li>
+    <li>Read ECMP in the routing table and prove traffic actually spreads across spines.</li>
+    <li>Explain why both spines share one ASN (RFC 7938).</li>
+    <li>Tell a link going <em>down</em> from a link going <em>silent</em>, and use BFD to cut failover from ~9 s to ~300 ms.</li>
+  </ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="why"><span class="num">1</span>Why this matters</h2>
+
+<div class="grid2">
+  <div class="card">
+    <h4 style="color:var(--accent)">AI training is a team sport for GPUs</h4>
+    <p>A training job splits work across thousands of GPUs that constantly swap gradients (an <em>all-reduce</em>). Every step waits for the <strong>slowest</strong> flow. One stalled path stalls the whole job &mdash; so the network needs huge, even bandwidth and very fast failover.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--spine)">Clos: spine-leaf</h4>
+    <p>Every leaf (top-of-rack switch) connects to every spine. Any host is exactly <strong>leaf &rarr; spine &rarr; leaf</strong> away, and there are as many equal paths as there are spines. Need more bandwidth? Add a spine. More racks? Add a leaf.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--leaf)">Why BGP inside the data center</h4>
+    <p>RFC 7938: run <strong>eBGP on every link</strong>. One protocol, no flooding domain, each router is its own failure boundary, and ECMP across all spines comes for free. It's how hyperscalers build it, and FRR is the BGP daemon inside SONiC, the switch OS in many AI clusters.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--host)">Why "unnumbered"</h4>
+    <p>A 64-leaf, 8-spine fabric has 512 links. Numbered, that's 512 /31s to plan, type, and get wrong. Unnumbered BGP peers over the automatic IPv6 <strong>link-local</strong> address and carries IPv4 routes with IPv6 next hops (RFC 8950). Cable it, name the interface, done.</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="topo"><span class="num">2</span>The topology</h2>
+<p>Two spines, three leaves, one host per leaf. The rule to remember: <strong>leaf eth0 &rarr; spine1, leaf eth1 &rarr; spine2, leaf eth2 &rarr; host</strong>. On a spine, <code>ethN</code> goes to leaf N+1.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 1040 600" width="100%" role="img" aria-label="Spine-leaf topology: two spines in AS 65000 connected to three leaves AS 65101 to 65103, each with one host">
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- fabric links: spine1 (x=320) and spine2 (x=720), y=118 ; leaves x=170,520,870 y=300 -->
+  <g stroke="#58a6ff" stroke-width="3" opacity=".75">
+    <line x1="300" y1="122" x2="170" y2="292"/>
+    <line x1="320" y1="122" x2="520" y2="292"/>
+    <line x1="340" y1="122" x2="870" y2="292"/>
+    <line x1="700" y1="122" x2="170" y2="292"/>
+    <line x1="720" y1="122" x2="520" y2="292"/>
+    <line x1="740" y1="122" x2="870" y2="292"/>
+  </g>
+  <!-- host links -->
+  <g stroke="#ffa657" stroke-width="3" opacity=".8">
+    <line x1="170" y1="372" x2="170" y2="470"/>
+    <line x1="520" y1="372" x2="520" y2="470"/>
+    <line x1="870" y1="372" x2="870" y2="470"/>
+  </g>
+  <!-- interface labels on fabric -->
+  <g font-size="15" fill="#9aa7b4">
+    <text x="262" y="150">eth0</text><text x="318" y="150">eth1</text><text x="352" y="146">eth2</text>
+    <text x="640" y="146">eth0</text><text x="705" y="150">eth1</text><text x="752" y="150">eth2</text>
+    <text x="150" y="282">eth0</text><text x="192" y="282">eth1</text>
+    <text x="478" y="282">eth0</text><text x="535" y="282">eth1</text>
+    <text x="826" y="282">eth0</text><text x="880" y="282">eth1</text>
+  </g>
+  <rect x="330" y="196" width="380" height="30" rx="15" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="520" y="217" text-anchor="middle" font-size="17" fill="#58a6ff" font-weight="700">fabric links: no IPv4 &mdash; IPv6 link-local only</text>
+  <!-- spines -->
+  <g>
+    <rect x="200" y="40" width="240" height="82" rx="14" fill="#2a1f3d" stroke="#d2a8ff" stroke-width="3"/>
+    <text x="320" y="72" text-anchor="middle" font-size="26" font-weight="800" fill="#d2a8ff">spine1</text>
+    <text x="320" y="102" text-anchor="middle" font-size="17" fill="#e6edf3">AS 65000 &middot; lo 10.0.0.1</text>
+    <rect x="600" y="40" width="240" height="82" rx="14" fill="#2a1f3d" stroke="#d2a8ff" stroke-width="3"/>
+    <text x="720" y="72" text-anchor="middle" font-size="26" font-weight="800" fill="#d2a8ff">spine2</text>
+    <text x="720" y="102" text-anchor="middle" font-size="17" fill="#e6edf3">AS 65000 &middot; lo 10.0.0.2</text>
+  </g>
+  <!-- leaves -->
+  <g>
+    <rect x="65" y="292" width="210" height="80" rx="14" fill="#16301e" stroke="#7ee787" stroke-width="3"/>
+    <text x="170" y="324" text-anchor="middle" font-size="25" font-weight="800" fill="#7ee787">leaf1</text>
+    <text x="170" y="352" text-anchor="middle" font-size="16" fill="#e6edf3">AS 65101 &middot; lo 10.0.1.1</text>
+    <rect x="415" y="292" width="210" height="80" rx="14" fill="#16301e" stroke="#7ee787" stroke-width="3"/>
+    <text x="520" y="324" text-anchor="middle" font-size="25" font-weight="800" fill="#7ee787">leaf2</text>
+    <text x="520" y="352" text-anchor="middle" font-size="16" fill="#e6edf3">AS 65102 &middot; lo 10.0.1.2</text>
+    <rect x="765" y="292" width="210" height="80" rx="14" fill="#16301e" stroke="#7ee787" stroke-width="3"/>
+    <text x="870" y="324" text-anchor="middle" font-size="25" font-weight="800" fill="#7ee787">leaf3</text>
+    <text x="870" y="352" text-anchor="middle" font-size="16" fill="#e6edf3">AS 65103 &middot; lo 10.0.1.3</text>
+  </g>
+  <!-- access labels -->
+  <g font-size="15" fill="#9aa7b4">
+    <text x="180" y="398">eth2 172.16.1.1</text>
+    <text x="530" y="398">eth2 172.16.2.1</text>
+    <text x="880" y="398">eth2 172.16.3.1</text>
+    <text x="180" y="458">eth0 .10</text>
+    <text x="530" y="458">eth0 .10</text>
+    <text x="880" y="458">eth0 .10</text>
+  </g>
+  <!-- hosts -->
+  <g>
+    <rect x="95" y="470" width="150" height="72" rx="10" fill="#33240f" stroke="#ffa657" stroke-width="3"/>
+    <text x="170" y="500" text-anchor="middle" font-size="23" font-weight="800" fill="#ffa657">h1</text>
+    <text x="170" y="527" text-anchor="middle" font-size="15" fill="#e6edf3">172.16.1.10/24</text>
+    <rect x="445" y="470" width="150" height="72" rx="10" fill="#33240f" stroke="#ffa657" stroke-width="3"/>
+    <text x="520" y="500" text-anchor="middle" font-size="23" font-weight="800" fill="#ffa657">h2</text>
+    <text x="520" y="527" text-anchor="middle" font-size="15" fill="#e6edf3">172.16.2.10/24</text>
+    <rect x="795" y="470" width="150" height="72" rx="10" fill="#33240f" stroke="#ffa657" stroke-width="3"/>
+    <text x="870" y="500" text-anchor="middle" font-size="23" font-weight="800" fill="#ffa657">h3</text>
+    <text x="870" y="527" text-anchor="middle" font-size="15" fill="#e6edf3">172.16.3.10/24</text>
+  </g>
+  <text x="520" y="585" text-anchor="middle" font-size="16" fill="#9aa7b4">Every leaf connects to every spine &rarr; h1 to h3 has 2 equal paths (one per spine)</text>
+</svg>
+</div>
+
+<div class="callout">
+  <p><strong>Why do both spines share AS 65000?</strong> A spine never accepts a route that already has its own AS in the path. So spine2 can never learn leaf3's network <em>via</em> leaf1 and spine1. No "valley" paths (leaf &rarr; spine &rarr; leaf &rarr; spine), and no path hunting through the fabric when something fails. That's RFC 7938's design.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="plan"><span class="num">3</span>IP &amp; ASN plan</h2>
+
+<table>
+  <thead><tr><th>Node</th><th>Role</th><th>ASN</th><th>Loopback / router-id</th><th>Host-facing</th></tr></thead>
+  <tbody>
+    <tr><td class="spine">spine1</td><td>spine</td><td>65000</td><td>10.0.0.1/32</td><td>&mdash;</td></tr>
+    <tr><td class="spine">spine2</td><td>spine</td><td>65000</td><td>10.0.0.2/32</td><td>&mdash;</td></tr>
+    <tr><td class="leaf">leaf1</td><td>leaf</td><td>65101</td><td>10.0.1.1/32</td><td>eth2 172.16.1.1/24</td></tr>
+    <tr><td class="leaf">leaf2</td><td>leaf</td><td>65102</td><td>10.0.1.2/32</td><td>eth2 172.16.2.1/24</td></tr>
+    <tr><td class="leaf">leaf3</td><td>leaf</td><td>65103</td><td>10.0.1.3/32</td><td>eth2 172.16.3.1/24</td></tr>
+    <tr><td class="host">h1</td><td>host</td><td>&mdash;</td><td>&mdash;</td><td>172.16.1.10/24, gw .1</td></tr>
+    <tr><td class="host">h2</td><td>host</td><td>&mdash;</td><td>&mdash;</td><td>172.16.2.10/24, gw .1</td></tr>
+    <tr><td class="host">h3</td><td>host</td><td>&mdash;</td><td>&mdash;</td><td>172.16.3.10/24, gw .1</td></tr>
+  </tbody>
+</table>
+
+<h3>Fabric links (6) &mdash; no IPv4 at all</h3>
+<table>
+  <thead><tr><th>#</th><th>Leaf side</th><th>Spine side</th><th>#</th><th>Leaf side</th><th>Spine side</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>leaf1 eth0</td><td>spine1 eth0</td><td>2</td><td>leaf1 eth1</td><td>spine2 eth0</td></tr>
+    <tr><td>3</td><td>leaf2 eth0</td><td>spine1 eth1</td><td>4</td><td>leaf2 eth1</td><td>spine2 eth1</td></tr>
+    <tr><td>5</td><td>leaf3 eth0</td><td>spine1 eth2</td><td>6</td><td>leaf3 eth1</td><td>spine2 eth2</td></tr>
+  </tbody>
+</table>
+<p>Lab images: <strong>FRRouting 10.5.5</strong> containers for the five routers, a small Linux host image (ping, traceroute, iperf3, tcpdump) for h1&ndash;h3. The router console opens to a bash shell &mdash; type <code>vtysh</code> to get the FRR CLI.</p>
+
+<!-- ============================================================ -->
+<h2 id="config"><span class="num">4</span>Config walkthrough</h2>
+
+<h3>Step 0: kernel prep (every router)</h3>
+<p>Unnumbered BGP rides on IPv6 link-local addresses, so IPv6 must be on. We also tell Linux to hash ECMP on L4 ports, so parallel flows spread across spines.</p>
+<div class="term"><span class="tag">/etc/frr/sysctl.sh</span>
+<pre><code>sysctl -w net.ipv4.ip_forward=1
+sysctl -w net.ipv6.conf.all.forwarding=1
+sysctl -w net.ipv6.conf.all.disable_ipv6=0
+sysctl -w net.ipv6.conf.default.disable_ipv6=0
+for i in eth0 eth1 eth2 eth3; do [ -e /proc/sys/net/ipv6/conf/$i ] &amp;&amp; sysctl -w net.ipv6.conf.$i.disable_ipv6=0; done
+sysctl -w net.ipv4.fib_multipath_hash_policy=1   <span class="c"># hash on src/dst IP + ports</span></code></pre></div>
+<p>And <code>bgpd=yes</code> and <code>bfdd=yes</code> in <code>/etc/frr/daemons</code> (zebra always runs). In the kit the script lives in <code>/etc/frr/sysctl.sh</code> on every router and runs automatically at boot (the kit's FRR image calls it in GNS3; containerlab runs it as an <code>exec</code> step). If you ever change it, re-run <code>sh /etc/frr/sysctl.sh</code> by hand.</p>
+
+<h3>leaf1 &mdash; <code>/etc/frr/frr.conf</code></h3>
+<div class="anno">
+  <div class="cfg hot">frr defaults datacenter</div><div class="why"><b>Must be line 1.</b> DC-tuned defaults: keepalive 3 s, <b>hold 9 s</b>. That 9 s is the number BFD beats in the demo. Only read at daemon start.</div>
+  <div class="cfg">hostname leaf1</div><div class="why">Shows up in your neighbors' <code>show bgp summary</code>, since FRR exchanges hostnames.</div>
+  <div class="cfg">log stdout</div><div class="why">Logs go to the container console.</div>
+  <div class="cfg">service integrated-vtysh-config</div><div class="why">One <code>frr.conf</code> for all daemons; <code>write memory</code> saves there.</div>
+  <div class="cfg">interface lo
+ ip address 10.0.1.1/32</div><div class="why">Loopback: a stable address that's also the router-id.</div>
+  <div class="cfg">interface eth2
+ description to-h1
+ ip address 172.16.1.1/24</div><div class="why">The <b>only</b> data interface with an IPv4 address: the host's default gateway. eth0/eth1 get nothing.</div>
+  <div class="cfg">bfd
+ profile FAST
+  receive-interval 100
+  transmit-interval 100
+  detect-multiplier 3</div><div class="why">A BFD timer profile: hello every 100 ms, declare dead after 3 missed = <b>~300 ms</b> (3 is the default multiplier). Defined but <b>not attached yet</b> &mdash; we switch it on live in the demo.</div>
+  <div class="cfg">router bgp 65101
+ bgp router-id 10.0.1.1</div><div class="why">Each leaf has its own private ASN (65101, 65102, 65103).</div>
+  <div class="cfg"> no bgp ebgp-requires-policy</div><div class="why">Classic FRR (RFC 8212) won't send or accept eBGP routes without a policy. The datacenter profile already turns that off; we type it anyway so the intent is visible. Production: write real route-maps.</div>
+  <div class="cfg"> bgp bestpath as-path multipath-relax</div><div class="why">Allow ECMP across paths whose AS paths differ but are the <b>same length</b>. Standard fabric setting (see exercise 3 for when it actually matters).</div>
+  <div class="cfg hot"> neighbor FABRIC peer-group
+ neighbor FABRIC remote-as external</div><div class="why">One template for all uplinks. <b><code>external</code></b> = "any ASN that isn't mine" &mdash; no need to type the spine's ASN.</div>
+  <div class="cfg hot"> neighbor eth0 interface peer-group FABRIC
+ neighbor eth1 interface peer-group FABRIC</div><div class="why"><b>This is BGP unnumbered.</b> Peer by interface name. FRR finds the neighbor's IPv6 link-local address through router advertisements and opens the session to it.</div>
+  <div class="cfg"> address-family ipv4 unicast
+  network 10.0.1.1/32
+  network 172.16.1.0/24</div><div class="why">Advertise the loopback and the host subnet. IPv4 routes ride the IPv6 session with an IPv6 next hop (<b>RFC 8950</b>, extended next hop &mdash; FRR enables it automatically on interface peers).</div>
+  <div class="cfg">  maximum-paths 64</div><div class="why">Install up to 64 equal-cost eBGP paths (already FRR's default here; typed for clarity). We only have 2 spines; real AI fabrics have 8, 16, 32+.</div>
+</div>
+<p><strong>leaf2 / leaf3:</strong> same file, change hostname, ASN (65102 / 65103), loopback (10.0.1.2 / .3), eth2 (172.16.2.1 / 172.16.3.1) and the two <code>network</code> lines. That's the whole per-leaf diff: three variables.</p>
+
+<h3>spine1 &mdash; <code>/etc/frr/frr.conf</code></h3>
+<div class="anno">
+  <div class="cfg hot">frr defaults datacenter
+hostname spine1
+log stdout
+service integrated-vtysh-config</div><div class="why">Same header as the leaves.</div>
+  <div class="cfg">interface lo
+ ip address 10.0.0.1/32</div><div class="why">Loopback only. A spine has <b>no IPv4 on any data port</b>.</div>
+  <div class="cfg">bfd
+ profile FAST
+  receive-interval 100
+  transmit-interval 100
+  detect-multiplier 3</div><div class="why">Same BFD profile, also parked until the demo.</div>
+  <div class="cfg">router bgp 65000
+ bgp router-id 10.0.0.1</div><div class="why"><b>Both spines are AS 65000.</b> That's what makes the fabric valley-free.</div>
+  <div class="cfg"> no bgp ebgp-requires-policy
+ bgp bestpath as-path multipath-relax</div><div class="why">Same as the leaves.</div>
+  <div class="cfg hot"> neighbor FABRIC peer-group
+ neighbor FABRIC remote-as external
+ neighbor eth0 interface peer-group FABRIC
+ neighbor eth1 interface peer-group FABRIC
+ neighbor eth2 interface peer-group FABRIC</div><div class="why">One line per leaf-facing port. Adding a leaf = adding one line. No IPs, no remote ASN.</div>
+  <div class="cfg"> address-family ipv4 unicast
+  network 10.0.0.1/32
+  maximum-paths 64</div><div class="why">Spines only originate their loopback; they reflect everything else between leaves.</div>
+</div>
+<p><strong>spine2:</strong> identical, with <code>hostname spine2</code> and <code>10.0.0.2</code>.</p>
+
+<h3>What the router actually saved</h3>
+<p>After <code>write memory</code>, the saved file looks <em>shorter</em> than what we typed. FRR only writes lines that differ from the active defaults, and with <code>frr defaults datacenter</code>, <code>no bgp ebgp-requires-policy</code>, <code>maximum-paths 64</code> and <code>detect-multiplier 3</code> are all defaults. Same behavior, fewer lines. This is the real leaf1 file from the lab:</p>
+<div class="term"><span class="tag real">live lab config</span>
+<pre><code>frr version 10.5.5_git
+frr defaults datacenter
+hostname leaf1
+log stdout
+service integrated-vtysh-config
+!
+interface eth2
+ description to-h1
+ ip address 172.16.1.1/24
+exit
+!
+interface lo
+ ip address 10.0.1.1/32
+exit
+!
+router bgp 65101
+ bgp router-id 10.0.1.1
+ bgp bestpath as-path multipath-relax
+ neighbor FABRIC peer-group
+ neighbor FABRIC remote-as external
+ neighbor eth0 interface peer-group FABRIC
+ neighbor eth1 interface peer-group FABRIC
+ !
+ address-family ipv4 unicast
+  network 10.0.1.1/32
+  network 172.16.1.0/24
+ exit-address-family
+exit
+!
+bfd
+ profile FAST
+  transmit-interval 100
+  receive-interval 100
+ exit
+ !
+exit</code></pre></div>
+<p>That's the entire leaf: about two dozen lines, and not one of them is a fabric IP address.</p>
+
+<!-- ============================================================ -->
+<h2 id="verify"><span class="num">5</span>Verification</h2>
+
+<h3>The fabric has no IP addresses</h3>
+<div class="term"><span class="tag real">live lab output</span>
+<pre><code><span class="prompt">leaf1#</span> show interface brief
+Interface       Status  VRF             Addresses
+---------       ------  ---             ---------
+eth0            up      default         <span class="v">fe80::42:51ff:fef9:900/64</span>
+eth1            up      default         <span class="v">fe80::42:51ff:fef9:901/64</span>
+eth2            up      default         172.16.1.1/24
+                                        fe80::42:51ff:fef9:902/64
+lo              up      default         10.0.1.1/32
+pimreg          up      default</code></pre></div>
+<p>eth0 and eth1 carry only an automatic IPv6 link-local address. That's all BGP needs. (<code>pimreg</code> is a PIM placeholder interface in this image &mdash; ignore it.)</p>
+
+<h3>BGP sessions, by interface name</h3>
+<div class="term"><span class="tag real">live lab output</span>
+<pre><code><span class="prompt">leaf1#</span> show bgp summary
+
+IPv4 Unicast Summary:
+BGP router identifier 10.0.1.1, local AS number 65101 VRF default vrf-id 0
+BGP table version 12
+RIB entries 15, using 1920 bytes of memory
+Peers 2, using 33 KiB of memory
+Peer groups 1, using 64 bytes of memory
+
+Neighbor        V    AS  MsgRcvd  MsgSent  TblVer  InQ OutQ  Up/Down State/PfxRcd  PfxSnt
+<span class="k">spine1(eth0)</span>    4 65000       34       35      12    0    0 00:01:21            <span class="ok">5</span>       8
+<span class="k">spine2(eth1)</span>    4 65000       35       37      12    0    0 00:01:24            <span class="ok">5</span>       8
+
+Total number of neighbors 2</code></pre></div>
+<p>(The <code>Desc</code> column, which shows <code>FRRouting/10.5.5_git</code>, is trimmed here to fit the screen.) Each spine is a 3-neighbor version of the same thing: <code>leaf1(eth0)</code>, <code>leaf2(eth1)</code>, <code>leaf3(eth2)</code>, 2 prefixes each.</p>
+<div class="term"><span class="tag real">live lab output</span>
+<pre><code><span class="prompt">leaf1#</span> show bgp neighbors eth0
+  BGP state = Established, up for 00:01:22
+  <span class="v">Hold time is 9 seconds, keepalive interval is 3 seconds</span>
+Local host: fe80::42:51ff:fef9:900, Local port: 42968
+Foreign host: fe80::42:e8ff:fee3:cb00, Foreign port: 179     <span class="c"># filtered to the key lines</span></code></pre></div>
+<p>The session runs between two <code>fe80::</code> addresses, and the hold timer is <strong>9 seconds</strong> from <code>frr defaults datacenter</code>. Remember that number.</p>
+<p>Spine hostnames, interface names, a prefix count &mdash; <span class="ok">Established</span>. Leaves show 2 neighbors, spines show 3. If you see <span class="bad">Active</span> or <span class="bad">Connect</span>, IPv6 is off on that link (check <code>ip -6 addr show dev eth0</code> for an <code>fe80::</code> address).</p>
+
+<h3>ECMP: two next hops for one prefix</h3>
+<div class="term"><span class="tag real">live lab output</span>
+<pre><code><span class="prompt">leaf1#</span> show bgp ipv4 unicast 172.16.3.0/24
+BGP routing table entry for 172.16.3.0/24, version 10
+Paths: (2 available, best #1, table default)
+  Advertised to peers:
+  spine1(eth0) spine2(eth1)
+  <span class="v">65000 65103</span>
+    fe80::42:75ff:fe5f:c800(spine2) from spine2(eth1) (10.0.0.2)
+    (fe80::42:75ff:fe5f:c800) (used)
+      Origin IGP, valid, external, <span class="ok">multipath</span>, bestpath-from-AS 65000, best (Older Path)
+  <span class="v">65000 65103</span>
+    fe80::42:e8ff:fee3:cb00(spine1) from spine1(eth0) (10.0.0.1)
+    (fe80::42:e8ff:fee3:cb00) (used)
+      Origin IGP, valid, external, <span class="ok">multipath</span></code></pre></div>
+<p>Two paths, one per spine, same AS path <code>65000 65103</code> (up to a spine, down to leaf3), and <strong>both marked multipath</strong>.</p>
+
+<div class="term"><span class="tag real">live lab output</span>
+<pre><code><span class="prompt">leaf1#</span> show ip route
+...
+B>* 10.0.0.1/32 [20/0] via fe80::42:e8ff:fee3:cb00, eth0, weight 1, 00:01:21
+B>* 10.0.0.2/32 [20/0] via fe80::42:75ff:fe5f:c800, eth1, weight 1, 00:01:24
+C>* 10.0.1.1/32 is directly connected, lo, weight 1, 00:01:26
+B>* 10.0.1.2/32 [20/0] via fe80::42:75ff:fe5f:c800, eth1, weight 1, 00:01:17
+  *                    via fe80::42:e8ff:fee3:cb00, eth0, weight 1, 00:01:17
+B>* 10.0.1.3/32 [20/0] via fe80::42:75ff:fe5f:c800, eth1, weight 1, 00:01:21
+  *                    via fe80::42:e8ff:fee3:cb00, eth0, weight 1, 00:01:21
+C>* 172.16.1.0/24 is directly connected, eth2, weight 1, 00:01:26
+B>* 172.16.2.0/24 [20/0] via fe80::42:75ff:fe5f:c800, eth1, weight 1, 00:01:17
+  *                      via fe80::42:e8ff:fee3:cb00, eth0, weight 1, 00:01:17
+<span class="v">B>* 172.16.3.0/24 [20/0] via fe80::42:75ff:fe5f:c800, eth1, weight 1, 00:01:21
+  *                      via fe80::42:e8ff:fee3:cb00, eth0, weight 1, 00:01:21</span></code></pre></div>
+<p><strong>IPv4 routes with IPv6 next hops.</strong> That's RFC 8950 on screen. Every remote leaf prefix has two lines: two stars = both next hops are in the forwarding table. The spine loopbacks have one path each, because each spine is only one hop away on one link.</p>
+
+<div class="term"><span class="tag real">live lab output</span>
+<pre><code><span class="prompt">leaf1:~#</span> ip route show 172.16.3.0/24
+172.16.3.0/24 nhid 17 proto bgp metric 20
+        nexthop via inet6 fe80::42:75ff:fe5f:c800 dev eth1 weight 1
+        nexthop via inet6 fe80::42:e8ff:fee3:cb00 dev eth0 weight 1</code></pre></div>
+<p>The Linux kernel agrees: <code>nexthop via inet6</code>, twice.</p>
+
+<h3>Valley-free, proven</h3>
+<div class="term"><span class="tag real">live lab output</span>
+<pre><code><span class="prompt">spine2#</span> show bgp ipv4 unicast 172.16.3.0/24
+BGP routing table entry for 172.16.3.0/24, version 3
+<span class="v">Paths: (1 available, best #1, table default)</span>
+  Advertised to peers:
+  leaf1(eth0) leaf2(eth1) leaf3(eth2)
+  65103
+    fe80::42:9fff:fed6:a601(leaf3) from leaf3(eth2) (10.0.1.3)
+    (fe80::42:9fff:fed6:a601) (used)
+      Origin IGP, metric 0, valid, external, bestpath-from-AS 65103, best (First path received)</code></pre></div>
+<p>Exactly <strong>one</strong> path. Leaf1 and leaf2 do offer spine2 a copy they learned from spine1, but its AS path contains 65000, so spine2 drops it as a loop.</p>
+
+<h3>End to end</h3>
+<div class="term"><span class="tag real">live lab output</span>
+<pre><code><span class="prompt">h1:~#</span> traceroute -n -q1 -w1 -U --sport=40001 172.16.3.10
+ 1  172.16.1.1  0.213 ms     <span class="c">leaf1</span>
+ 2  <span class="k">10.0.0.2</span>  0.238 ms       <span class="c">spine2 (answers from its loopback)</span>
+ 3  10.0.1.3  0.305 ms       <span class="c">leaf3 (loopback, too)</span>
+ 4  172.16.3.10  0.382 ms    <span class="c">h3</span>
+
+<span class="prompt">h1:~#</span> traceroute -n -q1 -w1 -U --sport=40003 172.16.3.10
+ 1  172.16.1.1  0.215 ms
+ 2  <span class="k">10.0.0.1</span>  0.229 ms       <span class="c">spine1 this time</span>
+ 3  10.0.1.3  0.311 ms
+ 4  172.16.3.10  0.381 ms</code></pre></div>
+<p>Leaf, spine, leaf, host: the Clos in four hops. The routers answer from their <strong>loopbacks</strong>, because the fabric links have no IPv4 address to answer from. And the only thing we changed between the two runs is the UDP source port: hop 2 flips between spine2 and spine1. In the lab, source ports 40001&ndash;40006 went 2, 2, 1, 1, 1, 2. That's ECMP hashing on L4 ports, live.</p>
+
+<h3>Prove the traffic really spreads</h3>
+<pre><code><span class="prompt">h3:~#</span> iperf3 -s
+<span class="prompt">spine1/2:~#</span> watch -n1 "ip -s link show eth2 | sed -n '4p;6p'"   <span class="c"># eth2 = link to leaf3</span>
+<span class="prompt">h1:~#</span> iperf3 -c 172.16.3.10 -P 8 -t 30</code></pre>
+<p>Byte counters climb on <strong>both</strong> spines. Eight flows, hashed by port number, shared across two spines. That's the point for AI training: every GPU flow gets every spine's bandwidth.</p>
+
+<!-- ============================================================ -->
+<h2 id="demo"><span class="num">6</span>The demo: a silent failure, without and with BFD</h2>
+
+<div class="callout bad">
+  <p><strong>Down vs silent.</strong> When a cable is pulled, the interface goes down and BGP reacts instantly. The nasty failure is the one where the <strong>light stays on but packets vanish</strong>: a dying optic, a one-way fiber fault, a wedged line card. The interface says UP. BGP only notices when its <strong>hold timer</strong> (9 s) runs out. Until then, traffic hashed onto that path goes into a black hole.</p>
+</div>
+
+<p>GNS3's <strong>Suspend link</strong> simulates exactly that: carrier stays up, every packet is dropped. (Don't use Delete link or <code>ip link set down</code> &mdash; those are instant failures and spoil the contrast.)</p>
+
+<h3>Round 1 &mdash; without BFD</h3>
+<ol class="steps">
+  <li><strong>Start a fast ping on h1</strong> (10 per second) and leave it running:
+    <pre><code><span class="prompt">h1:~#</span> ping -i 0.1 172.16.3.10</code></pre></li>
+  <li><strong>Find which uplink carries it.</strong> ICMP has no ports, so it sticks to one path. In GNS3, right-click link 1 (leaf1 eth0 &ndash; spine1 eth0) and link 2 (leaf1 eth1 &ndash; spine2 eth0) &rarr; <em>Start capture</em>. Whichever shows ICMP is our target. Stop both captures.<br><span class="c">containerlab:</span> <code>sudo scripts/which-uplink.sh</code> compares the packet counters on leaf1 eth0 and eth1 and tells you.</li>
+  <li><strong>Right-click that link &rarr; Suspend.</strong> Both interfaces stay up. The ping stops getting replies.<br><span class="c">containerlab:</span> <code>sudo scripts/link.sh suspend eth1</code> (or <code>eth0</code>) puts 100% packet loss on both ends of the link with <code>containerlab tools netem</code>. Same effect: interfaces up, packets gone.</li>
+  <li><strong>Watch BGP not notice:</strong>
+    <pre><code><span class="prompt">leaf1#</span> show bgp summary</code></pre>
+    Run it a few times. The session to that spine stays <em>Established</em>&hellip; for about 9 seconds. Then the hold timer expires, the session drops, and the ping recovers over the other spine.</li>
+  <li><strong>Ctrl-C the ping</strong> and read the loss line.</li>
+  <li><strong>Resume the link</strong> (<span class="c">containerlab:</span> <code>sudo scripts/link.sh resume eth1</code>) and wait for both sessions to come back in <code>show bgp summary</code>.</li>
+</ol>
+
+<div class="term"><span class="tag real">tested output</span>
+<pre><code>--- 172.16.3.10 ping statistics ---
+300 packets transmitted, 225 received, <span class="bad">25% packet loss</span>, time 31094ms
+<span class="c"># 75 lost = 7.5 seconds of black hole (GNS3 runs: 79 and 71)</span></code></pre></div>
+<p>BGP held the dead session as <em>Established</em> for 7.6 seconds before giving up. The hold timer expires 9 s after the <em>last</em> keepalive that got through, so where you cut inside the 3 s keepalive cycle sets the exact number: expect 60 to 90.</p>
+
+<h3>Round 2 &mdash; turn on BFD, live</h3>
+<ol class="steps">
+  <li><strong>On leaf1</strong>, attach the profile to the whole peer group:
+    <pre><code><span class="prompt">leaf1:~#</span> vtysh
+<span class="prompt">leaf1#</span> configure terminal
+<span class="prompt">leaf1(config)#</span> router bgp 65101
+<span class="prompt">leaf1(config-router)#</span> neighbor FABRIC bfd profile FAST
+<span class="prompt">leaf1(config-router)#</span> end</code></pre></li>
+  <li><strong>On spine1 and spine2</strong> (eth0 is the link to leaf1 on both):
+    <pre><code><span class="prompt">spine1#</span> configure terminal
+<span class="prompt">spine1(config)#</span> router bgp 65000
+<span class="prompt">spine1(config-router)#</span> neighbor eth0 bfd profile FAST
+<span class="prompt">spine1(config-router)#</span> end</code></pre>
+    BFD needs both ends. We only turn it on for leaf1's two links so the change stays small on camera; in production you'd set <code>neighbor FABRIC bfd profile FAST</code> everywhere.</li>
+  <li><strong>Shortcut:</strong> the same change as one line each, pasted into the router's bash console (tested on both GNS3 and containerlab):
+    <pre><code><span class="c"># leaf1</span>
+vtysh -c 'conf t' -c 'router bgp 65101' -c 'neighbor FABRIC bfd profile FAST' -c 'end'
+<span class="c"># spine1 and spine2</span>
+vtysh -c 'conf t' -c 'router bgp 65000' -c 'neighbor eth0 bfd profile FAST' -c 'end'</code></pre></li>
+  <li><strong>Check the BFD sessions</strong> (before this step the same command says <code>Session count: 0</code>: BFD really was off):
+    <div class="term"><span class="tag real">live lab output</span>
+    <pre><code><span class="prompt">leaf1#</span> show bfd peers brief
+Session count: 2
+SessionId  LocalAddress                 PeerAddress                 Status
+=========  ============                 ===========                 ======
+1882543610 fe80::42:51ff:fef9:900       fe80::42:e8ff:fee3:cb00     <span class="ok">up</span>
+3591402277 fe80::42:51ff:fef9:901       fe80::42:75ff:fe5f:c800     <span class="ok">up</span></code></pre></div></li>
+  <li><strong>Repeat round 1 exactly:</strong> <code>ping -i 0.1</code>, suspend the same link, wait ~10 s, Ctrl-C.</li>
+  <li><strong>Look at the damage.</strong> <code>show bfd peers brief</code> shows one peer <span class="bad">down</span>; <code>show bgp summary</code> shows that session already gone; <code>show ip route 172.16.3.0/24</code> has <strong>one</strong> next hop.</li>
+  <li><strong>Resume the link:</strong> BFD up, BGP back, two next hops again.</li>
+</ol>
+
+<div class="term"><span class="tag real">tested output</span>
+<pre><code>--- 172.16.3.10 ping statistics ---
+200 packets transmitted, 197 received, <span class="ok">1.5% packet loss</span>, time 20696ms
+<span class="c"># 3 lost = about 300 ms (GNS3 run: 4)</span></code></pre></div>
+
+<div class="callout warn">
+  <p><strong>Resetting for the next take:</strong> <code>no neighbor FABRIC bfd</code> under <code>router bgp 65101</code> on leaf1 and <code>no neighbor eth0 bfd</code> under <code>router bgp 65000</code> on both spines. Heads-up: removing BFD <strong>bounces the BGP sessions for about a second</strong>, so don't do it while a ping is running on camera.</p>
+</div>
+
+<div class="scoreboard">
+  <div class="score before"><div class="big">~75</div><div class="lbl">packets lost without BFD<br>BGP hold timer: 9 s</div></div>
+  <div class="score after"><div class="big">~4</div><div class="lbl">packets lost with BFD<br>100 ms &times; 3 = ~300 ms</div></div>
+</div>
+
+<div class="callout wow">
+  <p><strong>Same failure. About seventy-five lost packets became four.</strong> In a real AI fabric, one stalled path stalls the collective, and the whole training job waits on it. That's the difference between a hiccup and a restarted job.</p>
+  <p>Why not just set the BGP timers to 1 s? BGP keepalives run in the routing process and get starved when the CPU is busy; BFD is tiny, purpose-built, often offloaded to hardware, and tells <em>every</em> protocol at once.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="exercises"><span class="num">7</span>Hands-on exercises</h2>
+
+<h3>Exercise 1 &mdash; Scale out with zero IP planning</h3>
+<p>Add <strong>leaf4</strong> (AS 65104, lo 10.0.1.4/32) with <strong>h4</strong> on 172.16.4.0/24. Cable leaf4 eth0 &rarr; spine1 eth3 and leaf4 eth1 &rarr; spine2 eth3. (In the GNS3 project the spines already have a spare eth3. In containerlab, add leaf4, h4 and the three links to the topology file and redeploy.) <strong>Goal:</strong> h1 pings h4, and leaf1 shows two ECMP next hops for 172.16.4.0/24. How many lines did you change on each spine?</p>
+<details>
+  <summary>Show answer</summary>
+  <p>leaf4 is the leaf template with four values changed (hostname, ASN, loopback, eth2 subnet). Each spine needs exactly <strong>one</strong> new line &mdash; no IPs, no ASN:</p>
+<pre><code>router bgp 65000
+ neighbor eth3 interface peer-group FABRIC</code></pre>
+  <p>Remember the kernel prep on leaf4 (IPv6 on, forwarding on) and <code>eth3</code> in the spines' sysctl loop. Then on leaf1, <code>show ip route 172.16.4.0/24</code> shows two <code>fe80::</code> next hops via eth0 and eth1. The full answer is in the kit under <code>solutions/exercise1/</code>, including a 4-leaf containerlab topology you can deploy as-is. That's the unnumbered payoff: growing the fabric is cabling plus one line per spine.</p>
+</details>
+
+<h3>Exercise 2 &mdash; Drain a spine with zero packet loss</h3>
+<p>Before maintenance on spine2, make the fabric stop using it <em>gracefully</em>. On spine2, build a route-map that prepends the AS path and apply it outbound. Keep the 10 pps ping and the iperf from section 5 running while you do it. <strong>Goal:</strong> leaf routes collapse to spine1, spine2's counters go flat, and the ping shows <strong>0 loss</strong>. Then undo it and watch ECMP return. Why is this lossless when the suspended link wasn't?</p>
+<details>
+  <summary>Show answer</summary>
+<pre><code>spine2# configure terminal
+spine2(config)# route-map DRAIN permit 10
+spine2(config-route-map)#  set as-path prepend 65000 65000
+spine2(config-route-map)# exit
+spine2(config)# router bgp 65000
+spine2(config-router)#  address-family ipv4 unicast
+spine2(config-router-af)#   neighbor FABRIC route-map DRAIN out
+spine2(config-router-af)# end
+spine2# clear bgp ipv4 unicast * soft out</code></pre>
+  <p>Leaves now see <code>65000 65103</code> via spine1 but <code>65000 65000 65000 65103</code> via spine2. Multipath (even with multipath-relax) only combines paths of <strong>equal AS-path length</strong>, so spine2's path is no longer used. Undo with <code>no neighbor FABRIC route-map DRAIN out</code> inside the address family.</p>
+  <p><strong>Why lossless:</strong> it's make-before-break. Spine2 stays up and keeps forwarding while BGP tells everyone to prefer spine1. Traffic moves only after the new path is already installed. The suspended link was break-before-make: packets went into the hole until something noticed.</p>
+</details>
+
+<h3>Exercise 3 &mdash; Break the ASN design on purpose</h3>
+<p>Change spine2 to <strong>AS 65001</strong>. (a) On spine2, run <code>show bgp ipv4 unicast 172.16.3.0/24</code>: how many paths now, and what are the extra ones? (b) Why didn't the leaves need any config change? (c) Remove <code>bgp bestpath as-path multipath-relax</code> on leaf1, then <code>clear bgp * soft</code>. What happens to ECMP, and why?</p>
+<details>
+  <summary>Show answer</summary>
+  <p>To change the ASN, remove and re-create the BGP instance: <code>no router bgp 65000</code>, then paste the spine config back with <code>router bgp 65001</code>.</p>
+  <p><strong>(a) Three paths.</strong> The direct one (<code>65103</code>, best) plus two longer ones through other leaves and spine1: <code>65101 65000 65103</code> and <code>65102 65000 65103</code>. Before, spine2 dropped those because 65000 was in the path. Now nothing stops them. These "valley" paths are what cause path hunting: when leaf3's route is withdrawn, spine2 falls back to them one by one before giving up, slowing convergence and briefly routing traffic the wrong way.</p>
+  <p><strong>(b)</strong> The leaves use <code>remote-as external</code>: "any AS that isn't mine." They accept 65001 without being told.</p>
+  <p><strong>(c) ECMP collapses to one next hop.</strong> Without multipath-relax, BGP only load-balances across paths with <em>identical</em> AS paths. Via spine1 it's <code>65000 65103</code>, via spine2 <code>65001 65103</code>: same length, different ASNs, so only one wins. Note the twist: in the original design (both spines 65000) the paths are identical, so ECMP works <em>even without</em> multipath-relax. Same-ASN spines buy you both valley-freedom and simple multipath.</p>
+  <p><strong>Two sentences:</strong> RFC 7938 puts all spines in one AS so a route can never pass through two spines, which removes valley paths and path hunting. It also makes every leaf-to-leaf path the same AS path, so ECMP just works.</p>
+</details>
+
+<!-- ============================================================ -->
+<h2 id="recap"><span class="num">8</span>Recap</h2>
+<ul>
+  <li><strong>Clos + eBGP everywhere</strong> is how AI and hyperscale fabrics are built: simple, scalable, ECMP across every spine.</li>
+  <li><strong>BGP unnumbered</strong> (<code>neighbor eth0 interface</code>) peers over IPv6 link-local and carries IPv4 with IPv6 next hops (RFC 8950). No per-link IPs, ever.</li>
+  <li><strong>Same-ASN spines</strong> make the fabric valley-free (RFC 7938).</li>
+  <li><strong>ECMP</strong> shows up as multiple next hops in FRR and the Linux kernel; L4 hashing spreads flows across spines.</li>
+  <li><strong>Down is easy, silent is deadly.</strong> BGP alone waits out its 9 s hold timer. BFD at 100 ms &times; 3 detects it in ~300 ms: <strong>~75 lost packets became ~4 (tested: 79 and 71 without BFD, 4 with)</strong>.</li>
+</ul>
+
+<h3>Try it yourself</h3>
+<h3 id="try">Try it yourself</h3>
+<p><a class="lablink" href="/labs/ai-fabric/ai-fabric-bgp-unnumbered-lab.zip" download>Download the lab kit (.zip)</a></p>
+<p>Unzip it, then pick one:</p>
+<h3>Option A &mdash; containerlab (one command, no GUI)</h3>
+<p>Any Linux box (or WSL2) with Docker and <a href="https://containerlab.dev/install/">containerlab</a>:</p>
+<pre><code><span class="prompt">$</span> cd ai-fabric-bgp-unnumbered-lab
+<span class="prompt">$</span> sudo containerlab deploy -t ai-fabric.clab.yml
+<span class="prompt">$</span> docker exec -it clab-ai-fabric-leaf1 vtysh        <span class="c"># router CLI</span>
+<span class="prompt">$</span> docker exec -it clab-ai-fabric-h1 bash             <span class="c"># host shell</span>
+<span class="prompt">$</span> sudo containerlab destroy -t ai-fabric.clab.yml --cleanup   <span class="c"># when you're done</span></code></pre>
+<p>It uses the stock <code>quay.io/frrouting/frr:10.5.5</code> and <code>nicolaka/netshoot</code> images, and the interface names match the GNS3 version exactly. GNS3's <em>Suspend link</em> becomes <code>sudo scripts/link.sh suspend eth1</code>.</p>
+
+<h3>Option B &mdash; GNS3 (the version in the video)</h3>
+<pre><code><span class="prompt">$</span> docker build -t ai-fabric-lab/frr:10.5.5 docker/frr     <span class="c"># on your GNS3 server / VM</span></code></pre>
+<p>Then in GNS3: <em>File &rarr; Import portable project</em> &rarr; <code>gns3/ai-fabric-baseline.gns3project</code>, and start all nodes. The routers boot with their configs and kernel settings already in place; BFD is off, ready for the demo. Hosts use <code>gns3/ipterm</code>, which GNS3 pulls by itself.</p>
+
+<p><strong>Needs:</strong> about 2 GB of free RAM and 2 CPU cores for the 8 containers (they idle near zero), plus about 1 GB of disk for the images (containerlab) or 300 MB (GNS3). Tested on Ubuntu 24.04 with containerlab 0.73 and GNS3 2.2.56. The README in the kit has the full walkthrough, the demo script, and all exercise answers.</p>
+
+<footer>
+  References: RFC 7938 (BGP in large-scale data centers) &middot; RFC 8950 (IPv4 NLRI with IPv6 next hop) &middot; RFC 5880/5881 (BFD) &middot; FRRouting docs: BGP unnumbered, <code>frr defaults datacenter</code>, BFD profiles.<br>
+  Built with GNS3 2.2, containerlab and FRRouting 10.5.5. The lab itself was built and tested by a team of Claude Code agents while Graham taught it on camera; the agent "video call" view is <a href="https://github.com/Atoll92/agent-standup">Agent Standup</a> by Atoll92.<br>
+  Lab kit &copy; 2026 Graham Paasch, MIT License. FRRouting is GPLv2; GNS3 is GPLv3; containerlab is BSD-3-Clause.
+  <br><a href="/">&larr; grahampaasch.com</a>
+</footer>
+
+</main>
+</body>
+</html>

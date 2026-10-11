@@ -58,6 +58,8 @@ const STATIC_APP_ROUTES = [
   '/breathing',
   '/cadence',
   '/create-now',
+  '/labs/ai-fabric',
+  '/labs/ai-fabric/bom',
   '/panelclash',
   '/sidewalks-of-rage',
   '/wellness',

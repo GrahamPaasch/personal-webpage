@@ -1,0 +1,134 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bill of Materials: build this AI fabric for real</title>
+<link rel="canonical" href="https://www.grahampaasch.com/labs/ai-fabric/bom">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c232d; --line: #30363d;
+    --text: #e6edf3; --muted: #9aa7b4; --accent: #58a6ff; --spine: #d2a8ff;
+    --leaf: #7ee787; --host: #ffa657; --bad: #ff7b72; --good: #3fb950; --warn: #e3b341;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 21px/1.6 -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 0 32px 120px; }
+  header.hero { padding: 90px 0 50px; border-bottom: 1px solid var(--line); margin-bottom: 30px; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 17px; }
+  h1 { font-size: 58px; line-height: 1.12; margin: 14px 0 22px; letter-spacing: -.01em; }
+  h1 .hl { color: var(--leaf); }
+  .hook { font-size: 27px; color: var(--muted); max-width: 900px; margin: 0; }
+  h2 { font-size: 40px; margin: 80px 0 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+  h2 .num { color: var(--accent); margin-right: 14px; }
+  h3 { font-size: 28px; margin: 40px 0 10px; color: var(--text); }
+  p, li { max-width: 960px; }
+  a { color: var(--accent); }
+  strong { color: #fff; }
+  code { font-family: "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; font-size: .88em;
+    background: var(--panel2); padding: 2px 7px; border-radius: 5px; color: #ffd8a8; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px;
+    overflow-x: auto; font: 18px/1.5 "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; margin: 14px 0 22px; }
+  pre code { background: none; padding: 0; color: var(--text); font-size: inherit; }
+  .term { position: relative; }
+  .term .tag { position: absolute; top: -12px; right: 16px; font: 700 13px/1 Inter, sans-serif; letter-spacing: .08em;
+    text-transform: uppercase; padding: 6px 10px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+  .term .tag.real { color: var(--good); border-color: var(--good); }
+  .term .tag.sample { color: var(--warn); border-color: var(--warn); }
+  .prompt { color: var(--leaf); }
+  .c { color: #8b949e; font-style: italic; }
+  .k { color: var(--spine); }
+  .v { color: var(--host); }
+  .ok { color: var(--good); font-weight: 700; }
+  .bad { color: var(--bad); font-weight: 700; }
+  .callout { border-left: 5px solid var(--accent); background: var(--panel); padding: 18px 24px; border-radius: 0 10px 10px 0; margin: 22px 0; }
+  .callout.wow { border-color: var(--leaf); }
+  .callout.warn { border-color: var(--warn); }
+  .callout.bad { border-color: var(--bad); }
+  .callout p { margin: 6px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; }
+  .card h4 { margin: 0 0 8px; font-size: 23px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0 26px; font-size: 19px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 11px 14px; text-align: left; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 15px; letter-spacing: .06em; }
+  tr:hover td { background: var(--panel); }
+  td.spine { color: var(--spine); font-weight: 700; } td.leaf { color: var(--leaf); font-weight: 700; } td.host { color: var(--host); font-weight: 700; }
+  .anno { display: grid; grid-template-columns: minmax(380px, 1fr) 1.15fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 16px 0 28px; }
+  .anno > div { padding: 9px 18px; border-bottom: 1px solid var(--line); }
+  .anno .cfg { background: var(--panel); font: 18px/1.45 "JetBrains Mono", Menlo, Consolas, monospace; white-space: pre; color: var(--text); }
+  .anno .why { background: var(--bg); color: var(--muted); font-size: 18px; line-height: 1.45; }
+  .anno .why b { color: var(--text); }
+  .anno .cfg.hot { color: var(--leaf); }
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding: 4px 0 18px 64px; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel2); border: 2px solid var(--accent); color: var(--accent); font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin: 26px 0; }
+  .score { border-radius: 14px; padding: 26px; text-align: center; border: 2px solid; }
+  .score.before { border-color: var(--bad); background: rgba(255,123,114,.07); }
+  .score.after { border-color: var(--good); background: rgba(63,185,80,.07); }
+  .score .big { font-size: 84px; font-weight: 800; line-height: 1; }
+  .score.before .big { color: var(--bad); } .score.after .big { color: var(--good); }
+  .score .lbl { color: var(--muted); font-size: 19px; margin-top: 8px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 22px; margin: 14px 0 30px; }
+  summary { cursor: pointer; font-weight: 700; color: var(--accent); font-size: 20px; }
+  details[open] summary { margin-bottom: 10px; }
+  .objectives li { margin: 6px 0; }
+  .lablink { display: inline-block; margin-top: 10px; font-size: 28px; font-weight: 800; padding: 16px 28px; border-radius: 12px;
+    background: var(--panel2); border: 2px solid var(--accent); text-decoration: none; }
+  .toc { columns: 2; font-size: 19px; color: var(--muted); padding-left: 22px; }
+  .toc a { color: var(--muted); text-decoration: none; } .toc a:hover { color: var(--accent); }
+  svg text { font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin: 18px 0 26px; }
+  footer { color: var(--muted); font-size: 16px; margin-top: 80px; border-top: 1px solid var(--line); padding-top: 20px; }
+  @media (max-width: 860px) { .grid2, .scoreboard, .anno { grid-template-columns: 1fr; } h1 { font-size: 42px; } .toc { columns: 1; } }
+</style>
+<style>
+  .bomcard { display:grid; grid-template-columns: 340px 1fr; gap: 28px; background: var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; margin: 26px 0; }
+  .bomcard .pic { background:#fff; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:14px; min-height:220px; }
+  .bomcard .pic img { max-width:100%; max-height:260px; }
+  .bomcard figure { margin:0; }
+  .bomcard figcaption { color: var(--muted); font-size:14px; margin-top:8px; }
+  .bomcard h3 { margin: 0 0 6px; font-size: 30px; }
+  .bomcard .role { font-size: 15px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  .role.spine { color: var(--spine);} .role.leaf { color: var(--leaf);} .role.host { color: var(--host);} .role.cable { color: var(--accent);} .role.nos { color: var(--warn);}
+  .bomcard ul { margin: 8px 0; padding-left: 24px; } .bomcard li { margin: 3px 0; font-size: 19px; }
+  .price { font-size: 30px; font-weight: 800; color: var(--good); margin: 8px 0 4px; }
+  .price small { font-size: 16px; color: var(--muted); font-weight: 500; }
+  .buy a { display:inline-block; margin: 6px 10px 0 0; padding: 7px 14px; border:1px solid var(--accent); border-radius:8px; text-decoration:none; font-size:17px; font-weight:700; }
+  td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
+  tr.total td { font-size: 24px; font-weight: 800; color: #fff; border-top: 2px solid var(--accent); }
+  tr.total td.num { color: var(--good); }
+  .free { border: 2px solid var(--good); background: rgba(63,185,80,.07); border-radius: 14px; padding: 30px; margin: 40px 0; }
+  .free .big { font-size: 84px; font-weight: 800; color: var(--good); line-height: 1; }
+  .note { color: var(--muted); font-size: 17px; }
+  @media (max-width: 860px) { .bomcard { grid-template-columns: 1fr; } }
+</style>
+</head><body><main>
+<header class="hero">
+  <div class="kicker">AI-cluster fabric &middot; real hardware</div>
+  <h1>Bill of Materials: <span class="hl">build this AI fabric for real</span></h1>
+  <p class="hook">2 spines, 3 leaves, BGP unnumbered on FRRouting. Open-networking white-box switches running SONiC, which uses FRR, so the lab config carries straight over.</p>
+  <p class="note"><a href="/labs/ai-fabric">&larr; Back to the lab</a> &middot; Prices approx., at time of recording, Oct 2026.</p>
+</header>
+<h2><span class="num">1</span>Summary</h2>
+<table><thead><tr><th>Line item</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Extended</th></tr></thead><tbody>
+<tr><td class="">SONiC network OS (runs FRR)</td><td class="num">5</td><td class="num">free</td><td class="num">$0.00</td></tr><tr><td class="spine">Edgecore AS7726-32X spine (32x100G, AC)</td><td class="num">2</td><td class="num">$9,180.99</td><td class="num">$18,361.98</td></tr><tr><td class="leaf">Edgecore AS7326-56X leaf (48x25G + 8x100G, AC)</td><td class="num">3</td><td class="num">$8,345.99</td><td class="num">$25,037.97</td></tr><tr><td class="">100G QSFP28 DAC, 2 m (leaf to spine)</td><td class="num">6</td><td class="num">$142.99</td><td class="num">$857.94</td></tr><tr><td class="">25G SFP28 DAC, 2 m (leaf to server)</td><td class="num">3</td><td class="num">$51.99</td><td class="num">$155.97</td></tr><tr><td class="host">Dual-port 25G SFP28 NIC (ConnectX-6 Lx)</td><td class="num">3</td><td class="num">$317.99</td><td class="num">$953.97</td></tr><tr><td class="host">Linux servers (any Linux box you have)</td><td class="num">3</td><td class="num">BYO</td><td class="num">not counted</td></tr><tr class="total"><td>Total (fabric + cabling + NICs)</td><td></td><td></td><td class="num">$45,367.83</td></tr>
+</tbody></table>
+<p class="note">Prices approx., at time of recording, Oct 2026. Servers are whatever Linux boxes you already have, so they are not in the total. Before tax, shipping, and rack/power.</p>
+<div class="callout warn"><p><strong>Watch the leaf listing:</strong> one popular AS7326-56X listing (<a href="https://www.avendor.com/products/s7326-56x-48-port-25g-sfp28-8-port-100g-qsfp-48v-dc-psu-redundant">AVENDOR, $7,228.99</a>) is the <strong>&minus;48V DC</strong> power version for telco racks. For a normal rack with AC power, choose the <strong>AC model</strong> (dual AC PSUs) linked below.</p></div>
+<h2><span class="num">2</span>Components</h2>
+<section class="bomcard"><figure><div class="pic" style="padding:40px"><img src="/labs/ai-fabric/img/sonic-logo.svg" alt="SONiC logo"></div><figcaption>Image: <a href="https://sonicfoundation.dev/">SONiC Foundation (sonicfoundation.dev)</a></figcaption></figure>
+<div><div class="role nos">Network OS &middot; all 5 switches</div><h3>SONiC (Software for Open Networking in the Cloud)</h3><ul><li>Open-source Linux network OS, open-sourced by Microsoft in 2016, now under the Linux Foundation</li><li>Uses <strong>FRRouting</strong> for BGP, the same routing suite as the lab</li><li>Installs onto white-box switches through ONIE</li></ul><p><strong>Role in the topology:</strong> Runs on every spine and leaf. Your <code>router bgp</code> / BGP-unnumbered config from the lab carries over almost line for line.</p><div class="price">Free <small>open source; paid Enterprise SONiC bundles also exist</small></div><div class="buy"><a href="https://www.opencompute.org/software/sonic/">OCP: SONiC &rarr;</a><a href="https://sonicfoundation.dev/">SONiC Foundation &rarr;</a></div></div></section><section class="bomcard"><figure><div class="pic"><img src="/labs/ai-fabric/img/spine-as7726-32x.png" alt="Edgecore AS7726-32X switch"></div><figcaption>Image: <a href="https://www.avendor.com/products/as7726-32x-32-port-100g-qsfp28-switch-onie-software-installer-broadcom-triden">AVENDOR</a></figcaption></figure>
+<div><div class="role spine">Spine &times; 2</div><h3>Edgecore AS7726-32X (DCS204)</h3><ul><li>32 &times; 100G QSFP28 ports</li><li>Broadcom Trident 3</li><li>ONIE installer, so you can load SONiC</li><li>Dual AC power, front-to-back airflow (7726-32X-O-AC-F-US)</li></ul><p><strong>Role in the topology:</strong> spine1 and spine2. Every leaf has one 100G uplink to each spine, so ECMP has two equal paths.</p><div class="price">$9,180.99 each <small>&times; 2 = $18,361.98</small></div><div class="buy"><a href="https://www.avendor.com/products/as7726-32x-32-port-100g-qsfp28-switch-onie-software-installer-broadcom-triden">AVENDOR &rarr;</a><a href="https://www.cdw.com/product/edgecore-32pt-100gb-qsfp28-switch/6418332">CDW &rarr;</a><a href="https://stordis.com/product/enterprise-sonic-linux-switch-edgecore-dcs204-as7726-32x-32x100g-qsfp28-l2-l3-support-100g-cloud-data-center">STORDIS (Enterprise SONiC bundle) &rarr;</a></div></div></section><section class="bomcard"><figure><div class="pic"><img src="/labs/ai-fabric/img/leaf-as7326-56x.png" alt="Edgecore AS7326-56X switch"></div><figcaption>Image: <a href="https://www.avendor.com/products/as7326-56x-48-port-25g-sfp28-8-port-100g-qsfp-uplink-switch-onie-software-i-1">AVENDOR</a></figcaption></figure>
+<div><div class="role leaf">Leaf &times; 3</div><h3>Edgecore AS7326-56X (DCS203)</h3><ul><li>48 &times; 25G SFP28 down to servers</li><li>8 &times; 100G QSFP28 up to spines</li><li>ONIE, SONiC-ready</li><li>Dual AC PSUs, front-to-back airflow</li></ul><p><strong>Role in the topology:</strong> leaf1, leaf2, leaf3. Two 100G uplinks each (one per spine), 25G down to the GPU/compute host.</p><div class="price">$8,345.99 each <small>&times; 3 = $25,037.97</small></div><div class="buy"><a href="https://www.avendor.com/products/as7326-56x-48-port-25g-sfp28-8-port-100g-qsfp-uplink-switch-onie-software-i-1">AVENDOR (AC model) &rarr;</a><a href="https://stordis.com/product/enterprise-sonic-linux-express-bundled-solutions-seb7326-56x-a-x-xy">STORDIS (Enterprise SONiC bundle) &rarr;</a></div></div></section><section class="bomcard"><figure><div class="pic"><img src="/labs/ai-fabric/img/dac-100g.jpg" alt="100G QSFP28 DAC cable"></div><figcaption>Image: <a href="https://www.avendor.com/products/mellanox-passive-copper-cable-6">AVENDOR</a></figcaption></figure>
+<div><div class="role cable">Cabling &middot; leaf to spine &times; 6</div><h3>100G QSFP28 passive DAC, 2 m (MCP1600-C002E30N)</h3><ul><li>100GbE (100GBASE-CR4) passive copper, QSFP28 both ends</li><li>No optics, no power draw, lowest latency</li><li>2 m reaches across adjacent racks; 1 m version is $125.99</li></ul><p><strong>Role in the topology:</strong> The 6 fabric links: 3 leaves &times; 2 spines. These are the point-to-point links BGP unnumbered peers over with IPv6 link-local addresses.</p><div class="price">$142.99 each <small>&times; 6 = $857.94</small></div><div class="buy"><a href="https://www.avendor.com/products/mellanox-passive-copper-cable-6">AVENDOR &rarr;</a></div></div></section><section class="bomcard"><figure><div class="pic"><img src="/labs/ai-fabric/img/dac-25g.jpg" alt="25G SFP28 DAC cable"></div><figcaption>Image: <a href="https://www.networktigers.com/products/470-acfb-dell-sfp28-dac-new">NetworkTigers</a></figcaption></figure>
+<div><div class="role cable">Cabling &middot; leaf to server &times; 3</div><h3>25G SFP28 passive DAC, 2 m (Dell 470-ACFB)</h3><ul><li>25GbE SFP28 to SFP28 direct-attach copper</li><li>New, sealed</li><li>Standard MSA cable; any SFP28 DAC of this length works</li></ul><p><strong>Role in the topology:</strong> One per server: leaf SFP28 port to the server NIC.</p><div class="price">$51.99 each <small>&times; 3 = $155.97</small></div><div class="buy"><a href="https://www.networktigers.com/products/470-acfb-dell-sfp28-dac-new">NetworkTigers &rarr;</a></div></div></section><section class="bomcard"><figure><div class="pic"><img src="/labs/ai-fabric/img/nic-cx6lx.jpg" alt="ConnectX-6 Lx dual-port SFP28 NIC"></div><figcaption>Image: <a href="https://www.networktigers.com/products/mcx631102an-adat-nvidia-interface-card">NetworkTigers</a></figcaption></figure>
+<div><div class="role host">Hosts &times; 3</div><h3>Linux server + dual-port 25G SFP28 NIC (ConnectX-6 Lx MCX631102AN-ADAT)</h3><ul><li>Servers: <strong>any Linux box</strong> with a free PCIe slot</li><li>NIC: 2 &times; 25G SFP28, PCIe 4.0 x8</li><li>RoCE-capable, standard in-box Linux driver (mlx5)</li></ul><p><strong>Role in the topology:</strong> host1, host2, host3, one per leaf. Second port is there if you later dual-home hosts to two leaves.</p><div class="price">$317.99 per NIC <small>&times; 3 = $953.97 (refurbished listing; new is $436.99)</small></div><div class="buy"><a href="https://www.networktigers.com/products/mcx631102an-adat-nvidia-interface-card">NetworkTigers &rarr;</a></div></div></section>
+<section class="free">
+  <div class="big">$0</div>
+  <h3 style="margin-top:12px">The free version: GNS3 + FRR containers</h3>
+  <p>Exactly what we built in the lesson: the same 2-spine / 3-leaf topology, the same FRR BGP-unnumbered config, ECMP and BFD, all on one machine.</p>
+  <a class="lablink" href="/labs/ai-fabric">&larr; Build it free in the lab</a>
+</section>
+<footer>Prices approx., at time of recording, Oct 2026. Product images belong to the credited retailers and are shown for identification. No affiliate links.</footer>
+</main></body></html>

@@ -13,6 +13,7 @@ const STATIC_APP_DIRS = [
   'breathing',
   'cadence',
   'create-now',
+  'labs/ai-fabric',
   'panelclash',
   'sidewalks-of-rage',
   'wellness',
@@ -25,6 +26,7 @@ const STATIC_APP_PAGES = [
   'wellness/time-timer',
   'local/tetris',
   'local/chess',
+  'labs/ai-fabric/bom',
 ];
 
 // Only the slashless form is needed: with the default `trailingSlash: false`,
