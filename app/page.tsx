@@ -17,18 +17,38 @@ export default function HomePage() {
         </summary>
         <div className="announcement-content">
           <span className="announcement-emoji" aria-hidden="true">
-            &#x1F399;
+            &#x1F3AE;
           </span>
           <span className="announcement-text">
-            <span className="announcement-highlight">NEW:</span> Meet Cadence — the voice-first AI agent I talk to all day. Here&apos;s how the whole system works.
+            <span className="announcement-highlight">NEW:</span> CASCADE — a Tetris Effect–inspired game my voice AI built from one spoken prompt. Every move is a note.
           </span>
-          <a className="announcement-link" href="/cadence">
-            See how it works &rarr;
+          <a className="announcement-link" href="/cascade">
+            Play it &amp; see how it was built &rarr;
           </a>
         </div>
       </details>
 
       <section className="grid">
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
+              <span aria-hidden="true">&#x1F3AE;</span> CASCADE: A Game Built From One Prompt
+            </h2>
+            <span className="prompt-header-badge">NEW</span>
+          </div>
+          <p className="muted">
+            A synesthetic falling-block game inspired by Tetris Effect: six worlds, live procedural
+            music in each stage&apos;s key, and every move is a note. Cadence built it on Claude from a
+            single spoken prompt — spec, sub-agents, tests and all. Plus how a local model did on the
+            same spec.
+          </p>
+          <a className="button primary" href="/cascade/play">
+            Play CASCADE &rarr;
+          </a>{' '}
+          <a className="button" href="/cascade">
+            How it was built
+          </a>
+        </div>
         <div className="card">
           <div className="prompt-header">
             <h2>

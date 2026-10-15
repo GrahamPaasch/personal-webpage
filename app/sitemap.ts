@@ -57,6 +57,8 @@ function listAppRoutes(): string[] {
 const STATIC_APP_ROUTES = [
   '/breathing',
   '/cadence',
+  '/cascade',
+  '/cascade/play',
   '/create-now',
   '/labs/ai-fabric',
   '/labs/ai-fabric/bom',

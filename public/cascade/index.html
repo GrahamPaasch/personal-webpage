@@ -1,0 +1,116 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CASCADE: a falling-block game my voice AI built from one prompt | Graham Paasch</title>
+<meta name="description" content="CASCADE is a synesthetic falling-block game inspired by Tetris Effect: six worlds, live procedural music, every move a note. Cadence, my voice AI on Claude, built it from one spoken prompt.">
+<meta property="og:title" content="CASCADE: a game my voice AI built from one prompt">
+<meta property="og:description" content="Six worlds, live procedural music in each stage's key, every move a note. Built by Claude from one spoken prompt. Play it in your browser.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://www.grahampaasch.com/cascade/img/title.jpg">
+<link rel="canonical" href="https://www.grahampaasch.com/cascade">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='9' width='6' height='6' fill='%2350e3ff'/%3E%3Crect x='9' y='9' width='6' height='6' fill='%23b07cff'/%3E%3Crect x='5' y='2' width='6' height='6' fill='%23ff7ad9'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#070a12;--card:#111624;--ink:#e8edf5;--mute:#9aa6b8;--acc:#7fe8ff;--acc2:#b9a4ff;--acc3:#ff7ad9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:900px;margin:auto;padding:0 18px 70px}
+a{color:var(--acc)}
+.hero{position:relative;margin:0 -18px 8px;overflow:hidden;border-bottom:1px solid #1f2740}
+.hero img{display:block;width:100%;height:auto;opacity:.92}
+h1{font-size:40px;font-weight:300;letter-spacing:.18em;margin:18px 0 0;color:#fff;text-shadow:0 0 22px var(--acc)}
+.tag{color:var(--mute);font-style:italic;letter-spacing:.06em;margin:4px 0 0}
+.lede{font-size:19px;color:#d9e1ee;margin:22px 0 10px}
+.play{display:inline-block;margin:14px 0 6px;padding:14px 38px;border-radius:999px;font-size:18px;letter-spacing:.3em;text-transform:uppercase;text-decoration:none;color:#fff;
+  border:1px solid color-mix(in srgb,var(--acc) 60%,transparent);background:color-mix(in srgb,var(--acc) 16%,transparent);box-shadow:0 0 26px color-mix(in srgb,var(--acc) 35%,transparent)}
+.play:hover{background:color-mix(in srgb,var(--acc) 28%,transparent)}
+.small{font-size:14px;color:var(--mute)}
+h2{color:var(--acc);font-weight:500;font-size:23px;margin:2em 0 .5em;border-bottom:1px solid #1f2740;padding-bottom:.3em}
+h3{font-size:17px;margin:1.3em 0 .3em;color:var(--acc2)}
+p,li{color:#d3dae6}
+.card{background:var(--card);border:1px solid #1f2740;border-radius:12px;padding:14px 18px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:14px 0}
+figure{margin:0;background:var(--card);border:1px solid #1f2740;border-radius:10px;overflow:hidden}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:7px 11px;font-size:14px;color:var(--mute)}
+figcaption b{color:var(--ink)}
+blockquote{margin:12px 0;padding:10px 16px;border-left:3px solid var(--acc2);background:#0e1320;color:#d3dae6;border-radius:0 8px 8px 0}
+code{background:#1a2133;padding:1px 5px;border-radius:4px;font-size:.88em;color:#bfefff}
+table{width:100%;border-collapse:collapse;font-size:15px}td,th{border-bottom:1px solid #1f2740;padding:8px 6px;text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
+.win{color:#8fe3a1}.lose{color:#ff9a9a}
+</style></head><body><main>
+
+<div class="hero">
+<img src="/cascade/img/title.jpg" alt="CASCADE title screen: glowing logo over an underwater scene with kelp and light shafts" width="1100" height="619">
+</div>
+<h1>CASCADE</h1><p class="tag">A game my voice AI built from one spoken prompt</p>
+
+<p class="lede">CASCADE is a falling-block game where the music, the sound and the visuals are one instrument, and you're the one playing it. It's inspired by Tetris Effect. I didn't write a line of it. My voice AI built it from a single spoken prompt.</p>
+<a class="play" href="/cascade/play">Play</a>
+<p class="small">Runs in your browser, nothing to install. Desktop with a keyboard or gamepad works best. Click once to start the sound, and wear headphones if you can.</p>
+
+<h2>What it is</h2>
+<p>You play a journey through six worlds. Each one has its own look, its own key and tempo, and its own band:</p>
+<table>
+<tr><th>Stage</th><th>Key, tempo</th><th>Cleared lines become</th></tr>
+<tr><td>I. Ocean</td><td>D Dorian, 72 BPM</td><td>glowing fish</td></tr>
+<tr><td>II. Forest</td><td>G major pentatonic, 88 BPM</td><td>fireflies</td></tr>
+<tr><td>III. Desert</td><td>E Phrygian dominant, 96 BPM</td><td>stars in constellations</td></tr>
+<tr><td>IV. City at Night</td><td>A minor, 110 BPM</td><td>lit windows</td></tr>
+<tr><td>V. Aurora</td><td>F Lydian, 100 BPM</td><td>sparkles in the aurora</td></tr>
+<tr><td>VI. Space</td><td>C minor + whole-tone, 120 BPM</td><td>new stars</td></tr>
+</table>
+<ul>
+<li><b>The music is live.</b> It's generated as you play, in the stage's key. Pad and bass come first. Arpeggios, drums and a lead fade in as you play well. When your stack gets dangerous, the music closes in with a filter sweep, and it opens up again when you dig out.</li>
+<li><b>Every move is a note.</b> Moving plays a scale step by column. Rotating plays a chord tone. A hard drop is an impact and a chord stab. Everything is quantized to the beat. Line clears are flourishes that grow with the number of lines.</li>
+<li><b>Your clears become the world.</b> Cleared lines turn into light that flies into the background and stays. The scene starts sparse and fills in as you go.</li>
+<li>There are no audio files. Every sound is synthesized live in the browser with the Web Audio API.</li>
+<li>Under the hood it's real guideline rules: SRS rotation with wall kicks, 7-bag, hold, ghost piece, lock delay, T-spins, combos, back-to-back. There's also an Endless mode, key rebinding, gamepad support and local high scores.</li>
+</ul>
+
+<div class="grid">
+<figure><img src="/cascade/img/ocean.jpg" alt="Ocean stage: whale and glowing fish around the playfield" loading="lazy" width="1100" height="619"><figcaption><b>Ocean</b>: cleared lines become fish</figcaption></figure>
+<figure><img src="/cascade/img/forest.jpg" alt="Forest stage at dusk with god-rays and fireflies" loading="lazy" width="1100" height="619"><figcaption><b>Forest</b>: fireflies at dusk</figcaption></figure>
+<figure><img src="/cascade/img/desert.jpg" alt="Desert stage: dunes at sunset under a crescent moon" loading="lazy" width="1100" height="619"><figcaption><b>Desert</b>: oud over a drone</figcaption></figure>
+<figure><img src="/cascade/img/city.jpg" alt="City at night: neon skyline and rain" loading="lazy" width="1100" height="619"><figcaption><b>City at Night</b>: neon, rain, synth bass</figcaption></figure>
+<figure><img src="/cascade/img/aurora.jpg" alt="Aurora stage: green aurora curtains over a frozen lake" loading="lazy" width="1100" height="619"><figcaption><b>Aurora</b>: choir and bells</figcaption></figure>
+<figure><img src="/cascade/img/space.jpg" alt="Space stage: ringed planet, nebula and a galaxy" loading="lazy" width="1100" height="619"><figcaption><b>Space</b>: lines become new stars</figcaption></figure>
+</div>
+<p class="small">Real in-game screenshots, taken by the AI while it tested the game.</p>
+
+<h2>How it got built</h2>
+<h3>The first one, at work</h3>
+<p>At work I'd already built a Tetris Effect clone with Claude Opus 4.6. I did it the careful way: spec-driven development, a long questioning session to pin down what I wanted, and then a multi-agent "ultra code" pass to build it.</p>
+
+<h3>The second one, at home: one prompt</h3>
+<p>At home I have <a href="/cadence">Cadence</a>, a voice AI I talk to all day, running on Claude Opus 5.5. I gave it one spoken prompt to build a better one. No questioning session, no follow-ups. Here's what it did with that:</p>
+<div class="card"><ol>
+<li><b>It wrote the spec.</b> One file, about a hundred lines, with the gameplay rules, all six stages with keys and tempos, the music engine, the visual engine, the screens, and an acceptance checklist. The heart of it:
+<blockquote>The point of the game: the music, sound, and visuals are one instrument that the PLAYER plays. Every move, rotation, drop, and line clear is a musical event, quantized to the beat, in the key of the current stage. As the player does well, the world blooms around the playfield. It should feel like Tetris Effect: meditative, gorgeous, emotional, not like a plain Tetris clone with a background picture.</blockquote>
+The last line of the checklist was "It is BEAUTIFUL and it FEELS like playing music."</li>
+<li><b>An Opus agent broke it down.</b> Five sub-specs (core rules, music engine, visual engine, stages, UI) and a ten-step plan, where every step ends with tests or screenshots, a progress-log entry and a commit.</li>
+<li><b>It built the game logic first and unit-tested it.</b> Rotation and wall kicks, the 7-bag, scoring, T-spins, lock delay, the journey. That ended up as 30 tests, all passing.</li>
+<li><b>It built the music engine.</b> A Web Audio scheduler that looks ahead on the audio clock, seeded generators for pad, bass, drums, arpeggio and an evolving lead melody, and synthesized instruments: FM bells, a plucked oud, marimba, a formant choir, a whale-song glide, and 13 drum voices.</li>
+<li><b>It built the visual engine</b> and handed the stage scenes to three sub-agents working in parallel (Ocean and Forest, Desert and City, Aurora and Space). Then it integrated their work.</li>
+<li><b>It checked its own work in a real browser.</b> It drove headless Chrome to take screenshots of every stage, measure frame rate (60 fps at 1080p on all six stages), check for console errors, and meter the audio output of each stage so nothing clipped or went silent.</li>
+</ol></div>
+<p>It wasn't seamless. The first build agent went silent partway through, after finishing the specs and the game logic. A fresh agent picked up from the committed specs and the progress log, found and fixed a syntax error the first one had left behind, and carried on to the finish. That's the point of writing everything down: the work survives the worker.</p>
+<p>The whole thing is about 7,000 lines of plain JavaScript in 36 modules, with no build step and no dependencies. It took one evening, a little under four hours from prompt to finished, stall included.</p>
+
+<h3>Head to head: the same spec on a local model</h3>
+<p>I also wanted to know how far a model on my own hardware would get. I gave the exact same spec to Qwen 3.6 27B, running locally on my RTX 3090 through Ollama and opencode.</p>
+<table>
+<tr><th></th><th>Claude Opus 5.5 (Cadence)</th><th>Qwen 3.6 27B (local)</th></tr>
+<tr><td>Plan</td><td class="win">Spec, 5 sub-specs, 10-step plan</td><td>Wrote a plan</td></tr>
+<tr><td>Game rules</td><td class="win">Full guideline rules</td><td>Core rules, 552 lines</td></tr>
+<tr><td>Playable page</td><td class="win">Yes</td><td class="lose">No</td></tr>
+<tr><td>Sound and music</td><td class="win">Live procedural score, 6 stages</td><td class="lose">None</td></tr>
+<tr><td>Visuals</td><td class="win">6 animated worlds</td><td class="lose">None</td></tr>
+<tr><td>Tests</td><td class="win">30, passing</td><td class="lose">None</td></tr>
+<tr><td>Outcome</td><td class="win">Finished and verified</td><td class="lose">Stopped after about 22 minutes</td></tr>
+</table>
+
+<h3>My verdict</h3>
+<p>Compared to the version I built at work with the careful process, this one is in a whole other category. The music's better, the visuals are better, everything's better. And I got it from one prompt.</p>
+
+<h2>Credits</h2>
+<p>Designed, written and tested by Claude (Anthropic), working as <a href="/cadence">Cadence</a>, my voice AI. I said what I wanted and played it. If you want to know how Cadence works, here's <a href="/cadence">the whole system</a>.</p>
+<p class="small">CASCADE is a fan-made game inspired by Tetris Effect. It isn't affiliated with or endorsed by The Tetris Company, Enhance, or Resonair. Tetris and Tetris Effect are trademarks of their respective owners.</p>
+<p class="small"><a href="/cascade/play">Play CASCADE</a> · <a href="/">&larr; grahampaasch.com</a></p>
+</main></body></html>
