@@ -18,6 +18,7 @@ const STATIC_APP_DIRS = [
   'labs/ai-fabric',
   'panelclash',
   'sidewalks-of-rage',
+  'viola-gauntlet',
   'wellness',
 ];
 

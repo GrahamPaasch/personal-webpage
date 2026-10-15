@@ -52,6 +52,22 @@ export default function HomePage() {
         <div className="card">
           <div className="prompt-header">
             <h2>
+              <span aria-hidden="true">&#x1F3BB;</span> Viola Gauntlet: 7-Day Practice Rotation
+            </h2>
+            <span className="prompt-header-badge">NEW</span>
+          </div>
+          <p className="muted">
+            Seven daily viola practice routines, one per weekday: scales and arpeggios, shifting,
+            double stops, bowing, vibrato and tone, an etude, and a lyrical day. Each is a
+            scrolling-sheet-music video with a backing track that plays along, plus a printable part.
+          </p>
+          <a className="button primary" href="/viola-gauntlet">
+            Open the gauntlet &rarr;
+          </a>
+        </div>
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
               <span aria-hidden="true">&#x1F399;</span> Cadence: My Voice AI Agent
             </h2>
             <span className="prompt-header-badge">NEW</span>
