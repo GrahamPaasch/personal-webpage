@@ -15,6 +15,7 @@ const STATIC_APP_DIRS = [
   'cascade',
   'cascade/play',
   'create-now',
+  'frankfurt',
   'labs/ai-fabric',
   'panelclash',
   'sidewalks-of-rage',
