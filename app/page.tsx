@@ -101,6 +101,22 @@ export default function HomePage() {
         <div className="card">
           <div className="prompt-header">
             <h2>
+              <span aria-hidden="true">&#x1F500;</span> Free Lab: Why BGP? It&apos;s an App, Not an IGP
+            </h2>
+            <span className="prompt-header-badge">FREE KIT</span>
+          </div>
+          <p className="muted">
+            The same spine-leaf fabric built twice, eBGP vs OSPF, and one link flapped in both: OSPF
+            re-ran SPF 19 times across all five routers, BGP ran it nowhere and the spine off the path
+            sent nothing. Episode 2 of AI Agents Build the Lab, with a free one-command containerlab kit.
+          </p>
+          <a className="button primary" href="/labs/bgp-vs-ospf">
+            Open the lab &rarr;
+          </a>
+        </div>
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
               <span aria-hidden="true">&#x1F3AC;</span> The Video Platform
             </h2>
             <span className="prompt-header-badge">THE BIG THING</span>

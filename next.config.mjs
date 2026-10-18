@@ -17,6 +17,7 @@ const STATIC_APP_DIRS = [
   'create-now',
   'frankfurt',
   'labs/ai-fabric',
+  'labs/bgp-vs-ospf',
   'panelclash',
   'sidewalks-of-rage',
   'viola-gauntlet',
