@@ -117,6 +117,22 @@ export default function HomePage() {
         <div className="card">
           <div className="prompt-header">
             <h2>
+              <span aria-hidden="true">&#x1F3AB;</span> Free Lab: OpenAI Turned BGP Off (SRv6, No Routing Protocol)
+            </h2>
+            <span className="prompt-header-badge">FREE KIT</span>
+          </div>
+          <p className="muted">
+            A spine-leaf fabric where the switches run no routing protocol at all: the host writes the
+            path into one SRv6 uSID address and steers around a dead link in about 50 ms (episode 2&apos;s
+            eBGP took 6-9 s). Episode 3 of AI Agents Build the Lab, with a free one-command containerlab kit.
+          </p>
+          <a className="button primary" href="/labs/srv6-no-routing">
+            Open the lab &rarr;
+          </a>
+        </div>
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
               <span aria-hidden="true">&#x1F3AC;</span> The Video Platform
             </h2>
             <span className="prompt-header-badge">THE BIG THING</span>

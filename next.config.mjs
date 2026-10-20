@@ -18,6 +18,7 @@ const STATIC_APP_DIRS = [
   'frankfurt',
   'labs/ai-fabric',
   'labs/bgp-vs-ospf',
+  'labs/srv6-no-routing',
   'panelclash',
   'sidewalks-of-rage',
   'viola-gauntlet',

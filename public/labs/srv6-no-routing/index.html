@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenAI Turned BGP Off: SRv6 uSID Fabric With No Routing Protocol (Free Lab) | Graham Paasch</title>
+<meta name="description" content="A free lab inspired by OpenAI's MRC: a 2-spine / 3-leaf fabric where no routing protocol runs in the switches. The host writes the path into one SRv6 uSID address and a host agent moves off a dead plane in about 50 ms (episode 2's eBGP: 6-9 s). One containerlab command builds it.">
+<meta property="og:title" content="OpenAI turned BGP off: the switches don't route, the host does (free SRv6 lab)">
+<meta property="og:description" content="No BGP, no OSPF, no neighbors in the fabric. The path is written in the packet, and the host fails over in ~50 ms. Free one-command containerlab kit.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://videos.grahampaasch.com/thumb/ep3-ticket-punch.jpg">
+<link rel="canonical" href="https://www.grahampaasch.com/labs/srv6-no-routing">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c232d; --line: #30363d;
+    --text: #e6edf3; --muted: #9aa7b4; --accent: #58a6ff; --spine: #d2a8ff;
+    --leaf: #7ee787; --host: #ffa657; --bad: #ff7b72; --good: #3fb950; --warn: #e3b341;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 21px/1.6 -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 0 32px 120px; }
+  header.hero { padding: 90px 0 50px; border-bottom: 1px solid var(--line); margin-bottom: 30px; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 17px; }
+  h1 { font-size: 58px; line-height: 1.12; margin: 14px 0 22px; letter-spacing: -.01em; }
+  h1 .hl { color: var(--leaf); }
+  .hook { font-size: 27px; color: var(--muted); max-width: 900px; margin: 0; }
+  h2 { font-size: 40px; margin: 80px 0 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+  h2 .num { color: var(--accent); margin-right: 14px; }
+  h3 { font-size: 28px; margin: 40px 0 10px; color: var(--text); }
+  p, li { max-width: 960px; }
+  a { color: var(--accent); }
+  strong { color: #fff; }
+  code { font-family: "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; font-size: .88em;
+    background: var(--panel2); padding: 2px 7px; border-radius: 5px; color: #ffd8a8; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px;
+    white-space: pre-wrap; overflow-wrap: anywhere; font: 18px/1.5 "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; margin: 14px 0 22px; }
+  pre code { background: none; padding: 0; color: var(--text); font-size: inherit; }
+  .term { position: relative; }
+  .term .tag { position: absolute; top: -12px; right: 16px; font: 700 13px/1 Inter, sans-serif; letter-spacing: .08em;
+    text-transform: uppercase; padding: 6px 10px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+  .term .tag.real { color: var(--good); border-color: var(--good); }
+  .term .tag.sample { color: var(--warn); border-color: var(--warn); }
+  .prompt { color: var(--leaf); }
+  .c { color: #8b949e; font-style: italic; }
+  .k { color: var(--spine); }
+  .v { color: var(--host); }
+  .ok { color: var(--good); font-weight: 700; }
+  .bad { color: var(--bad); font-weight: 700; }
+  .callout { border-left: 5px solid var(--accent); background: var(--panel); padding: 18px 24px; border-radius: 0 10px 10px 0; margin: 22px 0; }
+  .callout.wow { border-color: var(--leaf); }
+  .callout.warn { border-color: var(--warn); }
+  .callout.bad { border-color: var(--bad); }
+  .callout p { margin: 6px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; }
+  .card h4 { margin: 0 0 8px; font-size: 23px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0 26px; font-size: 19px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 11px 14px; text-align: left; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 15px; letter-spacing: .06em; }
+  tr:hover td { background: var(--panel); }
+  td.spine { color: var(--spine); font-weight: 700; } td.leaf { color: var(--leaf); font-weight: 700; } td.host { color: var(--host); font-weight: 700; }
+  .anno { display: grid; grid-template-columns: minmax(380px, 1fr) 1.15fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 16px 0 28px; }
+  .anno > div { padding: 9px 18px; border-bottom: 1px solid var(--line); }
+  .anno .cfg { background: var(--panel); font: 18px/1.45 "JetBrains Mono", Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+  .anno .why { background: var(--bg); color: var(--muted); font-size: 18px; line-height: 1.45; }
+  .anno .why b { color: var(--text); }
+  .anno .cfg.hot { color: var(--leaf); }
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding: 4px 0 18px 64px; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel2); border: 2px solid var(--accent); color: var(--accent); font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin: 26px 0; }
+  .score { border-radius: 14px; padding: 26px; text-align: center; border: 2px solid; }
+  .score.before { border-color: var(--bad); background: rgba(255,123,114,.07); }
+  .score.after { border-color: var(--good); background: rgba(63,185,80,.07); }
+  .score .big { font-size: 84px; font-weight: 800; line-height: 1; }
+  .score.before .big { color: var(--bad); } .score.after .big { color: var(--good); }
+  .score .lbl { color: var(--muted); font-size: 19px; margin-top: 8px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 22px; margin: 14px 0 30px; }
+  summary { cursor: pointer; font-weight: 700; color: var(--accent); font-size: 20px; }
+  details[open] summary { margin-bottom: 10px; }
+  .objectives li { margin: 6px 0; }
+  .lablink { display: inline-block; margin-top: 10px; font-size: 28px; font-weight: 800; padding: 16px 28px; border-radius: 12px;
+    background: var(--panel2); border: 2px solid var(--accent); text-decoration: none; }
+  .toc { columns: 2; font-size: 19px; color: var(--muted); padding-left: 22px; }
+  .toc a { color: var(--muted); text-decoration: none; } .toc a:hover { color: var(--accent); }
+  svg text { font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin: 18px 0 26px; }
+  footer { color: var(--muted); font-size: 16px; margin-top: 80px; border-top: 1px solid var(--line); padding-top: 20px; }
+  @media (max-width: 860px) { .grid2, .scoreboard, .anno { grid-template-columns: 1fr; } h1 { font-size: 42px; } .toc { columns: 1; } }
+</style>
+<style>
+  .punch { display: grid; grid-template-columns: 170px 1fr; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0 30px; }
+  .punch > div { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .punch .where { background: var(--panel2); font-weight: 800; color: var(--muted); font-size: 19px; }
+  .punch .addr { background: var(--panel); font: 700 30px/1.3 "JetBrains Mono", Menlo, Consolas, monospace; letter-spacing: .01em; }
+  .punch .addr small { display: block; font: 17px/1.45 -apple-system, "Segoe UI", Inter, sans-serif; color: var(--muted); margin-top: 6px; letter-spacing: 0; }
+  .blk { color: #8b949e; } .sp { color: var(--spine); } .lf { color: var(--leaf); } .fn { color: var(--host); }
+  .gone { color: #4a525c; text-decoration: line-through; }
+  .ph { display: inline-block; background: rgba(227,179,65,.12); border: 2px dashed var(--warn); color: var(--warn);
+    border-radius: 8px; padding: 0 10px; font-weight: 800; }
+  .score .big .ph { font-size: 44px; padding: 6px 14px; }
+  .scoreboard.three { grid-template-columns: 1fr 1fr 1fr; }
+  .score.mid { border-color: var(--warn); background: rgba(227,179,65,.06); } .score.mid .big { color: var(--warn); }
+  .honest { border: 2px solid var(--bad); border-radius: 14px; padding: 8px 28px 18px; background: rgba(255,123,114,.05); margin: 26px 0; }
+  .honest h3 { color: var(--bad); margin-top: 18px; }
+  .honest table td:first-child { color: #fff; font-weight: 700; }
+  .cold { font-size: 64px; font-weight: 800; line-height: 1.1; margin: 10px 0 24px; }
+  figure.anim { margin: 22px 0 30px; } figure.anim video { width: 100%; border-radius: 14px; background: #000; display: block; }
+  .scoreboard.three .score .big { font-size: 52px; white-space: nowrap; }
+  figure.anim figcaption { color: var(--muted); font-size: 17px; margin-top: 8px; }
+  .cold .no { color: var(--bad); } .cold .yes { color: var(--leaf); }
+  ol.sources li { margin: 10px 0; }
+  @media (max-width: 860px) { .scoreboard.three, .punch { grid-template-columns: 1fr; } .cold { font-size: 44px; } .punch .addr { font-size: 22px; } }
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+  <div class="kicker">AI Agents Build the Lab &middot; Episode 3 &middot; Free lab kit &middot; containerlab &middot; SRv6 uSID</div>
+  <h1>OpenAI turned <span class="hl">BGP off</span></h1>
+  <div class="cold">The switches <span class="no">don't route</span>.<br>The <span class="yes">host</span> does.</div>
+  <p class="hook">In Episode 2, eBGP beat OSPF inside an AI fabric because each flap touched less of the network.
+  OpenAI's MRC goes all the way: <strong>no routing protocol in the switches at all</strong>. The host writes the whole
+  path into one IPv6 address. When a path dies, the host stops using it and no switch even notices.</p>
+  <p class="hook">Today we build that with the same 5 switches and the same 9 cables as Episodes 1 and 2, and then we break it.</p>
+  <p style="margin:22px 0 0"><a class="lablink" href="/labs/srv6-no-routing/srv6-no-routing-lab.zip" download>Download the free lab kit (.zip)</a></p>
+  <p style="margin:10px 0 0;font-size:18px;color:var(--muted)">The whole fabric and the host path agent in one containerlab command, plus the failure test, the packet x-ray and exercise answers. MIT licensed. <a href="#demo">How to run it &darr;</a> &middot; <a href="/labs/bgp-vs-ospf">Episode 2's lab</a> &middot; <a href="https://www.youtube.com/playlist?list=PLZPz67cofgXQ">The series on YouTube</a></p>
+<div id="video" class="video-slot">
+<!-- YOUTUBE_EMBED -->
+</div>
+</header>
+
+<h3>On this page</h3>
+<ol class="toc">
+  <li><a href="#idea">The idea in plain English</a></li>
+  <li><a href="#punch">The ticket punch: one address, three stops</a></li>
+  <li><a href="#topo">The topology and SID plan</a></li>
+  <li><a href="#cfg">The entire switch config</a></li>
+  <li><a href="#host">What the host does</a></li>
+  <li><a href="#demo">Run it yourself</a></li>
+  <li><a href="#measure">The numbers</a></li>
+  <li><a href="#ex">Exercises (with answers)</a></li>
+  <li><a href="#honest">What we can't reproduce</a></li>
+  <li><a href="#src">Sources</a></li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="idea"><span class="num">1</span>The idea in plain English</h2>
+
+<div class="grid2">
+  <div class="card"><h4>MRC (Multipath Reliable Connection)</h4>
+    <p>A transport from OpenAI with AMD, Broadcom, Intel, Microsoft and NVIDIA, published through OCP in May 2026.
+    The GPU's network card <strong>sprays one transfer across hundreds of paths</strong>, watches each path, and
+    stops using a bad one within tens of microseconds. It's used in production on 50K to 75K GPU clusters.</p></div>
+  <div class="card"><h4>SRv6 uSID</h4>
+    <p>Segment Routing over IPv6, in its compressed "micro-SID" form. Every switch owns a short <strong>16-bit ID</strong>.
+    A path is just those IDs written in order <strong>inside the destination address</strong>. Each switch looks at
+    the front, removes its own ID, and forwards on the next one. All it needs is a static table.</p></div>
+</div>
+
+<div class="callout wow">
+  <p><strong>Put together:</strong> the switches hold a fixed table that never changes. The host chooses the path,
+  so it's the host that has to notice failures. With no protocol there are no neighbors, no hellos, no hold timers,
+  and nothing to converge.</p>
+</div>
+
+<p>Episode 2's argument was "touch less on every failure." This is the end of that road: a failure touches
+<strong>nothing</strong> in the fabric. Only the hosts that were using the dead path change anything.</p>
+
+<!-- ============================================================ -->
+<h2 id="punch"><span class="num">2</span>The ticket punch: one address, three stops</h2>
+
+<p>Think of the address as a <strong>train ticket with a row of stops printed on it</strong>. At each stop the conductor
+punches off <em>their own</em> stop and sends you on to the next one printed. Nobody on the train has to know the
+whole route. They only read the front of the ticket.</p>
+
+<p>Our addressing: the block <code>fcbb:bb00</code> (32 bits) followed by 16-bit IDs. Spine1 = <code>100</code>,
+spine2 = <code>200</code>, leaf3 = <code>3</code>, and <code>fe00</code> = "unwrap and hand it to the host."
+This is the real address h1 uses to reach h3 through spine1:</p>
+
+<div class="punch">
+  <div class="where">h1 writes</div>
+  <div class="addr"><span class="blk">fcbb:bb00:</span><span class="sp">100</span>:<span class="lf">3</span>:<span class="fn">fe00</span>::
+    <small>"Go to spine1, then leaf3, then unwrap." h1 wraps its IPv4 packet (172.16.1.10 &rarr; 172.16.3.10) in IPv6 with this destination.</small></div>
+  <div class="where">leaf1</div>
+  <div class="addr"><span class="blk">fcbb:bb00:</span><span class="sp">100</span>:<span class="lf">3</span>:<span class="fn">fe00</span>::
+    <small>Not leaf1's ticket. It's a plain lookup: static route <code>fcbb:bb00:100::/48</code> &rarr; the spine1 link. No change.</small></div>
+  <div class="where">spine1 punches</div>
+  <div class="addr"><span class="blk">fcbb:bb00:</span><span class="gone">100:</span><span class="lf">3</span>:<span class="fn">fe00</span>::
+    <small>Matches its own uN SID <code>fcbb:bb00:100::/48</code>. It shifts its 16 bits out and the rest slides left.</small></div>
+  <div class="where">on the wire</div>
+  <div class="addr"><span class="blk">fcbb:bb00:</span><span class="lf">3</span>:<span class="fn">fe00</span>::
+    <small>The new destination. Static route <code>fcbb:bb00:3::/48</code> &rarr; the leaf3 link.</small></div>
+  <div class="where">leaf3 punches</div>
+  <div class="addr"><span class="blk">fcbb:bb00:</span><span class="gone">3:</span><span class="fn">fe00</span>::
+    <small>Matches <code>fcbb:bb00:3:fe00::/64</code> = End.DX4. It strips the IPv6 wrapper and hands the original IPv4 packet straight out eth2 to h3.</small></div>
+</div>
+
+<div class="callout">
+  <p><strong>Change one number, change the path.</strong> <code>fcbb:bb00:<span class="sp">200</span>:3:fe00::</code>
+  is the same trip through spine2. The host picks which one, packet by packet if it likes. The switches never have to agree on anything.</p>
+  <p>One address holds up to 6 of these 16-bit stops (F3216 format), so a two-tier fabric path fits easily with no extra header bytes.</p>
+</div>
+
+<figure class="anim">
+  <video controls preload="metadata" playsinline poster="https://videos.grahampaasch.com/thumb/ep3-ticket-punch.jpg"><source src="https://videos.grahampaasch.com/v/ep3-ticket-punch.mp4" type="video/mp4">Your browser can't play this video. <a href="https://videos.grahampaasch.com/ep3-ticket-punch">Watch "The Ticket Punch" here.</a></video>
+  <figcaption><strong>Animation: "The Ticket Punch."</strong> Made by the agent team during the episode: one address, each switch punching off its own stop. <a href="https://videos.grahampaasch.com/ep3-ticket-punch">Open it on its own page</a></figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="topo"><span class="num">3</span>The topology and SID plan</h2>
+
+<p>It's the same Clos as Episodes 1 and 2: 2 spines, 3 leaves, 3 hosts, 9 cables. The difference is what's running: <strong>zebra + staticd only</strong>.
+bgpd, ospfd, isisd and bfdd are all switched off.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 1060 470" width="100%" role="img" aria-label="2 spine 3 leaf topology with SRv6 uSIDs">
+  <defs><style>.lk{stroke:#58606b;stroke-width:3}.lbl{fill:#9aa7b4;font-size:15px}.nm{font-size:22px;font-weight:800}.sid{font-size:16px;font-family:Menlo,Consolas,monospace}</style></defs>
+  <!-- links -->
+  <line class="lk" x1="300" y1="95" x2="160" y2="250"/><line class="lk" x1="300" y1="95" x2="530" y2="250"/><line class="lk" x1="300" y1="95" x2="900" y2="250"/>
+  <line x1="760" y1="95" x2="160" y2="250" stroke="#ff7b72" stroke-width="4" stroke-dasharray="10 7"/>
+  <line class="lk" x1="760" y1="95" x2="530" y2="250"/><line class="lk" x1="760" y1="95" x2="900" y2="250"/>
+  <line class="lk" x1="160" y1="290" x2="160" y2="385"/><line class="lk" x1="530" y1="290" x2="530" y2="385"/><line class="lk" x1="900" y1="290" x2="900" y2="385"/>
+  <text x="330" y="190" fill="#ff7b72" font-size="17" font-weight="800">link 2 (we fail this)</text>
+  <!-- spines -->
+  <rect x="200" y="40" width="200" height="60" rx="10" fill="#1c232d" stroke="#d2a8ff" stroke-width="2"/>
+  <text x="300" y="68" text-anchor="middle" class="nm" fill="#d2a8ff">spine1</text><text x="300" y="90" text-anchor="middle" class="sid" fill="#d2a8ff">uN fcbb:bb00:100::/48</text>
+  <rect x="660" y="40" width="200" height="60" rx="10" fill="#1c232d" stroke="#d2a8ff" stroke-width="2"/>
+  <text x="760" y="68" text-anchor="middle" class="nm" fill="#d2a8ff">spine2</text><text x="760" y="90" text-anchor="middle" class="sid" fill="#d2a8ff">uN fcbb:bb00:200::/48</text>
+  <!-- leaves -->
+  <g fill="#1c232d" stroke="#7ee787" stroke-width="2">
+    <rect x="60" y="235" width="200" height="60" rx="10"/><rect x="430" y="235" width="200" height="60" rx="10"/><rect x="800" y="235" width="200" height="60" rx="10"/></g>
+  <text x="160" y="262" text-anchor="middle" class="nm" fill="#7ee787">leaf1</text><text x="160" y="284" text-anchor="middle" class="sid" fill="#7ee787">fcbb:bb00:1::/48</text>
+  <text x="530" y="262" text-anchor="middle" class="nm" fill="#7ee787">leaf2</text><text x="530" y="284" text-anchor="middle" class="sid" fill="#7ee787">fcbb:bb00:2::/48</text>
+  <text x="900" y="262" text-anchor="middle" class="nm" fill="#7ee787">leaf3</text><text x="900" y="284" text-anchor="middle" class="sid" fill="#7ee787">fcbb:bb00:3::/48</text>
+  <!-- hosts -->
+  <g fill="#1c232d" stroke="#ffa657" stroke-width="2">
+    <rect x="70" y="385" width="180" height="62" rx="10"/><rect x="440" y="385" width="180" height="62" rx="10"/><rect x="810" y="385" width="180" height="62" rx="10"/></g>
+  <text x="160" y="412" text-anchor="middle" class="nm" fill="#ffa657">h1</text><text x="160" y="434" text-anchor="middle" class="sid" fill="#ffa657">172.16.1.10</text>
+  <text x="530" y="412" text-anchor="middle" class="nm" fill="#ffa657">h2</text><text x="530" y="434" text-anchor="middle" class="sid" fill="#ffa657">172.16.2.10</text>
+  <text x="900" y="412" text-anchor="middle" class="nm" fill="#ffa657">h3</text><text x="900" y="434" text-anchor="middle" class="sid" fill="#ffa657">172.16.3.10</text>
+  <text x="530" y="340" text-anchor="middle" class="lbl">leaf eth0 &rarr; spine1 &middot; leaf eth1 &rarr; spine2 &middot; leaf eth2 &rarr; host (decap fe00 = End.DX4)</text>
+</svg>
+</div>
+
+<table>
+  <tr><th>What</th><th>Value</th></tr>
+  <tr><td class="spine">Spine uN SIDs</td><td><code>fcbb:bb00:100::/48</code> (spine1), <code>fcbb:bb00:200::/48</code> (spine2)</td></tr>
+  <tr><td class="leaf">Leaf uN SIDs</td><td><code>fcbb:bb00:N::/48</code> for leafN</td></tr>
+  <tr><td class="leaf">Decap (uDX4)</td><td><code>fcbb:bb00:N:fe00::/64</code> &rarr; End.DX4 to 172.16.N.10 on eth2</td></tr>
+  <tr><td>Fabric links</td><td><code>fd00:N:M00::/64</code>, leaf <code>::1</code>, spine <code>::2</code> (leaf1&ndash;spine2 = <code>fd00:1:200::/64</code>)</td></tr>
+  <tr><td class="host">Hosts</td><td>IPv4 172.16.N.10/24 (gw .1) as in ep1/ep2, plus IPv6 <code>fd00:a:N::10</code></td></tr>
+  <tr><td><strong>A path</strong></td><td><code>fcbb:bb00:&lt;spine&gt;:&lt;leaf&gt;:fe00::</code></td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="cfg"><span class="num">4</span>The entire switch config</h2>
+
+<p>This is all of leaf1 (<code>configs/leaf1.conf</code> plus <code>configs/srv6.sh</code> in the kit). Every switch has the same shape. The spines just carry three <code>ipv6 route</code> lines, one to each leaf /48.</p>
+
+<div class="anno">
+  <div class="cfg">interface eth0
+ ipv6 address fd00:1:100::1/64</div><div class="why"><b>Uplink to spine1.</b> Just an address.</div>
+  <div class="cfg">interface eth1
+ ipv6 address fd00:1:200::1/64</div><div class="why"><b>Uplink to spine2</b>, which is link 2.</div>
+  <div class="cfg">interface eth2
+ ip address 172.16.1.1/24
+ ipv6 address fd00:a:1::1/64</div><div class="why"><b>Host port.</b> h1 keeps its old IPv4 address.</div>
+  <div class="cfg hot">ipv6 route fcbb:bb00:100::/48 fd00:1:100::2
+ipv6 route fcbb:bb00:200::/48 fd00:1:200::2</div><div class="why"><b>Two static routes.</b> "Anything for spine1's ID goes up eth0, spine2's up eth1." These never change.</div>
+  <div class="cfg hot"># kernel, via srv6.sh
+ip -6 route replace fcbb:bb00:1::/48 \
+  encap seg6local action End \
+  flavors next-csid lblen 32 nflen 16 dev sr0</div><div class="why"><b>My own ticket punch (uN).</b> Block length 32, node ID 16: shift my 16 bits out, then forward on what's left.</div>
+  <div class="cfg hot">ip -6 route replace fcbb:bb00:1:fe00::/64 \
+  encap seg6local action End.DX4 \
+  nh4 172.16.1.10 dev eth2</div><div class="why"><b>Last stop.</b> Strip the IPv6 wrapper and hand the IPv4 packet to h1.</div>
+</div>
+
+<div class="callout wow"><p><strong>That's the whole control plane.</strong> No <code>router bgp</code>, no <code>router ospf</code>,
+no neighbors, no hellos, nothing listening on TCP 179.</p></div>
+
+<!-- ============================================================ -->
+<h2 id="host"><span class="num">5</span>What the host does</h2>
+
+<p>Each host's main route to a remote leaf lists <strong>both paths</strong>, and Linux sprays new flows across them:</p>
+<pre class="term"><span class="tag real">h1, set up by configs/path-agent.sh</span><code><span class="prompt">h1#</span> ip route replace 172.16.3.0/24 \
+  nexthop encap seg6 mode encap segs <span class="v">fcbb:bb00:100:3:fe00::</span> dev eth0 \
+  nexthop encap seg6 mode encap segs <span class="v">fcbb:bb00:200:3:fe00::</span> dev eth0</code></pre>
+
+<p>Then a small bash <strong>path agent</strong> (<code>configs/path-agent.sh</code> in the kit, about 45 lines) does MRC's job, but slowly:</p>
+<ul>
+  <li>For each remote leaf and each plane, it pings 100 times a second <strong>down that exact path</strong> (separate routing tables pin each probe to one spine, and the reply comes back on the same plane).</li>
+  <li>After <strong>3 misses in a row (~30 ms)</strong> it marks that plane down for that leaf and rewrites the route to use only the other spine. It logs the time to the millisecond.</li>
+  <li>After 50 good replies in a row (0.5 s) it puts both paths back.</li>
+  <li>It runs on <strong>every</strong> host, because the return path is the far host's choice.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="demo"><span class="num">6</span>Run it yourself: the episode in five commands</h2>
+
+<p><a class="lablink" href="/labs/srv6-no-routing/srv6-no-routing-lab.zip" download>Download the lab kit (.zip)</a></p>
+<p>Needs Linux with Docker, <a href="https://containerlab.dev/install/">containerlab</a> and python3, and a kernel with SRv6 uSID support (6.3 or newer; stock Ubuntu 24.04 works, WSL2 may not). All 8 containers use under 300 MB of RAM. Images: <code>quay.io/frrouting/frr:10.5.5</code> and <code>nicolaka/netshoot</code>.</p>
+<pre><code><span class="prompt">$</span> unzip srv6-no-routing-lab.zip &amp;&amp; cd srv6-no-routing-lab
+<span class="prompt">$</span> sudo ./lab.sh up      <span class="c"># 5 switches + 3 hosts, wait until they forward, run every check (~15 s)</span>
+<span class="prompt">$</span> sudo ./lab.sh check   <span class="c"># no routing daemons / nothing on TCP 179, SID tables, both planes, spray</span>
+<span class="prompt">$</span> sudo ./lab.sh fail    <span class="c"># break link 2 for 10 s: host agent OFF, then ON; prints lost pings + ms</span>
+<span class="prompt">$</span> sudo ./lab.sh xray    <span class="c"># capture h1 -&gt; h3 on both planes: the path is written in the packet</span>
+<span class="prompt">$</span> sudo ./lab.sh down    <span class="c"># destroy the lab</span></code></pre>
+<p>Tested end to end on Ubuntu 24.04 with containerlab 0.73, from the shipped zip: up in 10 s with every check passing, agent ON 5 lost / 69 ms, agent OFF 997 lost (the whole 10 s break), x-ray showing spine1 punch its 100. The README has every detail.</p>
+
+<ol class="steps">
+<li><strong>No routing protocol, and traffic still flows.</strong> <code>sudo ./lab.sh up</code> builds the lab and runs every check. From the final test of the shipped kit:
+<pre><code>[1] No routing protocol in the fabric
+  PASS spine1  running: mgmtd staticd watchfrr zebra | routing daemons: none | TCP 179 listeners: 0 | router/neighbor config lines: 0
+  ... (same for spine2, leaf1, leaf2, leaf3)
+[3] h1 -&gt; h3 on each plane (pinned with ping -m 1 / -m 2), counted on the spines' links to leaf3
+  PASS plane 1: 10/10 replies (avg 0.088 ms), path fcbb:bb00:100:3:fe00::  spine1 eth2 +10, spine2 eth2 +0
+  PASS plane 2: 10/10 replies (avg 0.086 ms), path fcbb:bb00:200:3:fe00::  spine1 eth2 +0, spine2 eth2 +10
+  PASS full mesh: 12/12 (6 host pairs x 2 planes)</code></pre>
+Look for yourself: <code>docker exec clab-srv6-spine1 ss -tln</code> (nothing on 179), <code>docker exec clab-srv6-spine1 vtysh -c 'show running-config'</code> (interfaces and <code>ipv6 route</code>, that's all), <code>docker exec clab-srv6-h1 ip route show 172.16.3.0/24</code> (two nexthops; the host wrote both).</li>
+
+<li><strong>Spray with zero protocol.</strong> Check [4] sends 1000 new UDP flows from h1 to h3 and reads leaf1's two uplink counters:
+<pre><code>[4] Spray: 1000 new UDP flows h1 -&gt; h3, unpinned (main table = ECMP over both planes, per-flow hash)
+  PASS leaf1 sent 502 via spine1 (eth0) / 498 via spine2 (eth1); h3 received 1000 of 1000</code></pre>
+(510 / 490 in QUINN's live test on camera night.)</li>
+
+<li><strong>Break link 2, agent OFF, then agent ON.</strong> <code>sudo ./lab.sh fail</code> runs a 100 pps ping pinned to spine2, breaks leaf1 eth1 &harr; spine2 eth0 for 10 s (100% loss, carrier stays up, so no switch notices), and repeats with the host agents running:
+<pre><code>=== link 2 failure, host agent OFF ===
+  RESULT agent off: 1600 sent, 603 replies, 997 lost; biggest reply gap 11001 ms
+=== link 2 failure, host agent ON ===
+  agent logs:
+    h1 13:50:36.789 leaf3 plane2 DOWN after 3 misses -&gt; moved to other plane
+    h2 13:50:36.792 leaf1 plane2 DOWN after 3 misses -&gt; moved to other plane
+    h3 13:50:36.795 leaf1 plane2 DOWN after 3 misses -&gt; moved to other plane
+    h1 13:50:48.207 leaf3 plane2 UP -&gt; spraying again
+  RESULT agent on: 1600 sent, 1595 replies, 5 lost; biggest reply gap 69 ms (icmp_seq 271 -&gt; 277)
+Compare: episode 2's eBGP twin lost 6-9 s on this same link (hold timer 9 s).</code></pre>
+Agent OFF, the pinned flow is lost for the whole break: nothing in a static fabric heals. Agent ON, every host whose path crossed the dead link moves within a few milliseconds of the others, and <strong>no switch changes anything</strong>.</li>
+
+<li><strong>X-ray: the path is in the packet.</strong> <code>sudo ./lab.sh xray</code> captures the same ping leaving leaf1 and leaving the spine:
+<pre><code>--- h1 -&gt; spine1 (leaving leaf1)
+    dst fcbb:bb00:100:3:fe00::   | SRH: segleft=0 segment[0]=fcbb:bb00:100:3:fe00:: | inside: 172.16.1.10 &gt; 172.16.3.10: ICMP echo request
+--- spine1 -&gt; leaf3 (after spine1 punched 100)
+    dst fcbb:bb00:3:fe00::       | SRH: segleft=0 segment[0]=fcbb:bb00:100:3:fe00:: | inside: 172.16.1.10 &gt; 172.16.3.10: ICMP echo request</code></pre>
+Segment[0] still shows what h1 wrote; the destination shows what's left after spine1 shifted its own 16 bits off. Want Wireshark? <code>docker exec clab-srv6-leaf1 tcpdump -i eth0 -w /tmp/x.pcap</code>, <code>docker cp</code> it out, and filter <code>ipv6.routing.type == 4</code>.
+<figure class="anim">
+  <video controls preload="metadata" playsinline poster="https://videos.grahampaasch.com/thumb/ep3-path-in-packet.jpg"><source src="https://videos.grahampaasch.com/v/ep3-path-in-packet.mp4" type="video/mp4">Your browser can't play this video. <a href="https://videos.grahampaasch.com/ep3-path-in-packet">Watch "The Path Is in the Packet" here.</a></video>
+  <figcaption><strong>Animation: "The Path Is in the Packet."</strong> Built from the real packets captured on camera. Those pings hashed via spine2, so you see 200 punched off. <a href="https://videos.grahampaasch.com/ep3-path-in-packet">Open it on its own page</a></figcaption>
+</figure></li>
+
+<li><strong>Clean up.</strong> <code>sudo ./lab.sh down</code> destroys the lab. Also: <code>sudo ./lab.sh agent start|stop|status</code> and <code>sudo ./lab.sh link suspend|resume</code> to drive it by hand.</li>
+</ol>
+
+<!-- ============================================================ -->
+<!-- ============================================================ -->
+<h2 id="measure"><span class="num">7</span>The numbers: same link, same failure</h2>
+
+<p>Link 2 (leaf1 eth1 &harr; spine2 eth0) fails the same way in every episode: on camera with a GNS3 link Suspend, in the kit with 100% netem loss. Either way the carrier stays up, so no switch notices. Ping runs at 100 pps, so <strong>each lost packet is about 10 ms</strong>.</p>
+
+<div class="scoreboard three">
+  <div class="score before"><div class="big">until fixed</div><div class="lbl">Ep3, host agent OFF<br>the flow pinned to the dead plane stays lost until the link comes back</div></div>
+  <div class="score mid"><div class="big">6&ndash;9 s</div><div class="lbl">Ep2 eBGP, same link<br>(9 s hold timer)</div></div>
+  <div class="score after"><div class="big">~50 ms</div><div class="lbl">Ep3, host agent ON, on camera<br>5 lost at 100 pps (icmp_seq 4437 &rarr; 4443)</div></div>
+</div>
+
+<table>
+  <tr><th>Run</th><th>Lost</th><th>Outage</th></tr>
+  <tr><td>On camera, agent ON</td><td class="num ok">5</td><td>icmp_seq 4437 &rarr; 4443 at 100 pps = <strong>~50 ms</strong>. Log: "plane 2 down after 3 misses."</td></tr>
+  <tr><td>QUINN's measured runs, agent ON (GNS3, same night)</td><td class="num ok">5&ndash;6</td><td>66&ndash;77 ms biggest reply gap; h1 and h3 logged DOWN within ~4 ms of each other</td></tr>
+  <tr><td>This kit, final test from the zip (containerlab)</td><td class="num ok">5</td><td>69 ms biggest reply gap (icmp_seq 271 &rarr; 277)</td></tr>
+  <tr><td>On camera, agent OFF</td><td class="num bad">4,722 of 14,691</td><td>9,969 received, 32% loss over 157 s: the pinned flow was lost until the link was unsuspended</td></tr>
+  <tr><td>QUINN, agent OFF, 10 s suspend</td><td class="num bad">918 in a row</td><td>10.11 s = the whole outage; back only on unsuspend</td></tr>
+  <tr><td>This kit, agent OFF, 10 s break</td><td class="num bad">997</td><td>11.0 s reply gap = the whole break</td></tr>
+  <tr><td>Ep2, eBGP, same link</td><td class="num">60&ndash;86 at 10 pps</td><td>6&ndash;9 s; every router got the withdraw</td></tr>
+  <tr><td>eBGP + BFD (on paper)</td><td class="num">&mdash;</td><td>~0.9 s (300 ms &times; 3)</td></tr>
+  <tr><td>Real MRC (in the NIC)</td><td class="num">&mdash;</td><td>microseconds</td></tr>
+</table>
+
+<p class="c">Why two ways to count: "lost &times; 10 ms" gives ~50 ms; the biggest gap between reply timestamps also includes the normal 10 ms spacing on each side, so it reads 66&ndash;77 ms. Both say the same thing: about 100&times; faster than episode 2, and no switch did anything.</p>
+
+<div class="quote">"9 seconds in episode 2. About 50 milliseconds now, and no switch did anything."</div>
+
+<p class="c">The tuning knob for the curious: <code>INT=0.005 MISS=3</code> in the agent halves detection time at the cost of twice the probe traffic.</p>
+
+<!-- ============================================================ -->
+<!-- ============================================================ -->
+<h2 id="ex"><span class="num">8</span>Exercises (with answers)</h2>
+
+<h3>1. Add a third stop</h3>
+<p>Make h1 &rarr; h3 traffic go through <em>leaf1's own</em> uN on purpose, then spine1, then leaf3. What's the address, and what does leaf1 do with it?</p>
+<details><summary>Answer</summary>
+<p><code>fcbb:bb00:<span class="lf">1</span>:<span class="sp">100</span>:<span class="lf">3</span>:<span class="fn">fe00</span>::</code>.
+leaf1 matches its own uN <code>fcbb:bb00:1::/48</code> and punches <code>1</code> off, leaving <code>fcbb:bb00:100:3:fe00::</code>. It then forwards that to spine1 on the static route.
+That's three stops in one address and still one segment. F3216 fits 6 stops per address. (Tested: 0% loss.)</p></details>
+
+<h3>2. Who notices a dead spine1&ndash;leaf3 link?</h3>
+<p>With all agents running, suspend spine1 eth2. Which hosts move traffic, and which do nothing?</p>
+<details><summary>Answer</summary>
+<p><strong>h1 and h2</strong> move, because their leaf3-via-plane-1 probes fail. <strong>h3</strong> moves too, because its replies to h1 and h2 on plane 1 go back through spine1 &rarr; leaf3, so its plane-1 probes fail.
+<strong>h1 &harr; h2 traffic via spine1 is untouched</strong>, and nothing in the fabric changes. In ep2, a BGP withdraw would have reached every router.</p></details>
+
+<h3>3. Drop the header</h3>
+<p>Change one of h1's table-1 routes from <code>mode encap</code> to <code>mode encap.red</code> and capture again. What disappears, and why does it still work?</p>
+<details><summary>Answer</summary>
+<p>The <strong>Segment Routing Header disappears</strong>, leaving just IPv6 with IPv4 inside. It still works because with uSID the whole path already lives in the destination address. You only need the SRH when the path is too long for one 128-bit address.
+That's why MRC uses uSID: <strong>zero extra header bytes</strong>. (Tested.)</p></details>
+
+<p>Each answer has a script in the kit that reproduces it and then undoes it: <code>sudo ./solutions/exercise1/run.sh</code>, <code>exercise2/run.sh</code>, <code>exercise3/run.sh</code> (each folder also has <code>answer.txt</code>).</p>
+
+<!-- ============================================================ -->
+<h2 id="honest"><span class="num">9</span>What we can't reproduce</h2>
+
+<div class="honest">
+  <h3>Same idea, 1000&times; slower clock</h3>
+  <table>
+    <tr><th>Real MRC</th><th>Our lab</th></tr>
+    <tr><td>RDMA NICs (RoCEv2 extended), path logic in the NIC hardware</td><td><strong>No RDMA NICs.</strong> Linux kernel seg6 encap plus a bash loop on each host.</td></tr>
+    <tr><td><strong>Per-packet</strong> spray across hundreds of paths</td><td><strong>Per-flow</strong> ECMP hashing across 2 paths. One flow stays on one spine.</td></tr>
+    <tr><td><strong>Packet trimming</strong> on congestion (the switch cuts the payload and forwards the header) instead of PFC</td><td><strong>No trimming</strong>, no congestion signal at all.</td></tr>
+    <tr><td>Per-path congestion control</td><td>None. It only reacts to "path dead."</td></tr>
+    <tr><td>Hardware in the NIC reacts in <strong>microseconds</strong></td><td>A <strong>bash agent</strong> detects in ~30 ms (100 Hz pings, 3 misses); the outage end to end is ~50&ndash;70 ms</td></tr>
+    <tr><td>50K&ndash;75K GPUs, multi-plane fabrics</td><td>3 hosts, 2 planes, in containers (GNS3 on camera, containerlab in the kit)</td></tr>
+  </table>
+  <p><strong>What is real:</strong> the switches really run no routing protocol, the path really is written into the address by the host, the uSID shift really happens in the Linux kernel, and the outage numbers are measured, not simulated.</p>
+  <p><strong>Static routes ARE routing.</strong> Graham's point on camera: "no routing protocol" doesn't mean no routing. Every switch still has a forwarding table (a few static /48s and its own SIDs); it just never changes. The decisions (which path, when to give up on one) moved <strong>out of the switches and into the host</strong>. The path agent is the routing now; it just runs at the edge.</p>
+  <p><strong>The trade-off MRC accepts:</strong> a static fabric can't heal itself (agent OFF = loss until someone repairs the link). Every host has to carry that job.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="src"><span class="num">10</span>Sources</h2>
+<ol class="sources">
+  <li>OpenAI, "Supercomputer networking to accelerate large scale AI training" (MRC, May 2026): <a href="https://openai.com/index/mrc-supercomputer-networking/">https://openai.com/index/mrc-supercomputer-networking/</a>. Don't miss <strong>Mark Handley's animation</strong> on that page: packets sprayed across the planes and steered around a failure.</li>
+  <li>"Resilient AI Supercomputer Networking using MRC and SRv6," arXiv 2605.04333: <a href="https://arxiv.org/html/2605.04333v1">https://arxiv.org/html/2605.04333v1</a></li>
+  <li>MRC transport paper, arXiv 2606.18170 (June 2026): <a href="https://arxiv.org/pdf/2606.18170">https://arxiv.org/pdf/2606.18170</a></li>
+  <li>Cisco, "MRC and SRv6: how foundational networking innovations are enabling the next generation of AI supercomputers" (May 14, 2026): <a href="https://blogs.cisco.com/datacenter/mrc-and-srv6-how-foundational-networking-innovations-are-enabling-the-next-generation-of-ai-supercomputers">blogs.cisco.com</a></li>
+  <li>IETF draft-filsfils-srv6ops-srv6-ai-backend-04 (June 2026): <a href="https://datatracker.ietf.org/doc/html/draft-filsfils-srv6ops-srv6-ai-backend-04">https://datatracker.ietf.org/doc/html/draft-filsfils-srv6ops-srv6-ai-backend-04</a></li>
+  <li>Converge Digest, "MRC redesigns Ethernet for 100,000-GPU AI clusters" (May 6, 2026): <a href="https://convergedigest.com/multipath-reliable-connection-mrc-redesigns-ethernet-for-100000-gpu-ai-clusters/">convergedigest.com</a></li>
+  <li>Meta, OCP Summit 2026: Flattened Planar Fabric, hosts steering around dead planes (Oct 12, 2026): <a href="https://engineering.fb.com/2026/10/12/open-source/ocp-summit-2026-powering-ai-with-open-innovations-in-scale-up-scale-out-and-scale-across-networks/">engineering.fb.com</a></li>
+  <li>Linux seg6local (End, next-csid flavor, End.DX4): <a href="https://man7.org/linux/man-pages/man8/ip-route.8.html">https://man7.org/linux/man-pages/man8/ip-route.8.html</a></li>
+  <li>Episode 2 lab (eBGP vs OSPF, the 6&ndash;9 s baseline on the same link): <a href="/labs/bgp-vs-ospf">https://www.grahampaasch.com/labs/bgp-vs-ospf</a></li>
+  <li>Episode 1 lab (the eBGP AI-cluster fabric this all started from): <a href="/labs/ai-fabric">https://www.grahampaasch.com/labs/ai-fabric</a></li>
+</ol>
+
+<p>More: <a href="/labs/bgp-vs-ospf">episode 2's lab</a> &middot; <a href="/labs/ai-fabric">episode 1's lab</a> &middot; <a href="https://www.youtube.com/playlist?list=PLZPz67cofgXQ">AI Agents Build the Lab on YouTube</a> &middot; <a href="https://www.grahampaasch.com/cadence">how Graham runs the agent team that built this</a></p>
+
+<footer>Episode 3 of "AI Agents Build the Lab" &middot; Graham Paasch &middot; lab built and tested live by a team of Claude Code agents (<a href="https://www.grahampaasch.com/cadence">how the team works</a>) &middot; FRRouting 10.5.5 (zebra + staticd only) and Linux SRv6 on GNS3 2.2.56 and containerlab 0.73 &middot; kit MIT licensed<br><a href="/labs/bgp-vs-ospf">Episode 2: why BGP? it's an app, not an IGP</a> &middot; <a href="/labs/ai-fabric">Episode 1: build an AI-cluster fabric</a> &middot; <a href="https://www.youtube.com/playlist?list=PLZPz67cofgXQ">All episodes on YouTube</a></footer>
+</main>
+</body>
+</html>
