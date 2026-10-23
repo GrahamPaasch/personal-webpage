@@ -20,6 +20,7 @@ const STATIC_APP_DIRS = [
   'labs/bgp-vs-ospf',
   'labs/srv6-no-routing',
   'juggling/13-club-feed',
+  'juggling/extra-club-patterns',
   'panelclash',
   'sidewalks-of-rage',
   'viola-gauntlet',

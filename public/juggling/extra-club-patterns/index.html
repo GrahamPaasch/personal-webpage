@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Extra-club passing patterns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EFF2EF;--surface:#FFFFFF;--ink:#1B2629;--body:#46555A;--muted:#5D6B6F;--line:#D2D9D6;--line-strong:#A9B5B2;--dbl:#E0442A;--sgl:#2A62C2;--self:#8D979A;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10171A;--surface:#162025;--ink:#E3E9E7;--body:#AAB6B8;--muted:#95A3A6;--line:#25333A;--line-strong:#3B4C52;--dbl:#FF6B4F;--sgl:#6C9DF2;--self:#6F7C81;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10171A;--surface:#162025;--ink:#E3E9E7;--body:#AAB6B8;--muted:#95A3A6;--line:#25333A;--line-strong:#3B4C52;--dbl:#FF6B4F;--sgl:#6C9DF2;--self:#6F7C81;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.55}
+.wrap{max-width:900px;margin:0 auto;padding:44px 20px 64px}
+h1{font-stretch:120%;font-weight:780;font-size:clamp(30px,5.4vw,48px);line-height:1.02;letter-spacing:-0.01em;margin:0 0 14px}
+.lede{color:var(--body);max-width:60ch;margin:0 0 18px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px;color:var(--muted);margin:0 0 22px}
+.key{display:inline-flex;align-items:center;gap:8px}
+.key i{display:inline-block;width:12px;height:12px;border-radius:50%}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+nav button,.ctrl button{font:inherit;font-size:14px;color:var(--ink);background:transparent;border:1px solid var(--line-strong);border-radius:6px;padding:6px 12px;min-height:36px;cursor:pointer}
+nav button:hover,.ctrl button:hover{background:var(--surface)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--sgl);outline-offset:2px}
+section{padding:40px 0 8px;border-top:1px solid var(--line);margin-top:32px}
+.head{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px}
+.num{font-stretch:70%;font-weight:700;font-size:28px;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums}
+h2{font-stretch:115%;font-weight:720;font-size:clamp(21px,3.4vw,27px);line-height:1.15;margin:0}
+.meta{color:var(--muted);font-size:15px}
+.desc{margin:8px 0 16px;max-width:64ch;color:var(--body)}
+.stage{width:100%}
+canvas{display:block;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:10px;font-size:14px;color:var(--muted)}
+.speed{display:inline-flex;align-items:center;gap:8px;margin-left:6px}
+.speed input{width:110px;accent-color:var(--ink)}
+.spo{color:var(--ink);min-width:2.6em;font-variant-numeric:tabular-nums}
+.beat{margin-left:auto;color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums}
+.start{margin:14px 0 0;max-width:70ch;color:var(--body);font-size:15px}
+.start b{color:var(--ink);font-weight:650}
+.ladder-wrap{overflow-x:auto;margin-top:14px}
+.ladder{display:grid;gap:3px;font-size:14px;min-width:440px}
+.ladder div{padding:5px 8px;border-radius:5px;white-space:nowrap;color:var(--muted)}
+.ladder .rh{color:var(--ink);font-weight:600}
+.ladder .ch{font-size:12.5px}
+.ladder .on{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong)}
+.ladder .d::before,.ladder .s::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.ladder .d::before{background:var(--dbl)}.ladder .s::before{background:var(--sgl)}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px;max-width:70ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Extra-club passing patterns</h1>
+<p class="lede">Seven patterns, from the 10-club V to the 52-club star, that add clubs by turning some passes into doubles. Each animation starts from rest, so you can watch who throws first before the pattern settles in.</p>
+<div class="legend"><span class="key"><i style="background:var(--dbl)"></i>Double pass</span><span class="key"><i style="background:var(--sgl)"></i>Single pass</span><span class="key"><i style="background:var(--self)"></i>Self or held</span></div>
+<nav id="nav" aria-label="Patterns"></nav>
+<div id="patterns"></div>
+<footer>Every pattern here was simulated from its start through 4,000 beats with no collisions and no empty hands. Passes are straight, right hand to partner’s left. Use Next beat to step through a start one throw at a time.</footer>
+</div>
+<script>
+const PATTERNS=(()=>{
+const n=null;
+const J=(id,label,x,y,par,start,map)=>({id,label,x,y,par,start,map});
+const loop=(roles,pts)=>{const N=roles.length,js=[];for(let i=0;i<N;i++){const evenEdge=i%2===0,next=(i+1)%N,prev=(i+N-1)%N;const dP='j'+(evenEdge?next:prev),sP='j'+(evenEdge?prev:next),r=roles[i];
+const map={A:[n,[3,sP],n,[4,dP]],B:[n,[4,dP],n,[3,sP]],C:[[3,sP],n,[4,dP],n],D:[[4,dP],n,[3,sP],n]}[r];
+js.push(J('j'+i,r,pts[i][0],pts[i][1],(r==='A'||r==='B')?1:0,1,map));}return js;};
+const loopRows=js=>['A','B','C','D'].map(r=>js.find(j=>j.label===r).id);
+const ringPts=[...Array(8)].map((_,i)=>{const a=(-90+45*i)*Math.PI/180,R=i%2===0?4.8:2.6;return [R*Math.cos(a),R*Math.sin(a)];});
+const starPx=[[230,118],[237,276],[79,268],[197,376],[80,481],[237,472],[230,629],[336,514],[441,629],[433,472],[591,481],[474,374],[593,268],[433,276],[441,118],[336,236]];
+const starPts=starPx.map(([x,y])=>[(x-336)*0.0228,(y-374)*0.0228]);
+const ring=loop('DABCCBAD',ringPts),star=loop('DABCCBADDABCCBAD',starPts);
+return [
+{key:'v10',title:'V feed with a tenth club',meta:'3 jugglers, 10 clubs',clubs:10,period:4,K:0.42,
+ jugglers:[J('F','Feeder',0,-1.7,0,0,[[4,'A'],n,[4,'B'],n]),J('A','Feedee A',-1.7,1.7,1,1,[n,[4,'F'],n,n]),J('B','Feedee B',1.7,1.7,1,1,[n,n,n,[4,'F']])],
+ rows:['F','A','B']},
+{key:'feed13',title:'Feed with three feedees',meta:'4 jugglers, 13 clubs',clubs:13,period:6,K:0.42,
+ jugglers:[J('F','Feeder',0,-1.9,0,0,[[4,'A'],n,[4,'B'],n,[4,'C'],n]),J('A','Feedee A',-2.5,1.3,1,1,[n,[4,'F'],n,n,n,n]),J('B','Feedee B',0,1.9,1,1,[n,n,n,[4,'F'],n,n]),J('C','Feedee C',2.5,1.3,1,1,[n,n,n,n,n,[4,'F']])],
+ rows:['F','A','B','C']},
+{key:'n13',title:'N+',meta:'4 jugglers, 13 clubs',clubs:13,period:4,K:0.42,
+ jugglers:[J('A','Outer A',-3.3,1.7,1,1,[n,[4,'B'],n,n]),J('B','Inner B',-1.1,-1.7,0,0,[[4,'A'],n,[3,'C'],n]),J('C','Inner C',1.1,1.7,0,0,[[3,'B'],n,[4,'D'],n]),J('D','Outer D',3.3,-1.7,1,1,[n,n,n,[4,'C']])],
+ rows:['A','B','C','D']},
+{key:'line16',title:'N+ with one end capped',meta:'5 jugglers, 16 clubs',clubs:16,period:4,K:0.42,
+ jugglers:[J('E','E',-4.4,-1.7,1,0,[n,n,n,[3,'A']]),J('A','A',-2.2,1.7,1,0,[n,[4,'B'],n,[3,'E']]),J('B','B',0,-1.7,0,0,[[4,'A'],n,[3,'C'],n]),J('C','C',2.2,1.7,0,0,[[3,'B'],n,[4,'D'],n]),J('D','D',4.4,-1.7,1,0,[n,n,n,[4,'C']])],
+ rows:['E','A','B','C','D']},
+{key:'line19',title:'N+ with both ends capped',meta:'6 jugglers, 19 clubs',clubs:19,period:4,K:0.42,
+ jugglers:[J('E','E',-5.5,-1.7,1,0,[n,n,n,[3,'A']]),J('A','A',-3.3,1.7,1,0,[n,[4,'B'],n,[3,'E']]),J('B','B',-1.1,-1.7,0,0,[[4,'A'],n,[3,'C'],n]),J('C','C',1.1,1.7,0,0,[[3,'B'],n,[4,'D'],n]),J('D','D',3.3,-1.7,1,0,[n,[3,'F'],n,[4,'C']]),J('F','F',5.5,1.7,1,0,[n,[3,'D'],n,n])],
+ rows:['E','A','B','C','D','F']},
+{key:'ring26',title:'Eight-person ring',meta:'8 jugglers, 26 clubs',clubs:26,period:4,K:0.6,jugglers:ring,rows:loopRows(ring),roleLabels:true},
+{key:'star52',title:'G.A.I.S. star',meta:'16 jugglers, 52 clubs',clubs:52,period:4,K:0.6,jugglers:star,rows:loopRows(star),roleLabels:true},
+];
+})();
+function buildSchedule(pat,N){
+ const J={};pat.jugglers.forEach(j=>J[j.id]=j);const ids=pat.jugglers.map(j=>j.id),P=pat.period;
+ const handAt=(id,b)=>((((b-J[id].par)%2)+2)%2===0?'R':'L');
+ const q={};ids.forEach(id=>{q[id+'R']=[];q[id+'L']=[];});
+ const clubs=[],hold={};ids.forEach(id=>hold[id]={R:0,L:0});
+ const b0=Math.min(...ids.map(id=>J[id].start));
+ for(let b=b0;b<b0+N;b++)for(const id of ids){
+  if(b<J[id].start)continue;
+  const h=handAt(id,b),Q=q[id+h];Q.sort((x,y)=>x.t-y.t);
+  let it;
+  if(Q.length&&Q[0].t<=b)it=Q.shift();
+  else{if(b>b0+6)throw new Error(pat.key+': hand ran empty '+id+h+'@'+b);const c={home:[id,h],ev:[],p:0};clubs.push(c);hold[id][h]++;it={c,t:-1e9};}
+  if(Q.filter(x=>x.t<=b).length>1)throw new Error(pat.key+': clubs piling up '+id+h+'@'+b);
+  const m=J[id].map[((b%P)+P)%P],v=m?m[0]:3,to=m?m[1]:id,th=handAt(to,b+v);
+  it.c.ev.push({j:id,h,to,th,b,tc:b+v-1,v,pass:to!==id});q[to+th].push({c:it.c,t:b+v-1});
+ }
+ if(clubs.length!==pat.clubs)throw new Error(pat.key+': expected '+pat.clubs+' clubs, got '+clubs.length);
+ return {clubs,hold,b0,J,handAt};
+}
+
+
+(function(){
+const TAU=Math.PI*2,G=1.6,ZO=0.18,BPS=3,TP=[0.13,0.42,0.95],CP=[0.36,0.36,1.08];
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FONT='"Archivo", system-ui, -apple-system, "Segoe UI", sans-serif';
+const TEXT={
+v10:{desc:'The feeder plays 2-count and the feedees play 4-count. Every pass is a straight double, and the feedees run one beat behind the feeder.',start:'The feeder holds 4, two in each hand, and opens with a right-hand double to A. A and B hold 3, two in the right, and come in one beat later: A opens with a double back, B with a self.'},
+feed13:{desc:'The same feed with a third feedee. The feeder’s part doesn’t change; the feedees drop to 6-count, and each one passes on the beat after the feeder throws to them.',start:'The feeder holds 4, two in each hand, and opens with a double to A. All three feedees hold 3, two in the right, and come in one beat later. A passes on their first right, B on their second, C on their third.'},
+n13:{desc:'The inner jugglers pass singles to each other and doubles to the outers. The outers play 4-count, one beat behind the inners.',start:'C holds 4, two in each hand; everyone else holds 3, two in the right. B and C start together, B with a double to A and C with a single to B. A and D come in one beat later on their right.'},
+line16:{desc:'A 4-count singles passer, in phase with A, stands in front of A. That turns A into another 2-count passer alternating a double and a single.',start:'Everyone starts on beat 1. C holds 4, two in each hand, and B holds 3, two in the right. E, A and D hold 3, two in the left, and open with a left self while B doubles to A and C singles to B.'},
+line19:{desc:'Mike’s version: cap both ends with 4-count singles passers, and all four original jugglers pass 2-count, alternating a double and a single.',start:'Everyone starts on beat 1. C holds 4, two in each hand, and B holds 3, two in the right. E, A, D and F hold 3, two in the left, and open with a left self while B doubles to A and C singles to B.'},
+ring26:{desc:'Half of the star, closed into a loop of eight. Links alternate double and single all the way round, so everyone plays the same 2-count, just at different times.',start:'Everyone starts on beat 1, as in the star. A’s hold 4, two in each hand, and B’s hold 3, two in the right. C’s and D’s hold 3, two in the left, and open with a left self while A’s single to B’s and B’s double to C’s.'},
+star52:{desc:'The N+ middle section bent into a ring of sixteen. Every juggler passes 2-count with one double partner and one single partner.',start:'Everyone starts on beat 1, exactly as in the email. A’s hold 4, two in each hand, and B’s hold 3, two in the right. C’s and D’s hold 3, two in the left, and open with a left self.'}
+};
+let COL={};
+function readColors(){const cs=getComputedStyle(document.documentElement),g=k=>cs.getPropertyValue(k).trim();COL={dbl:g('--dbl'),sgl:g('--sgl'),self:g('--self'),body:g('--body'),muted:g('--muted')};}
+readColors();
+const mk=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;};
+class Show{
+constructor(pat,idx,root,nav){
+this.pat=pat;Object.assign(this,buildSchedule(pat,2400));
+const P=pat.period;
+for(const j of pat.jugglers){const ps=new Set();j.map.forEach(m=>{if(m)ps.add(m[1]);});let fx=0,fy=0;ps.forEach(id=>{const o=this.J[id],dx=o.x-j.x,dy=o.y-j.y,l=Math.hypot(dx,dy);fx+=dx/l;fy+=dy/l;});const l=Math.hypot(fx,fy)||1;j.f=[fx/l,fy/l];j.r=[-j.f[1],j.f[0]];j.first={};for(const h of 'RL'){let b=j.start;while(this.handAt(j.id,b)!==h)b++;j.first[h]=b;}}
+this.order=[...pat.jugglers].sort((a,b)=>a.y-b.y);
+const seen={};this.links=[];for(const j of pat.jugglers)for(const m of j.map){if(!m)continue;const k=[j.id,m[1]].sort().join('|');if(seen[k])continue;seen[k]=1;this.links.push({a:j,b:this.J[m[1]],d:m[0]===4});}
+const t=TEXT[pat.key],sec=mk('section');sec.id=pat.key;
+const head=mk('div','head');head.append(mk('span','num',String(idx+1)),mk('h2',null,pat.title),mk('span','meta',pat.meta));sec.append(head,mk('p','desc',t.desc));
+this.cv=mk('canvas');this.cv.setAttribute('role','img');this.cv.setAttribute('aria-label','Animation of '+pat.title+', '+pat.meta);
+const stage=mk('div','stage');stage.append(this.cv);sec.append(stage);
+const ctrl=mk('div','ctrl');this.bPlay=mk('button');const bStep=mk('button',null,'Next beat'),bRst=mk('button',null,'Restart');
+const sp=mk('label','speed'),rng=mk('input'),spo=mk('span','spo','0.5×');rng.type='range';rng.min='0.2';rng.max='1.2';rng.step='0.1';rng.value='0.5';sp.append('Speed',rng,spo);
+this.beatEl=mk('span','beat','Get ready');ctrl.append(this.bPlay,bStep,bRst,sp,this.beatEl);sec.append(ctrl);
+const st=mk('p','start');st.append(mk('b',null,'Start. '),t.start);sec.append(st);
+const lw=mk('div','ladder-wrap'),lad=mk('div','ladder');lad.style.gridTemplateColumns='minmax(76px,auto) repeat('+P+',minmax(64px,1fr))';
+lad.append(mk('div','ch',''));this.heads=[];for(let c=0;c<P;c++){const d=mk('div','ch','Beat '+(c+1));this.heads.push(d);lad.append(d);}
+this.cells=[];for(const id of pat.rows){const j=this.J[id];lad.append(mk('div','rh',j.label));for(let c=0;c<P;c++){const bb=this.b0+c,h=this.handAt(id,bb),m=j.map[bb%P];let txt=h,cls='';if(m){const tj=this.J[m[1]];txt=h+(m[0]===4?' ⇒ ':' → ')+(pat.roleLabels?tj.label:tj.id);cls=m[0]===4?'d':'s';}const d=mk('div',cls,txt);d._t=txt;d._j=j;d._c=c;this.cells.push(d);lad.append(d);}}
+lw.append(lad);sec.append(lw);root.append(sec);
+const nb=mk('button',null,pat.title);nb.onclick=()=>sec.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});nav.append(nb);
+this.ctx=this.cv.getContext('2d');this.speed=0.5;this.visible=false;this.restart();this.setPlay(!reduce);
+this.bPlay.onclick=()=>this.setPlay(!this.playing);
+bStep.onclick=()=>{this.setPlay(false);this.s=Math.floor(this.s+1e-9)+1;this.draw();this.ui();};
+bRst.onclick=()=>{this.restart();this.setPlay(true);this.draw();this.ui();};
+rng.oninput=()=>{this.speed=+rng.value;spo.textContent=this.speed.toFixed(1)+'×';};
+new ResizeObserver(()=>{this.resize();this.draw();}).observe(stage);
+new IntersectionObserver(es=>{this.visible=es[0].isIntersecting;},{rootMargin:'80px'}).observe(this.cv);
+}
+restart(){this.s=this.b0-1.2;this.clubs.forEach(c=>c.p=0);this.lastBeat=null;}
+setPlay(v){this.playing=v;this.bPlay.textContent=v?'Pause':'Play';}
+resize(){const W=this.cv.clientWidth||800,js=this.pat.jugglers,xs=js.map(j=>j.x),ys=js.map(j=>j.y);const minX=Math.min(...xs)-0.9,maxX=Math.max(...xs)+0.9,minY=Math.min(...ys)-0.5,maxY=Math.max(...ys)+0.6;const K=this.pat.K,S=Math.min(W/(maxX-minX),82);this.S=S;this.K=K;this.cxw=(minX+maxX)/2;this.CX=W/2;this.GY=12+3.4*S-minY*S*K;this.W=W;this.H=Math.round(this.GY+maxY*S*K+26);this.dpr=window.devicePixelRatio||1;this.cv.width=Math.round(W*this.dpr);this.cv.height=Math.round(this.H*this.dpr);this.cv.style.height=this.H+'px';}
+P2(p){return [this.CX+(p[0]-this.cxw)*this.S,this.GY+p[1]*this.S*this.K-p[2]*this.S];}
+handPos(j,h,s){const sg=h==='R'?1:-1,ft=j.first[h],s2=Math.max(s,ft-1),ph=((s2-ft)%2+2)%2;let a,b,u,dz;if(ph<1){a=TP;b=CP;u=ph;dz=0.1*Math.sin(Math.PI*u);}else{a=CP;b=TP;u=ph-1;dz=-0.14*Math.sin(Math.PI*u);}const e=(1-Math.cos(Math.PI*u))/2,lat=sg*(a[0]+(b[0]-a[0])*e),fw=a[1]+(b[1]-a[1])*e,z=a[2]+(b[2]-a[2])*e+dz;return [j.x+j.f[0]*fw+j.r[0]*lat,j.y+j.f[1]*fw+j.r[1]*lat,z];}
+tick(dt){if(!this.playing)return;this.s+=dt*BPS*this.speed;if(this.s>this.b0+2380)this.restart();}
+line(a,b){const p=this.P2(a),q=this.P2(b),c=this.ctx;c.beginPath();c.moveTo(p[0],p[1]);c.lineTo(q[0],q[1]);c.stroke();}
+body(j,s){const c=this.ctx,S=this.S,W3=(lat,fw,z)=>[j.x+j.f[0]*fw+j.r[0]*lat,j.y+j.f[1]*fw+j.r[1]*lat,z];
+c.strokeStyle=COL.body;c.fillStyle=COL.body;c.lineWidth=Math.max(1.4,S*0.03);c.lineCap='round';c.lineJoin='round';
+const lh=W3(-0.16,0,0.95),rh=W3(0.16,0,0.95),ls=W3(-0.22,0,1.42),rs=W3(0.22,0,1.42);
+this.line(lh,W3(-0.13,0,0));this.line(rh,W3(0.13,0,0));
+const t=[lh,rh,rs,ls].map(p=>this.P2(p));c.beginPath();t.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath();c.globalAlpha=0.16;c.fill();c.globalAlpha=1;c.stroke();
+const hd=this.P2(W3(0,0,1.72));c.beginPath();c.arc(hd[0],hd[1],0.13*S,0,TAU);c.globalAlpha=0.16;c.fill();c.globalAlpha=1;c.stroke();
+for(const h of 'LR'){const hp=this.handPos(j,h,s);this.line(h==='L'?ls:rs,hp);const p=this.P2(hp);c.beginPath();c.arc(p[0],p[1],Math.max(2,0.045*S),0,TAU);c.fill();}
+const f=this.P2([j.x,j.y,0]);c.fillStyle=COL.muted;c.font='600 12px '+FONT;c.textAlign='center';c.fillText(j.label,f[0],f[1]+17);}
+club(x,y,ang,col){const c=this.ctx,L=0.5*this.S;c.save();c.translate(x,y);c.rotate(ang);c.fillStyle=col;c.beginPath();c.ellipse(0,-0.14*L,0.12*L,0.3*L,0,0,TAU);c.fill();c.fillRect(-0.035*L,0.1*L,0.07*L,0.36*L);c.beginPath();c.arc(0,0.47*L,0.055*L,0,TAU);c.fill();c.restore();}
+draw(){if(!this.W)return;const c=this.ctx,s=this.s;c.setTransform(this.dpr,0,0,this.dpr,0,0);c.clearRect(0,0,this.W,this.H);
+c.lineWidth=2;c.setLineDash([5,6]);c.globalAlpha=0.45;for(const L of this.links){c.strokeStyle=L.d?COL.dbl:COL.sgl;this.line([L.a.x,L.a.y,0],[L.b.x,L.b.y,0]);}c.setLineDash([]);c.globalAlpha=1;
+for(const j of this.order)this.body(j,s);
+const items=[],groups=new Map();
+for(const cl of this.clubs){while(cl.p<cl.ev.length&&cl.ev[cl.p].tc<=s)cl.p++;const e=cl.ev[cl.p];if(!e)continue;
+if(s<e.b){const hd=cl.p===0?cl.home:[cl.ev[cl.p-1].to,cl.ev[cl.p-1].th],k=hd[0]+hd[1];if(!groups.has(k))groups.set(k,[]);groups.get(k).push({j:this.J[hd[0]],h:hd[1],next:e.b});continue;}
+if(!e.A){e.A=this.handPos(this.J[e.j],e.h,e.b);e.B=this.handPos(this.J[e.to],e.th,e.tc);e.A[2]+=ZO;e.B[2]+=ZO;}
+const a=e.A,b=e.B,tau=e.tc-e.b,u=s-e.b,k=u/tau,vz=(b[2]-a[2]+0.5*G*tau*tau)/tau,p=[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+vz*u-0.5*G*u*u];
+items.push({p,ang:((b[0]-a[0])>=0?1:-1)*TAU*(e.v===4?2:1)*k,col:e.pass?(e.v===4?COL.dbl:COL.sgl):COL.self});}
+for(const g of groups.values()){g.sort((x,y)=>x.next-y.next);g.forEach((st,i)=>{const hp=this.handPos(st.j,st.h,s);let w=hp.slice(),ang=0;if(i>0){const sg=st.h==='R'?1:-1;w=[hp[0]+st.j.r[0]*sg*0.12,hp[1]+st.j.r[1]*sg*0.12,hp[2]-0.04];ang=(this.P2(w)[0]>=this.P2(hp)[0]?1:-1)*0.45;}w[2]+=ZO;items.push({p:w,ang,col:COL.self});});}
+items.sort((x,y)=>x.p[1]-y.p[1]);for(const it of items){const q=this.P2(it.p);this.club(q[0],q[1],it.ang,it.col);}}
+ui(){const b=Math.floor(this.s);if(b===this.lastBeat)return;this.lastBeat=b;const P=this.pat.period,started=this.s>=this.b0;this.beatEl.textContent=started?'Beat '+(b-this.b0+1):'Get ready';const col=started?(((b-this.b0)%P)+P)%P:-1;this.heads.forEach((h,i)=>h.classList.toggle('on',i===col));for(const d of this.cells){const on=d._c===col;d.classList.toggle('on',on);d.textContent=(on&&b<d._j.start)?'—':d._t;}}
+}
+const root=document.getElementById('patterns'),nav=document.getElementById('nav');
+const shows=PATTERNS.map((p,i)=>new Show(p,i,root,nav));
+const redraw=()=>{readColors();shows.forEach(s=>s.draw());};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',redraw);
+new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(document.fonts)document.fonts.ready.then(redraw);
+function goHash(){const t=location.hash.slice(1),el=t&&document.getElementById(t);if(el)el.scrollIntoView({block:'start'});}
+window.addEventListener('hashchange',goHash);setTimeout(goHash,50);
+let last=null;function frame(t){const dt=last==null?0:Math.min(0.05,(t-last)/1000);last=t;for(const sh of shows){if(!sh.visible)continue;sh.tick(dt);sh.draw();sh.ui();}requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
