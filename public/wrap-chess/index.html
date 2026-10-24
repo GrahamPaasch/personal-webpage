@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wraparound Chess</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♞</text></svg>">
+<style>
+  body { margin:0; font-family: system-ui, sans-serif; background:#1b1d23; color:#e8e6e1; display:flex; flex-direction:column; align-items:center; }
+  h1 { margin:18px 0 4px; font-weight:600; letter-spacing:.5px; }
+  #wrap { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; padding:12px; }
+  #board { display:grid; grid-template-columns: repeat(10, min(8.5vw, 64px)); grid-template-rows: repeat(8, min(8.5vw, 64px)); border:3px solid #444; user-select:none; }
+  .sq { display:flex; align-items:center; justify-content:center; font-size:min(6.5vw, 48px); position:relative; cursor:pointer; }
+  .light { background:#ecd9b5; } .dark { background:#ae8763; }
+  .ghost { opacity:.35; cursor:default; filter:saturate(.4); }
+  .sel { box-shadow: inset 0 0 0 4px #3b82f6; }
+  .last { background-image: linear-gradient(rgba(250,204,21,.38), rgba(250,204,21,.38)); }
+  .dot::after { content:""; position:absolute; width:26%; height:26%; border-radius:50%; background:rgba(30,30,30,.35); }
+  .cap::after { content:""; position:absolute; inset:6%; border-radius:50%; border:4px solid rgba(200,30,30,.55); }
+  .w { color:#fff; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 1px #000; }
+  .b { color:#111; text-shadow: 0 0 1px #fff8; }
+  #side { max-width:340px; }
+  #status { font-size:20px; margin:4px 0 14px; min-height:28px; }
+  button, select { font-size:15px; padding:7px 12px; margin:0 6px 8px 0; border-radius:6px; border:1px solid #555; background:#2a2d35; color:#eee; cursor:pointer; }
+  .rules li { margin-bottom:8px; line-height:1.4; }
+  .files { display:grid; grid-template-columns: repeat(10, min(8.5vw, 64px)); color:#999; font-size:13px; text-align:center; margin-top:4px; }
+</style>
+</head>
+<body>
+<h1>♞ Wraparound Chess</h1>
+<div id="wrap">
+  <div>
+    <div id="board"></div>
+    <div class="files" id="files"></div>
+  </div>
+  <div id="side">
+    <div id="status"></div>
+    <select id="mode"><option value="ai">You (White) vs Computer</option><option value="pvp">Two players, one screen</option></select>
+    <select id="depth"><option value="2">Easy</option><option value="3" selected>Medium</option><option value="4">Hard</option></select><br>
+    <button id="new">New game</button><button id="undo">Undo</button>
+    <h3>Changed rules</h3>
+    <ul class="rules">
+      <li><b>The board is a cylinder.</b> The a-file and h-file touch. Anything sliding or jumping sideways off one edge comes back on the other. The faded columns show the squares across the seam.</li>
+      <li><b>No check, no checkmate.</b> You win by actually capturing the king. Leaving your king hanging is legal, and fatal.</li>
+      <li><b>Pawns capture across the seam too,</b> and promote to a queen on the last rank. No castling, no en passant.</li>
+    </ul>
+  </div>
+</div>
+<script>
+const GLYPH = { K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟' };
+const VAL = { P:100, N:300, B:330, R:500, Q:900, K:100000 };
+const START = 'rnbqkbnrpppppppp' + '.'.repeat(32) + 'PPPPPPPPRNBQKBNR';
+let board, turn, history, selected, legal, lastMove, winner, thinking;
+const isWhite = c => c >= 'A' && c <= 'Z';
+const colorOf = c => c === '.' ? null : (isWhite(c) ? 'w' : 'b');
+const wrapF = f => (f + 8) % 8;
+
+function genMoves(bd, side) {
+  const moves = [];
+  for (let i = 0; i < 64; i++) {
+    const p = bd[i]; if (p === '.' || colorOf(p) !== side) continue;
+    const r = i >> 3, f = i & 7, t = p.toUpperCase();
+    const add = (to) => { const q = bd[to]; if (q === '.' || colorOf(q) !== side) moves.push([i, to]); };
+    if (t === 'P') {
+      const d = side === 'w' ? -1 : 1, r1 = r + d;
+      if (r1 >= 0 && r1 < 8) {
+        if (bd[r1*8+f] === '.') {
+          moves.push([i, r1*8+f]);
+          const home = side === 'w' ? 6 : 1, r2 = r + 2*d;
+          if (r === home && bd[r2*8+f] === '.') moves.push([i, r2*8+f]);
+        }
+        for (const df of [-1, 1]) {
+          const to = r1*8 + wrapF(f+df), q = bd[to];
+          if (q !== '.' && colorOf(q) !== side) moves.push([i, to]);
+        }
+      }
+    } else if (t === 'N' || t === 'K') {
+      const offs = t === 'N' ? [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]]
+                             : [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+      const seen = new Set();
+      for (const [dr, df] of offs) {
+        const rr = r + dr; if (rr < 0 || rr > 7) continue;
+        const to = rr*8 + wrapF(f+df); if (to === i || seen.has(to)) continue;
+        seen.add(to); add(to);
+      }
+    } else {
+      const dirs = [];
+      if (t !== 'B') dirs.push([1,0],[-1,0],[0,1],[0,-1]);
+      if (t !== 'R') dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);
+      for (const [dr, df] of dirs) {
+        for (let k = 1; k < 8; k++) {
+          const rr = r + dr*k; if (rr < 0 || rr > 7) break;
+          const to = rr*8 + wrapF(f + df*k); if (to === i) break;
+          const q = bd[to];
+          if (q === '.') moves.push([i, to]);
+          else { if (colorOf(q) !== side) moves.push([i, to]); break; }
+        }
+      }
+    }
+  }
+  return moves;
+}
+
+function apply(bd, [from, to]) {
+  const nb = bd.slice(); let p = nb[from];
+  const r = to >> 3;
+  if (p === 'P' && r === 0) p = 'Q';
+  if (p === 'p' && r === 7) p = 'q';
+  nb[to] = p; nb[from] = '.';
+  return nb;
+}
+
+function evaluate(bd) { // from white's view
+  let s = 0;
+  for (let i = 0; i < 64; i++) {
+    const p = bd[i]; if (p === '.') continue;
+    const t = p.toUpperCase(), r = i >> 3;
+    let v = VAL[t];
+    if (t === 'P') v += (isWhite(p) ? (6 - r) : (r - 1)) * 8;
+    if (t === 'N' || t === 'B') v += (r > 1 && r < 6) ? 10 : 0;
+    s += isWhite(p) ? v : -v;
+  }
+  return s;
+}
+
+function search(bd, side, depth, alpha, beta) {
+  const sign = side === 'w' ? 1 : -1;
+  if (depth === 0) return sign * evaluate(bd);
+  const moves = genMoves(bd, side);
+  if (!moves.length) return 0;
+  moves.sort((a, b) => (VAL[bd[b[1]].toUpperCase()] || 0) - (VAL[bd[a[1]].toUpperCase()] || 0));
+  let best = -Infinity;
+  for (const m of moves) {
+    const cap = bd[m[1]];
+    let score;
+    if (cap.toUpperCase() === 'K') score = 50000 + depth; // capturing the king ends the game
+    else score = -search(apply(bd, m), side === 'w' ? 'b' : 'w', depth - 1, -beta, -alpha);
+    if (score > best) best = score;
+    if (best > alpha) alpha = best;
+    if (alpha >= beta) break;
+  }
+  return best;
+}
+
+function bestMove(bd, side, depth) {
+  const moves = genMoves(bd, side);
+  let best = null, bestScore = -Infinity;
+  moves.sort(() => Math.random() - .5);
+  moves.sort((a, b) => (VAL[bd[b[1]].toUpperCase()] || 0) - (VAL[bd[a[1]].toUpperCase()] || 0));
+  for (const m of moves) {
+    const s = bd[m[1]].toUpperCase() === 'K' ? 99999
+      : -search(apply(bd, m), side === 'w' ? 'b' : 'w', depth - 1, -Infinity, -bestScore);
+    if (s > bestScore) { bestScore = s; best = m; }
+  }
+  return best;
+}
+
+function newGame() {
+  board = START.split(''); turn = 'w'; history = []; selected = null; legal = []; lastMove = null; winner = null; thinking = false;
+  render();
+}
+
+function makeMove(m) {
+  history.push({ board, turn, lastMove });
+  const captured = board[m[1]];
+  board = apply(board, m); lastMove = m; selected = null; legal = [];
+  if (captured.toUpperCase() === 'K') winner = turn;
+  turn = turn === 'w' ? 'b' : 'w';
+  if (!winner && !genMoves(board, turn).length) winner = 'draw';
+  render();
+  if (!winner && turn === 'b' && document.getElementById('mode').value === 'ai') {
+    thinking = true; render();
+    setTimeout(() => {
+      const m2 = bestMove(board, 'b', +document.getElementById('depth').value);
+      thinking = false;
+      if (m2) makeMove(m2);
+    }, 60);
+  }
+}
+
+function clickSq(i) {
+  if (winner || thinking) return;
+  if (document.getElementById('mode').value === 'ai' && turn !== 'w') return;
+  const hit = legal.find(m => m[1] === i);
+  if (selected !== null && hit) return makeMove(hit);
+  if (colorOf(board[i]) === turn) {
+    selected = i; legal = genMoves(board, turn).filter(m => m[0] === i);
+  } else { selected = null; legal = []; }
+  render();
+}
+
+function render() {
+  const el = document.getElementById('board'); el.innerHTML = '';
+  for (let r = 0; r < 8; r++) {
+    for (let c = -1; c <= 8; c++) {
+      const f = wrapF(c), i = r*8 + f, ghost = c < 0 || c > 7;
+      const d = document.createElement('div');
+      d.className = 'sq ' + ((r + f) % 2 ? 'dark' : 'light') + (ghost ? ' ghost' : '');
+      const p = board[i];
+      if (p !== '.') { d.textContent = GLYPH[p]; d.classList.add(isWhite(p) ? 'w' : 'b'); }
+      if (!ghost) {
+        if (i === selected) d.classList.add('sel');
+        if (lastMove && (i === lastMove[0] || i === lastMove[1])) d.classList.add('last');
+        if (legal.some(m => m[1] === i)) d.classList.add(p === '.' ? 'dot' : 'cap');
+        d.onclick = () => clickSq(i);
+      }
+      el.appendChild(d);
+    }
+  }
+  document.getElementById('files').innerHTML = ['h','a','b','c','d','e','f','g','h','a'].map(x => `<div>${x}</div>`).join('');
+  const st = document.getElementById('status');
+  if (winner === 'draw') st.textContent = 'No legal moves. Draw.';
+  else if (winner) st.textContent = (winner === 'w' ? 'White' : 'Black') + ' captured the king and wins!';
+  else if (thinking) st.textContent = 'Computer is thinking…';
+  else st.textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+}
+
+document.getElementById('new').onclick = newGame;
+document.getElementById('mode').onchange = newGame;
+document.getElementById('undo').onclick = () => {
+  if (thinking || !history.length) return;
+  const steps = document.getElementById('mode').value === 'ai' && turn === 'w' && history.length >= 2 ? 2 : 1;
+  for (let k = 0; k < steps; k++) { const h = history.pop(); board = h.board; turn = h.turn; lastMove = h.lastMove; }
+  winner = null; selected = null; legal = []; render();
+};
+newGame();
+</script>
+</body>
+</html>
