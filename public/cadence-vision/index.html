@@ -1,0 +1,85 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cadence vision — how my AI could see me in the room</title>
+<meta name="description" content="The model and setup behind Cadence's ambient vision: home cameras, a local vision-language model on one GPU, a text-only observation journal, and a proactive habit coach.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f1115'/%3E%3Cpath d='M6 32 Q32 8 58 32 Q32 56 6 32z' fill='none' stroke='%23e0a458' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%236fb3d2'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0f1115;--card:#171a21;--ink:#e8e6e1;--mute:#9aa0aa;--acc:#e0a458;--acc2:#6fb3d2;--ok:#7fbf7f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:860px;margin:auto;padding:22px 16px 60px}h1{font-size:30px;margin:.2em 0}h2{color:var(--acc);font-size:21px;margin:1.8em 0 .5em;border-bottom:1px solid #2a2f3a;padding-bottom:.25em}
+h3{font-size:16px;margin:1.2em 0 .3em;color:var(--acc2)}p,li{color:#d6d3cc}.lede{color:var(--mute);font-size:17px}
+.card{background:var(--card);border:1px solid #262b35;border-radius:12px;padding:14px 16px;margin:12px 0}
+code{background:#222733;padding:1px 5px;border-radius:4px;font-size:.9em;color:#f0d9b5}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+.live{background:#1f3a24;color:var(--ok)}.proto{background:#3a321f;color:var(--acc)}
+svg{width:100%;height:auto;display:block}table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px solid #262b35;padding:7px 6px;text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
+.small{font-size:13px;color:var(--mute)}a{color:var(--acc2)}
+</style></head><body><main>
+<h1>How Cadence could see me <span class="tag proto">parked</span></h1>
+<p class="lede">A friend asked what model and setup let my AI see me when I'm in the room. Short answer: ordinary home cameras, a small open-weights vision model running on my own GPU, and a rule that only short text descriptions ever reach the main AI. Here's the whole thing. (Cadence is my voice agent; the big-picture tour is at <a href="/cadence">grahampaasch.com/cadence</a>.)</p>
+
+<h2>1. The short version</h2>
+<div class="card"><ul>
+<li><b>Eyes</b>: a USB webcam on my desk plus TP-Link Tapo Wi-Fi cameras (the kitchen one first), read over RTSP, the standard video-stream protocol most IP cameras speak.</li>
+<li><b>Vision model</b>: <code>qwen3-vl:8b</code> (Qwen3-VL, 8 billion parameters), served locally by <a href="https://ollama.com">Ollama</a> on an RTX 3090. About 3 seconds per frame once warm, roughly 10 to 12 GB of GPU memory.</li>
+<li><b>Brain</b>: Claude (via Claude Code) does the talking and reasoning, but it never watches the video. It reads a journal of short text notes the local model writes.</li>
+<li><b>Cost</b>: the cameras are cheap (tens of dollars each); the GPU is the real expense; the vision model is free and open.</li>
+</ul></div>
+
+<h2>2. The pipeline</h2>
+<svg viewBox="0 0 820 230" font-family="sans-serif" font-size="13">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#e0a458"/></marker></defs>
+<g fill="#171a21" stroke="#3a4150">
+<rect x="10" y="30" width="140" height="64" rx="10"/><rect x="185" y="30" width="140" height="64" rx="10"/><rect x="360" y="30" width="140" height="64" rx="10"/><rect x="535" y="30" width="140" height="64" rx="10"/>
+<rect x="535" y="140" width="140" height="64" rx="10"/><rect x="700" y="85" width="112" height="64" rx="10"/><rect x="360" y="140" width="140" height="64" rx="10"/></g>
+<g fill="#e8e6e1" text-anchor="middle">
+<text x="80" y="58">Cameras</text><text x="80" y="76" fill="#9aa0aa">webcam + Tapo</text>
+<text x="255" y="58">ffmpeg grab</text><text x="255" y="76" fill="#9aa0aa">1 still / 30 s</text>
+<text x="430" y="58">Local VLM</text><text x="430" y="76" fill="#9aa0aa">qwen3-vl:8b, 3090</text>
+<text x="605" y="58">Journal</text><text x="605" y="76" fill="#9aa0aa">SQLite, text + frame</text>
+<text x="756" y="113">Coach</text><text x="756" y="131" fill="#9aa0aa">rules, rate limits</text>
+<text x="605" y="168">Claude brain</text><text x="605" y="186" fill="#9aa0aa">reads text only</text>
+<text x="430" y="168">Voice + screen</text><text x="430" y="186" fill="#9aa0aa">spoken nudge, frame</text></g>
+<g stroke="#e0a458" stroke-width="2" marker-end="url(#a)" fill="none">
+<path d="M150,62 H183"/><path d="M325,62 H358"/><path d="M500,62 H533"/><path d="M675,62 Q745,62 756,83"/><path d="M605,94 V138"/><path d="M700,130 Q690,172 677,172"/><path d="M535,172 H502"/></g>
+<text x="410" y="222" fill="#9aa0aa" text-anchor="middle">Pixels stay on the home machine. What crosses to the cloud AI is a sentence, not a picture.</text>
+</svg>
+
+<h2>3. How each piece works</h2>
+<h3>Grabbing frames</h3>
+<p>There's no live video decoding. Every 30 seconds a short-lived <code>ffmpeg</code> process grabs one still frame and exits. Tapo cameras offer a full-resolution stream and a low-resolution substream; routine watching uses the cheap substream. Grabbing a still costs almost no CPU.</p>
+<h3>Seeing</h3>
+<p>Each frame goes to the local vision-language model with a prompt asking for a small JSON answer: is a person present, what are they doing, how tidy is it, and a handful of specific targets. Is the sink visible, and are there dishes in it? Is someone exercising in the workout spot, playing an instrument, juggling, cooking, is there takeout on the counter? Every target also gets a "can you actually see it?" flag, so a blocked view means "I don't know," not "you didn't do it."</p>
+<h3>Remembering</h3>
+<p>Each answer is written to a local SQLite journal with a timestamp, plus the evidence frame on disk, pruned after 30 days. That's what lets me ask "what did you see at 4 pm?" The brain has two recall tools: one browses the timestamped history, the other puts a chosen past frame on my screen.</p>
+<h3>Coaching</h3>
+<p>Every few minutes a deterministic rule engine (no AI call, zero tokens) checks the journal against goals I set myself: dishes, workouts, viola practice, juggling. Most of the time it stays silent. When it does speak, it waits for a quiet moment, never talks over me, caps itself at a couple of nudges a day, backs off if ignored, and asks rather than accuses ("are the dishes done?"), because vision models make confident mistakes. Mine kept calling my viola a violin.</p>
+<h3>Sharing one GPU</h3>
+<p>The 3090 also runs image and video generation, so the vision model is told not to linger in memory after each look, and a single command evicts it when something bigger needs the card.</p>
+
+<h2>4. Privacy, which is most of the design</h2>
+<div class="card"><ul>
+<li><b>Local-first</b>: the cameras, the vision model, the journal, and the frames all live at home. Routine watching sends only text to Claude. The design does allow one key frame to go up at a genuine coaching moment, so treat it as "almost always text," not "never pixels."</li>
+<li><b>Treat the cameras as hostile</b>: cheap IoT cameras have had real security bugs. The plan is to keep them on an isolated network with internet access blocked, and skip the vendor's cloud subscription (on Tapo, turning that on can also quietly disable RTSP).</li>
+<li><b>No cameras in bedrooms or bathrooms</b>, and masks set by me that the AI has no way to turn off.</li>
+<li><b>A pause I own</b>: one voice command ("coach, stop watching") or a toggle stops capture right away.</li>
+<li><b>Guests</b>: if more than one person is in frame, the coach goes quiet. No accountability talk with company around.</li>
+<li><b>Planned, not built</b>: automatic face blurring before the model sees a frame.</li>
+</ul></div>
+
+<h2>5. Why it's parked</h2>
+<p>I turned it off on September 7, 2026. Three reasons: cameras around the house made me and my guests uneasy, I wasn't actually using the coach much, and the vision model was holding GPU memory another project needed. My own analogy at the time: we were building me a motorcycle, and I have no need or desire to drive a motorcycle. It's shelved, not deleted; one config flag brings it back. The honest lesson: the structure of "something is noticing" did more than anything it said, and the hard part was never the model, it was whether I wanted to live with it.</p>
+
+<h2>6. If you want to build something similar</h2>
+<div class="card"><ol>
+<li><b>Start with one webcam</b> and skip the home cameras until you know you like it.</li>
+<li><b>Install Ollama</b> and pull a vision model: <code>ollama pull qwen3-vl:8b</code>. An 8B vision model wants a GPU with around 12 GB or more of memory; smaller variants exist for less.</li>
+<li><b>Grab a frame</b> with ffmpeg, for example <code>ffmpeg -f v4l2 -i /dev/video0 -frames:v 1 cam.jpg</code> on Linux, and send it to Ollama's <code>/api/generate</code> endpoint with the image attached and a prompt asking for JSON.</li>
+<li><b>Ask about specific things</b> ("are there dishes in the sink? can you see the sink?") rather than "describe this." Specific questions plus a visibility flag are far more reliable.</li>
+<li><b>Log answers with timestamps</b> to a file or SQLite. Patterns over days are where the value is.</li>
+<li><b>Hand only that text</b> to whatever chat AI you use, and let it decide when to say something.</li>
+<li><b>Adding IP cameras</b>: buy plug-in models that support RTSP (on Tapo, the C2xx indoor line, not the battery ones), create the separate "Camera Account" in the app, and use the low-res <code>stream2</code> URL.</li>
+<li><b>Decide the privacy rules first</b>: which rooms, who's around, how to pause, how long to keep frames.</li>
+</ol></div>
+
+<p class="small">Written by Cadence, Oct 26 2026, for a friend who asked. <a href="/cadence">&larr; How Cadence works</a> &middot; <a href="/">grahampaasch.com</a></p>
+</main></body></html>
