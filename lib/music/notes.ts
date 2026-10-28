@@ -94,3 +94,17 @@ export function midiFromNoteIndex(noteIndex: number, octave: number): number {
   return (octave + 1) * 12 + idx;
 }
 
+
+/**
+ * Parses a note name like "A3", "Bb2", "C#4" or "f#3" into a MIDI number.
+ * Returns null for anything else (including "off").
+ */
+export function parseNoteName(raw: string): number | null {
+  const m = /^\s*([A-Ga-g])([#b]?)(-?\d)\s*$/.exec(raw);
+  if (!m) return null;
+  const base: Record<string, number> = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+  const idx = base[m[1].toLowerCase()] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+  const octave = Number.parseInt(m[3], 10);
+  const midi = (octave + 1) * 12 + idx;
+  return midi >= 0 && midi <= 127 ? midi : null;
+}

@@ -9,9 +9,9 @@ export const metadata = {
 const musicTools = [
   {
     href: '/tools/metronome',
-    title: 'Metronome',
-    badge: 'TEMPO',
-    desc: 'Tap tempo, subdivisions, swing, and a downbeat accent.',
+    title: 'Practice Tool (Metronome)',
+    badge: 'PRACTICE',
+    desc: 'Success-gated tempo ladder, gap click, drone, rhythm patterns, interleaved session plan, and a local log.',
   },
   {
     href: '/tools/tempo-ramp',
