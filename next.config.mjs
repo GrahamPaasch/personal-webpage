@@ -15,7 +15,6 @@ const STATIC_APP_DIRS = [
   'cascade',
   'cascade/play',
   'create-now',
-  'frankfurt',
   'labs/ai-fabric',
   'labs/bgp-vs-ospf',
   'labs/srv6-no-routing',
@@ -66,6 +65,10 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // Password-gated pages read their HTML from private/ at request time.
+  outputFileTracingIncludes: {
+    '/frankfurt': ['./private/frankfurt/**'],
+  },
   async rewrites() {
     return staticRewrites;
   },
