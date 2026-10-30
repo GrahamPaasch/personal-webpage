@@ -4276,6 +4276,57 @@ select:focus {
 .patternpals-relative-fewer-clubs { border-color: rgba(74, 222, 128, 0.5); }
 .patternpals-relative-compatible { border-color: rgba(96, 165, 250, 0.6); }
 
+/* ── External links + provenance ── */
+.patternpals-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.patternpals-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text, #fff);
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.patternpals-link:hover {
+  background: rgba(96, 165, 250, 0.25);
+  border-color: rgba(96, 165, 250, 0.9);
+}
+
+.patternpals-link-passist {
+  background: rgba(var(--accent-rgb, 255, 100, 0), 0.18);
+  border-color: rgba(var(--accent-rgb, 255, 100, 0), 0.5);
+}
+
+.patternpals-provenance {
+  margin-top: 16px;
+  font-size: 0.8rem;
+}
+
+.patternpals-provenance summary {
+  cursor: pointer;
+  color: var(--text-muted, #ccc);
+}
+
+.patternpals-provenance ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* ── Browse list (secondary view) ── */
 .patternpals-browse {
   margin-top: 20px;

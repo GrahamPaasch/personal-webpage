@@ -18,6 +18,7 @@ import type { PatternTiming } from '@/lib/patternpals/atlas';
 import { DIFFICULTY_BANDS, estimateDifficulty } from '@/lib/patternpals/difficulty';
 import { getPatternRelatives } from '@/lib/patternpals/relatives';
 import { analyzeSiteswap, validateSyncPair } from '@/lib/patternpals/siteswap';
+import { getExternalLinks, getProvenance } from '@/lib/patternpals/sources';
 import type { DifficultyBand } from '@/lib/patternpals/difficulty';
 import type { Pattern } from '@/lib/patternpals/types';
 
@@ -106,6 +107,8 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
 
   const randDifficulty = useMemo(() => (randResult ? estimateDifficulty(randResult) : null), [randResult]);
   const randRelatives = useMemo(() => (randResult ? getPatternRelatives(randResult, PATTERN_LIBRARY) : []), [randResult]);
+  const randLinks = useMemo(() => (randResult ? getExternalLinks(randResult) : []), [randResult]);
+  const randProvenance = useMemo(() => (randResult ? getProvenance(randResult) : []), [randResult]);
   const randNotation = useMemo(() => {
     const derived = randResult?.derived;
     if (!derived) return null;
@@ -471,6 +474,24 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
                 </div>
               ) : null}
 
+              {randLinks.length > 0 ? (
+                <div className="patternpals-links">
+                  {randLinks.map((link) => (
+                    <a
+                      key={link.provider}
+                      className={`patternpals-link patternpals-link-${link.provider}`}
+                      href={link.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={link.attribution}
+                    >
+                      {link.provider === 'passist' ? '▶ ' : link.provider === 'anthology' ? '📘 ' : '📚 '}
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+
               {randRelatives.length > 0 ? (
                 <div className="patternpals-relatives">
                   <span className="patternpals-relatives-label">🧬 Relatives</span>
@@ -516,6 +537,25 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
                   </div>
                 </div>
               ) : null}
+              {randProvenance.length > 0 ? (
+                <details className="patternpals-provenance">
+                  <summary>Where this comes from</summary>
+                  <ul>
+                    {randProvenance.map((line) => (
+                      <li key={line.field}>
+                        <strong>{line.field}</strong>
+                        {line.field === 'Difficulty' ? '' : `: ${line.value}`} — <span className="muted">{line.source}</span>
+                      </li>
+                    ))}
+                    {randLinks.length > 0 ? (
+                      <li>
+                        <strong>Links</strong> — <span className="muted">{Array.from(new Set(randLinks.map((l) => l.attribution))).join('; ')}. Compatibility is computed here with Modern Club Passing’s definition; nothing is copied from those sites.</span>
+                      </li>
+                    ) : null}
+                  </ul>
+                </details>
+              ) : null}
+
               {randHistory.length > 1 ? (
                 <div className="patternpals-history">
                   <span className="patternpals-history-label">🎰 Draw history:</span>
