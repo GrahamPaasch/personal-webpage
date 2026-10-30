@@ -1,4 +1,7 @@
+import { permanentRedirect } from 'next/navigation';
 import PatternPalsAtlasOnly from '@/components/PatternPalsAtlasOnly';
+import { REMOVED_PATTERN_IDS } from '@/lib/patternpals/derived';
+import { describePattern } from '@/lib/patternpals/atlas';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
 
 type PatternPageProps = {
@@ -26,12 +29,18 @@ export async function generateMetadata({ params }: PatternPageProps) {
 
   return {
     title: `${pattern.name} | PatternPals`,
-    description: `${pattern.description} Given who is at practice today, PatternPals helps jugglers choose, learn, and remember good passing patterns.`,
+    description: describePattern(pattern),
   };
 }
 
 export default async function PatternPalsPatternPage({ params }: PatternPageProps) {
   const { patternId } = await params;
+
+  if (!getPatternById(patternId) && patternId in REMOVED_PATTERN_IDS) {
+    // Old deep links to entries removed in the 2026-10 cleanup (book index lines, duplicates).
+    const target = REMOVED_PATTERN_IDS[patternId];
+    permanentRedirect(target ? `/patternpals/patterns/${target}` : '/patternpals');
+  }
 
   return (
     <div className="patternpals-shell">

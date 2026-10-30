@@ -7,6 +7,7 @@ import { buildEligiblePatternPool, drawRandomPattern } from '@/lib/patternpals/e
 import type { DrawHistoryEntry } from '@/lib/patternpals/eligibility';
 import {
   getCatalogJugglerCounts,
+  getPatternJugglerBounds,
   getPatternObjectCount,
   getPatternRhythm,
   getPatternSources,
@@ -18,14 +19,24 @@ type PatternPalsAtlasOnlyProps = {
   initialPatternId?: string;
 };
 const CATALOG_JUGGLER_COUNTS = getCatalogJugglerCounts(PATTERN_LIBRARY).filter((count) => count >= 2);
+const MAX_GROUP_SIZE = Math.max(10, ...CATALOG_JUGGLER_COUNTS.filter((count) => count <= 16));
 const RANDOMIZER_AVOID_RECENT = 5;
 
+/** "2", "4+" or "5–7": how many jugglers a pattern itself calls for. */
+export const formatJugglerBounds = (pattern: Pattern) => {
+  const bounds = getPatternJugglerBounds(pattern);
+  if (bounds.max === null) return `${bounds.min}+`;
+  if (bounds.max !== bounds.min) return `${bounds.min}–${bounds.max}`;
+  return `${bounds.min}`;
+};
+
 export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAtlasOnlyProps = {}) {
+  const initialPattern = initialPatternId ? getPatternById(initialPatternId) ?? null : null;
   // Randomizer state
-  const [randJugglers, setRandJugglers] = useState<number>(3);
-  const [randResult, setRandResult] = useState<Pattern | null>(() =>
-    initialPatternId ? getPatternById(initialPatternId) ?? null : null,
+  const [randJugglers, setRandJugglers] = useState<number>(() =>
+    initialPattern ? Math.min(MAX_GROUP_SIZE, Math.max(2, getPatternJugglerBounds(initialPattern).min)) : 3,
   );
+  const [randResult, setRandResult] = useState<Pattern | null>(initialPattern);
   const [randHistory, setRandHistory] = useState<DrawHistoryEntry[]>([]);
   const [randSpinning, setRandSpinning] = useState(false);
 
@@ -101,7 +112,7 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
               <button
                 type="button"
                 className="patternpals-token-button"
-                onClick={() => setRandJugglers(Math.min(10, randJugglers + 1))}
+                onClick={() => setRandJugglers(Math.min(MAX_GROUP_SIZE, randJugglers + 1))}
                 aria-label="Add one juggler"
               >
                 ➕
@@ -133,10 +144,12 @@ export default function PatternPalsAtlasOnly({ initialPatternId }: PatternPalsAt
               <div className="patternpals-result-header">
                 <h3 className="patternpals-result-name">{randResult.name}</h3>
               </div>
-              <p className="patternpals-result-description">{randResult.description}</p>
+              {randResult.description && !/^Extracted from .* pattern book\.$/.test(randResult.description) ? (
+                <p className="patternpals-result-description">{randResult.description}</p>
+              ) : null}
               <div className="patternpals-result-metadata">
                 <span className="patternpals-metadata-badge">{getPatternTypeClassification(randResult).displayName}</span>
-                <span className="patternpals-metadata-badge">👥 {randJugglers} (playing this version)</span>
+                <span className="patternpals-metadata-badge">👥 {formatJugglerBounds(randResult)} jugglers</span>
                 {getPatternObjectCount(randResult) ? (
                   <span className="patternpals-metadata-badge">🎪 {getPatternObjectCount(randResult)}</span>
                 ) : null}

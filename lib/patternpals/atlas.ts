@@ -242,6 +242,7 @@ export const getPatternJugglerBounds = (pattern: Pattern) => {
 };
 
 export const patternSupportsJugglers = (pattern: Pattern, jugglers: number) => {
+  if (!Number.isFinite(jugglers) || jugglers < 1) return false;
   const normalized = Math.max(1, Math.round(jugglers));
   const bounds = getPatternJugglerBounds(pattern);
   if (normalized < bounds.min) return false;
@@ -292,6 +293,21 @@ export const getPatternRhythm = (pattern: Pattern) => {
 };
 
 export const getPatternAliases = (pattern: Pattern) => pattern.aliases ?? [];
+
+/** One-line, source-backed description: "Why not? — 2 jugglers, 5 clubs. From Highgate Passing Patterns (2014), page 32." */
+export const describePattern = (pattern: Pattern) => {
+  const bounds = getPatternJugglerBounds(pattern);
+  const jugglers = bounds.max === null ? `${bounds.min}+ jugglers` : bounds.max !== bounds.min ? `${bounds.min}–${bounds.max} jugglers` : `${bounds.min} juggler${bounds.min === 1 ? '' : 's'}`;
+  const clubs = getPatternObjectCount(pattern);
+  const excerpt = getPatternExcerpt(pattern.id);
+  const { sources } = getPatternSources(pattern);
+  const from = excerpt
+    ? `From ${excerpt.sourceTitle}, page ${excerpt.page}.`
+    : sources.length > 0
+      ? `From ${sources.map((book) => book.title).join(' and ')}.`
+      : '';
+  return `${pattern.name} — a passing pattern for ${jugglers}${clubs ? `, ${clubs} clubs` : ''}. ${from}`.trim();
+};
 
 export const getPatternSources = (pattern: Pattern) => {
   const tags = pattern.tags.filter((tag) => tag.startsWith('source:'));

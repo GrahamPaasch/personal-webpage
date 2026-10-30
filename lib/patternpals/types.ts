@@ -79,6 +79,29 @@ export type PatternScalingModel = {
   notes?: string;
 };
 
+/** Metadata derived from the source books by scripts/patternpals/derive_books.py (see lib/patternpals/derived.ts). */
+export type PatternDerivedMeta = {
+  numJugglers?: number;
+  /** Present only for open-ended or ranged patterns: null = "N or more", number = upper bound. */
+  maxJugglers?: number | null;
+  jugglersProvenance?: string;
+  numClubs?: number;
+  clubsProvenance?: string;
+  flags?: string[];
+  /** Notation as printed in the Passing Pattern Anthology (Markus Walter, CC BY-SA 4.0). */
+  anthology?: {
+    page: number;
+    sequence?: string;
+    global?: string;
+    local?: string;
+    prechac?: string;
+    start?: string;
+    throws?: string;
+    interface?: string;
+    remark?: string;
+  };
+};
+
 export type Pattern = {
   id: string;
   name: string;
@@ -94,6 +117,9 @@ export type Pattern = {
   rhythm?: string;
   numObjects?: number;
   numJugglers?: number;
+  /** Book-derived counts and notation; see PatternDerivedMeta. */
+  derived?: PatternDerivedMeta;
+  jugglersProvenance?: MetadataProvenance;
   scaling?: PatternScalingModel;
   roles?: string[];
   aliases?: string[];
