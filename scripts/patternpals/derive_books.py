@@ -350,6 +350,127 @@ def takeouts_section(name: str, page: int) -> Optional[str]:
     return ' '.join(body)
 
 
+# ---------------------------------------------------------------- notation
+
+SS_DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz'
+
+
+def valid_siteswap(text: str) -> bool:
+    t = text.strip().lower()
+    if not t or not re.fullmatch(r'[0-9a-f]+', t):
+        return False
+    throws = [SS_DIGITS.index(c) for c in t]
+    n = len(throws)
+    if sum(throws) % n:
+        return False
+    return len({(i + v) % n for i, v in enumerate(throws)}) == n
+
+
+def highgate_notation(name: str, page: int) -> dict:
+    """'Siteswap:' / 'Prechac:' lines that follow a heading on a Highgate page.
+    Headings may carry suffixes ("Jim's two count (asynch version)", "... aka ...") and the catalog name
+    may carry a "(7 clubs)" suffix; the first matching heading block that prints a siteswap wins."""
+    lines = [l.strip() for l in page_text('highgate2014-05-16', page).split('\n')]
+    target = norm(re.sub(r'\(\d+ clubs\)', '', name))
+    candidates = []
+    for i, l in enumerate(lines):
+        if not l or l.startswith(('Siteswap', 'Prechac', 'Start ', 'Pattern ', 'Colour ')):
+            continue
+        head = norm(re.sub(r'\(.*?\)', '', re.split(r'\baka\b', l)[0]))
+        if head == target or (head.startswith(target + ' ') and len(head.split()) - len(target.split()) <= 2):
+            candidates.append(i)
+    best: dict = {}
+    for i in candidates:
+        out: dict = {}
+        for k in range(i + 1, min(i + 7, len(lines))):
+            ms = re.match(r'^Siteswap:\s*([0-9a-f]+)\s*$', lines[k], re.I)
+            msync = re.match(r'^Siteswap:\s*(\([0-9a-fx, ]+\)(?:\s*\([0-9a-fx, ]+\))*)\s*$', lines[k], re.I)
+            mp = re.match(r'^Prechac:\s*([0-9a-f.p ]+)$', lines[k], re.I)
+            if ms and valid_siteswap(ms.group(1)):
+                out['siteswap'] = ms.group(1).lower()
+            elif msync:
+                out['sync_siteswap'] = msync.group(1).replace(' ', '')
+            elif mp:
+                out['prechac'] = mp.group(1).strip()
+            elif k > i + 1 and not lines[k].startswith(('Start', 'Pattern', 'Colour')) and lines[k]:
+                break
+        if 'siteswap' in out or 'sync_siteswap' in out:
+            return out
+        if out and not best:
+            best = out
+    return best
+
+
+def compendium_notation(name: str, page: int) -> dict:
+    """Heading lines like '7 clubs: 4-count <3 3 5p 3 | 5p 3 3 3>', or the first '<a|b>' printed
+    within a few lines after a section heading such as '7 clubs: 4 vs 3 4-counts'."""
+    n = norm(name)
+    short = norm(re.sub(r'^\d+\+?\s*clubs?\s*:\s*', '', name))
+    lines = page_text('passingpatternsaug06', page).split('\n')
+    pair_re = re.compile(r'<\s*([^<>|]+?)\s*\|\s*([^<>|]+?)\s*>')
+    for i, l in enumerate(lines):
+        m = pair_re.search(l)
+        head = norm(l[:m.start()]) if m else norm(l)
+        if not head or not (head == n or head == short or head.endswith(short)):
+            continue
+        if m:
+            return {'pair': [m.group(1).strip(), m.group(2).strip()]}
+        for k in range(i + 1, min(i + 10, len(lines))):
+            mk = pair_re.search(lines[k])
+            if mk:
+                return {'pair': [mk.group(1).strip(), mk.group(2).strip()]}
+    return {}
+
+
+def flowchart_siteswaps() -> dict[str, str]:
+    lines = [l.strip() for l in page_text('curriculum_flowchart', 1).split('\n')]
+    out = {}
+    for i, l in enumerate(lines):
+        if re.fullmatch(r'\d{3,}', l) and i > 0 and valid_siteswap(l):
+            out[norm(lines[i - 1])] = l
+            if i > 1:
+                out[norm(lines[i - 2] + ' ' + lines[i - 1])] = l
+    return out
+
+
+def will_related(name: str, page: int) -> dict[str, list[str]]:
+    """'Related patterns' block: Add a club / Subtract a club / Other related patterns."""
+    text = page_text('willpatterns', page) + '\n' + page_text('willpatterns', page + 1)
+    lines = [l.strip() for l in text.split('\n')]
+    n = norm(name)
+    start = None
+    for i, l in enumerate(lines):
+        if norm(l) == n and i > 0 and re.match(r'^\d{1,3}$', lines[i - 1]):
+            start = i
+            break
+    if start is None:
+        return {}
+    out: dict[str, list[str]] = {}
+    section = None
+    for k in range(start + 1, min(start + 140, len(lines))):
+        l = lines[k]
+        if k > start + 1 and re.match(r'^\d{1,3}$', lines[k - 1]) and l and not re.match(r'^[LR]$', l) and k > start + 20 and section:
+            break  # next pattern heading
+        if l.startswith('Add a club'):
+            section = 'add'
+            continue
+        if l.startswith('Subtract a club'):
+            section = 'subtract'
+            continue
+        if l.startswith('Other related'):
+            section = 'other'
+            continue
+        if l.startswith('Related patterns') or l.startswith('Will and Rhonda') or l.startswith('Inventor'):
+            section = None if not l.startswith('Related') else section
+            continue
+        if section and l and not re.match(r'^[LR]$', l):
+            names = [x.strip(' .') for x in re.split(r'[,;]|\band\b', l.split('(')[0]) if x.strip(' .')]
+            for cand in names:
+                if re.match(r'^[A-Za-z0-9][A-Za-z0-9\-+]*$', cand) and len(cand) > 2:
+                    out.setdefault(section, []).append(cand)
+    return out
+
+
 # ---------------------------------------------------------------- derivation
 
 @dataclass
@@ -367,8 +488,15 @@ class Derived:
     notes: list[str] = field(default_factory=list)
     anthology: Optional[dict] = None
     flags: list[str] = field(default_factory=list)
+    siteswap: Optional[str] = None
+    prechac: Optional[str] = None
+    sync_pair: Optional[list[str]] = None
+    sync_siteswap: Optional[str] = None
+    notation_source: Optional[str] = None
+    related: dict = field(default_factory=dict)
 
 
+FLOW_SS: dict[str, str] = {}
 PAREN_COUNT_RE = re.compile(r'\((\d{1,2})\s*(\+|-\s*(\d{1,2}))?\)\s*$')
 FOR_N_RE = re.compile(r'\(?\s*for\s+(\d{1,2})(?:\s*,\s*(\d{1,2}))?(?:\s*,?\s*and\s+(\d{1,2}))?(?:\s+or\s+more)?\s*-?\s*(?:jugglers?|people|person)?\s*\)?', re.I)
 N_CLUBS_RE = re.compile(r'\b(\d{1,2})\+?\s*-?\s*clubs?\b', re.I)
@@ -413,6 +541,8 @@ MANUAL: dict[str, dict] = {
 
 
 def derive_all(entries: list[Entry], excerpts: dict[str, dict]) -> list[Derived]:
+    global FLOW_SS
+    FLOW_SS = flowchart_siteswaps()
     hg_index = parse_highgate_index()
     hg_toc = parse_highgate_toc()
     anth = parse_anthology()
@@ -652,10 +782,75 @@ def derive_all(entries: list[Entry], excerpts: dict[str, dict]) -> list[Derived]
                 d.notes.append(f'anthology says {anth[n]["jugglers"]} jugglers')
             d.anthology = d.anthology or anth[n]
 
+        # ---- notation (2-person patterns only for siteswaps)
+        cur_page = d.new_page or page
+        if tag == 'highgate2014-05-16' and cur_page and 4 <= cur_page <= 238:
+            hn = highgate_notation(d.rename or e.name, cur_page)
+            if hn:
+                d.siteswap = hn.get('siteswap')
+                d.prechac = hn.get('prechac')
+                d.sync_siteswap = hn.get('sync_siteswap')
+                if d.sync_siteswap and d.prechac and '.' not in d.prechac:
+                    # synchronous pattern: both jugglers juggle the printed prechac (integer p throws)
+                    d.sync_pair = [d.prechac, d.prechac]
+                    d.prechac = None
+                d.notation_source = f'Highgate p{cur_page}'
+        elif tag == 'passingpatternsaug06' and cur_page:
+            cn = compendium_notation(e.name, cur_page)
+            if cn:
+                d.sync_pair = cn['pair']
+                d.notation_source = f'Compendium p{cur_page}'
+        elif tag == 'willpatterns' and cur_page:
+            rel = will_related(e.name, d.new_page or cur_page)
+            if rel:
+                d.related = rel
+        if d.siteswap is None and d.prechac and (d.jugglers == 2):
+            # symmetric two-juggler prechac -> global siteswap (3.5p413.5p3 -> 77862)
+            toks = re.findall(r'\d(?:\.\d)?p?', d.prechac.replace(' ', ''))
+            if toks and ''.join(toks) == d.prechac.replace(' ', ''):
+                doubled = []
+                ok = True
+                for t in toks:
+                    v = float(t.rstrip('p')) * 2
+                    if abs(v - round(v)) > 1e-6 or (t.endswith('p') != (round(v) % 2 == 1)) or round(v) >= len(SS_DIGITS):
+                        ok = False
+                        break
+                    doubled.append(int(round(v)))
+                if ok:
+                    n = len(doubled)
+                    if n % 2 == 1:
+                        glob = [doubled[(k * ((n + 1) // 2)) % n] for k in range(n)]
+                    else:
+                        glob = []
+                        for i in range(n):
+                            glob += [doubled[i], doubled[(i + n // 2) % n]]
+                    text = ''.join(SS_DIGITS[g] for g in glob)
+                    if valid_siteswap(text):
+                        d.siteswap = text
+                        d.notes.append('siteswap converted from the printed prechac')
+        if d.anthology and d.anthology.get('global') and valid_siteswap(d.anthology['global']) and (d.jugglers == 2):
+            d.siteswap = d.siteswap or d.anthology['global'].lower()
+            d.notation_source = d.notation_source or f'Anthology p{d.anthology["page"]}'
+        if d.siteswap is None and 'curriculum_flowchart' in e.sources and (d.jugglers or e.required) == 2:
+            fs = FLOW_SS.get(n)
+            if fs:
+                d.siteswap = fs
+                d.notation_source = d.notation_source or 'Passing progression flowchart'
+        if d.siteswap and d.jugglers == 2:
+            throws = [SS_DIGITS.index(c) for c in d.siteswap]
+            clubs = sum(throws) // len(throws)
+            if d.clubs != clubs:
+                d.notes.append(f'siteswap {d.siteswap} implies {clubs} clubs (book said {d.clubs})')
+                d.clubs, d.clubs_prov = clubs, f'siteswap average ({d.notation_source})'
+
         if e.id in MANUAL:
             mfix = MANUAL[e.id]
             for k in ('jugglers', 'jugglers_max', 'clubs', 'rename', 'new_page'):
                 if k in mfix:
+                    if k == 'new_page' and ex and ex['page'] == mfix[k]:
+                        continue
+                    if k == 'rename' and e.name == mfix[k]:
+                        continue
                     setattr(d, k, mfix[k])
             d.jug_prov = 'maintainer: ' + mfix['prov']
             if 'clubs' in mfix:
@@ -690,7 +885,7 @@ def derive_all(entries: list[Entry], excerpts: dict[str, dict]) -> list[Derived]
 def write_report(entries, excerpts, derived):
     os.makedirs(WORK, exist_ok=True)
     by_id = {e.id: e for e in entries}
-    rows = ['id\tname\told_jug\tnew_jug\tmax\tclubs\tjug_prov\tclubs_prov\taction\tnotes']
+    rows = ['id\tname\told_jug\tnew_jug\tmax\tclubs\tjug_prov\tclubs_prov\taction\tnotes\tsiteswap\tprechac\tpair\trelated']
     changed = junk = merged = repaged = 0
     for d in derived:
         e = by_id[d.id]
@@ -706,7 +901,7 @@ def write_report(entries, excerpts, derived):
             action += f' RENAME "{d.rename}"'
         if d.jugglers is not None and d.jugglers != e.required and not d.junk and not d.merge_into:
             changed += 1
-        rows.append('\t'.join(str(x) for x in [d.id, e.name, e.required, d.jugglers if d.jugglers is not None else '', '' if d.jugglers_max is None else ('open' if d.jugglers_max == 0 else d.jugglers_max), d.clubs or '', d.jug_prov, d.clubs_prov, action, '; '.join(d.notes)]))
+        rows.append('\t'.join(str(x) for x in [d.id, e.name, e.required, d.jugglers if d.jugglers is not None else '', '' if d.jugglers_max is None else ('open' if d.jugglers_max == 0 else d.jugglers_max), d.clubs or '', d.jug_prov, d.clubs_prov, action, '; '.join(d.notes), d.siteswap or '', d.prechac or '', '|'.join(d.sync_pair or []), str(d.related) if d.related else '']))
     open(os.path.join(WORK, 'report.tsv'), 'w').write('\n'.join(rows) + '\n')
     print(f'report: {len(derived)} entries, {changed} juggler-count changes, {junk} junk, {merged} merged, {repaged} repaged -> {WORK}/report.tsv')
 

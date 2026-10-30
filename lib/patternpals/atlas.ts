@@ -294,6 +294,27 @@ export const getPatternRhythm = (pattern: Pattern) => {
 
 export const getPatternAliases = (pattern: Pattern) => pattern.aliases ?? [];
 
+export type PatternTiming = 'async' | 'sync';
+
+/** Async vs synchronous passing, when the book says so (name, anthology interface line, or notation). */
+export const getPatternTiming = (pattern: Pattern): PatternTiming | null => {
+  if (pattern.timing) return pattern.timing;
+  const name = `${pattern.name} ${(pattern.aliases ?? []).join(' ')}`;
+  if (/\basync|asynchronous\b/i.test(name)) return 'async';
+  if (/\b(sync|synch|synchronous|simul|simultaneous)\b/i.test(name)) return 'sync';
+  if (pattern.derived?.siteswap || pattern.derived?.prechac) return 'async'; // 4-handed siteswaps / x.5p prechac are half-beat offset
+  if (pattern.derived?.syncPair) return /\.5p/.test(pattern.derived.syncPair.join(' ')) ? 'async' : 'sync';
+  const anthology = pattern.derived?.anthology;
+  if (anthology) {
+    const text = `${anthology.interface ?? ''} ${anthology.remark ?? ''}`;
+    if (/\(sync\)|⊗/.test(text)) return 'sync';
+    if (/\(async\)|✠/.test(text)) return 'async';
+    if (anthology.global || anthology.local) return 'async'; // 4-handed siteswaps are asynchronous by construction
+    if (anthology.prechac) return 'sync';
+  }
+  return null;
+};
+
 /** One-line, source-backed description: "Why not? — 2 jugglers, 5 clubs. From Highgate Passing Patterns (2014), page 32." */
 export const describePattern = (pattern: Pattern) => {
   const bounds = getPatternJugglerBounds(pattern);

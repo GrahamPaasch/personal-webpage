@@ -147,6 +147,22 @@ def write_derived(entries: list[Entry], dmap: dict[str, Derived], removed: dict[
             fields.append(f'clubsProvenance: {ts_str(d.clubs_prov)}')
         if d.flags:
             fields.append('flags: [' + ', '.join(ts_str(f) for f in d.flags) + ']')
+        if d.siteswap:
+            fields.append(f'siteswap: {ts_str(d.siteswap)}')
+        if d.prechac:
+            fields.append(f'prechac: {ts_str(d.prechac)}')
+        if d.sync_pair:
+            fields.append('syncPair: [' + ', '.join(ts_str(x) for x in d.sync_pair) + ']')
+        if d.sync_siteswap:
+            fields.append(f'syncSiteswap: {ts_str(d.sync_siteswap)}')
+        if d.notation_source:
+            fields.append(f'notationSource: {ts_str(d.notation_source)}')
+        if d.related:
+            parts = []
+            for kind, names in d.related.items():
+                for nm in names:
+                    parts.append('{ relation: ' + ts_str(kind) + ', name: ' + ts_str(nm) + ' }')
+            fields.append('related: [' + ', '.join(parts) + ']')
         if d.anthology:
             a = d.anthology
             notation = [('page', a['page'])] + [(('prechac' if k == 'préchac' else k), a[k]) for k in ('sequence', 'global', 'local', 'préchac', 'start', 'throws', 'interface', 'remark') if a.get(k)]

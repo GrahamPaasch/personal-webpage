@@ -88,6 +88,17 @@ export type PatternDerivedMeta = {
   numClubs?: number;
   clubsProvenance?: string;
   flags?: string[];
+  /** Global 4-handed siteswap (2-juggler async patterns), validated. */
+  siteswap?: string;
+  /** Prechac as printed in the book (one juggler's local sequence, 3.5p == global 7). */
+  prechac?: string;
+  /** Synchronous two-juggler pair as printed in the Compendium, e.g. ['53p53', '33p33']. */
+  syncPair?: [string, string];
+  /** Synchronous 4-handed siteswap as printed in the Highgate book, e.g. "(6x,6x)(6x,6x)(6,6)". */
+  syncSiteswap?: string;
+  notationSource?: string;
+  /** Will Murray's "Related patterns" (add a club / subtract a club / other), by printed name. */
+  related?: { relation: 'add' | 'subtract' | 'other'; name: string }[];
   /** Notation as printed in the Passing Pattern Anthology (Markus Walter, CC BY-SA 4.0). */
   anthology?: {
     page: number;
@@ -120,6 +131,8 @@ export type Pattern = {
   /** Book-derived counts and notation; see PatternDerivedMeta. */
   derived?: PatternDerivedMeta;
   jugglersProvenance?: MetadataProvenance;
+  /** Explicit timing override; otherwise derived (see getPatternTiming). */
+  timing?: 'async' | 'sync';
   scaling?: PatternScalingModel;
   roles?: string[];
   aliases?: string[];
