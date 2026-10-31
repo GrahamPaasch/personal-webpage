@@ -116,9 +116,13 @@ export function buildEligiblePatternPool(
     }
 
     const clubs = getPatternObjectCount(pattern);
+    const clubFilterActive = typeof clubsMin === 'number' || typeof clubsMax === 'number';
     if (typeof clubs === 'number') {
       if (typeof clubsMin === 'number' && clubs < clubsMin) reasons.push(`Fewer than ${clubsMin} clubs`);
       if (typeof clubsMax === 'number' && clubs > clubsMax) reasons.push(`More than ${clubsMax} clubs`);
+    } else if (clubFilterActive) {
+      // An unknown club count can't be shown to satisfy a club range (a 3-5 filter was landing on 4-count triples).
+      reasons.push('Club count unknown');
     }
 
     if (timing !== 'all' && getPatternTiming(pattern) !== timing) {
