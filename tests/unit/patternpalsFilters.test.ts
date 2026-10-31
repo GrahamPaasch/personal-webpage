@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { getPatternTiming } from '@/lib/patternpals/atlas';
+import { getPatternObjectCount, getPatternTiming } from '@/lib/patternpals/atlas';
 import { DIFFICULTY_BANDS, estimateDifficulty, getDifficultyBand } from '@/lib/patternpals/difficulty';
 import { buildEligiblePatternPool, effectiveDifficultyBand, matchesQuery } from '@/lib/patternpals/eligibility';
 import { PATTERN_LIBRARY, getPatternById } from '@/lib/patternpals/patterns';
@@ -55,6 +55,12 @@ describe('filters and search', () => {
       const clubs = pattern.numObjects;
       if (typeof clubs === 'number') expect(clubs, pattern.id).toBeLessThanOrEqual(6);
     }
+  });
+
+  test('a club range never lands on a pattern whose club count is unknown', () => {
+    const { eligible } = buildEligiblePatternPool(PATTERN_LIBRARY, { jugglerCount: 2, clubsMin: 3, clubsMax: 5 });
+    expect(eligible.map((p) => p.id)).not.toContain('4_count_triple_both_hands');
+    for (const pattern of eligible) expect(getPatternObjectCount(pattern), pattern.id).not.toBeNull();
   });
 
   test('difficulty band and stretch narrow the pool', () => {
