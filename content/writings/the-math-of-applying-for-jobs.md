@@ -1,5 +1,5 @@
 ---
-date: 2025-09-15
+date: 2025-09-14
 ---
 
 To have a high probability of being hired for a job, it takes a two pronged approach...
