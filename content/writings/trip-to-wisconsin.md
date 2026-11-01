@@ -1,3 +1,7 @@
+---
+date: 2025-10-21
+---
+
 a retrospective of my trip to wisconsin
 
 The best time to visit Wisconsin is early fall, right when the trees start to change colors, and

@@ -1,3 +1,7 @@
+---
+date: 2025-10-23
+---
+
 action blindness
 
 Yesterday I arrived back home from a trip lasting about a month. Thus I saw my living space in an entirely new light.

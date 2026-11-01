@@ -1,3 +1,7 @@
+---
+date: 2025-09-06
+---
+
 # Bryan Johnson is Right About Everything
 
 # Bryan Johnson is Right About Everything

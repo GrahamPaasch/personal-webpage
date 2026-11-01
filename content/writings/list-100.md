@@ -1,3 +1,7 @@
+---
+date: 2025-11-07
+---
+
 100 things I'd like to do before I die
 
 1. NOT DONE: Juggle 7 balls for 100 or more catches.

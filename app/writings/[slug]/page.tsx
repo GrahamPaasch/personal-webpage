@@ -37,7 +37,7 @@ export default async function PostPage({ params }: Props) {
     <article className="card prose" data-voice="unified">
       <h1>{post.meta.title}</h1>
       <div className="post-meta">
-        {new Date(post.meta.date).toLocaleDateString()}
+        {new Date(post.meta.date).toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' })}
         {post.meta.readingTime && (
           <span className="reading-time"> &middot; {post.meta.readingTime} min read</span>
         )}

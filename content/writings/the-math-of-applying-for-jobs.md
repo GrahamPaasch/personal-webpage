@@ -1,3 +1,7 @@
+---
+date: 2025-09-15
+---
+
 To have a high probability of being hired for a job, it takes a two pronged approach...
 
 1. Volume. You must apply to many jobs. At least 50. A good number to aim for is 100. Applying to 1000 jobs is somewhat reasonable.

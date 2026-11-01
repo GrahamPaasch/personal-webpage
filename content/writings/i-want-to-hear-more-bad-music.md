@@ -1,3 +1,7 @@
+---
+date: 2025-10-27
+---
+
 I want to hear more bad music.
 
 I'm so so sick of our sterilized, pre-recorded, society. Where

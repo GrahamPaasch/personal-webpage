@@ -1,3 +1,7 @@
+---
+date: 2025-09-07
+---
+
 # Career Journey &amp; Vision
 
 # Career Journey & Vision

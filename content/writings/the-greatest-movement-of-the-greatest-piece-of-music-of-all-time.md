@@ -1,3 +1,7 @@
+---
+date: 2025-11-14
+---
+
 https://youtu.be/-0nKJoZY64A?si=A14G-KPoPmciFVjd&t=759
 
 https://en.wikipedia.org/wiki/String_Quartet_No._8_(Shostakovich)

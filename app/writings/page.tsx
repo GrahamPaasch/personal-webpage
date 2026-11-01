@@ -25,7 +25,7 @@ export default function WritingsIndex() {
                   <Link href={`/writings/${p.slug}`}>{p.title}</Link>
                 </h2>
                 <div className="post-meta">
-                  {new Date(p.date).toLocaleDateString()}
+                  {new Date(p.date).toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' })}
                   {p.readingTime && (
                     <span className="reading-time"> · {p.readingTime} min read</span>
                   )}

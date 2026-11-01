@@ -1,3 +1,7 @@
+---
+date: 2025-11-07
+---
+
 These are the things I went through since January 2020. I am writing them down because it is
 difficult to understand just how henious the past five years have been. If I told somebody
 they might not believe it. In just five years I have experience multiple once in a handful
