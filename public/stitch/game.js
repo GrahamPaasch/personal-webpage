@@ -222,16 +222,8 @@ function die() {
 }
 
 // ---------- spawning ----------
-// Fairness (Graham 11/1): there must always be at least one eye the needle can reach in one dash,
-// so a whiff is a choice, never forced. `reach` places the eye inside dash range.
-function reachable(r) { if (r.hit) return false; const d = Math.hypot(r.x - G.px, r.y - G.py); return d <= dashLen() * 0.92 && d >= MIN * 0.1; }
-function spawnRing(initial, reach) {
+function spawnRing(initial) {
   const m = 70; let x, y, tries = 0;
-  if (reach) {
-    do { const a = rnd(0, TAU), d = rnd(MIN * 0.16, dashLen() * 0.85); x = G.px + Math.cos(a) * d; y = G.py + Math.sin(a) * d; tries++; }
-    while (tries < 40 && (x < m || x > W - m || y < m || y > H - m || G.rings.some(r => Math.hypot(r.x - x, r.y - y) < 110)));
-    x = clamp(x, m, W - m); y = clamp(y, m, H - m);
-  } else
   do { x = rnd(m, W - m); y = rnd(m, H - m); tries++; } while (tries < 20 && (Math.hypot(x - G.px, y - G.py) < MIN * 0.16 || G.rings.some(r => Math.hypot(r.x - x, r.y - y) < 110)));
   const maxR = rnd(MIN * 0.052, MIN * 0.08) * (initial ? 1.1 : 1);
   G.rings.push({ x, y, maxR, r: maxR, age: 0, life: ringLife() * (initial ? 1.4 : 1), born: 0, hit: false, seed: Math.random() * TAU });
@@ -368,8 +360,7 @@ function update(dt) {
   }
   const live = G.rings.filter(r => !r.hit).length;
   G.spawnT -= dt;
-  if (live < targetRings() && G.spawnT <= 0) { spawnRing(false, !G.rings.some(reachable)); G.spawnT = live === 0 ? 0 : 0.25; }
-  else if (!G.dash && G.spawnT <= 0 && !G.rings.some(reachable)) { spawnRing(false, true); G.spawnT = 0.35; }
+  if (live < targetRings() && G.spawnT <= 0) { spawnRing(false); G.spawnT = live === 0 ? 0 : 0.25; }
   // knots
   for (const k of G.knots) {
     k.born += dt; k.x += k.vx * dt; k.y += k.vy * dt; k.ph += dt * 2;
