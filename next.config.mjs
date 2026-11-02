@@ -22,6 +22,7 @@ const STATIC_APP_DIRS = [
   'juggling/extra-club-patterns',
   'panelclash',
   'sidewalks-of-rage',
+  'stitch',
   'viola-gauntlet',
   'wrap-chess',
   'wellness',
