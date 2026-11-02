@@ -197,16 +197,15 @@ const G = {
 const DASH_T = 0.19;
 const THREAD_MAX = 100;
 function dashLen() { return MIN * 0.46 * (modOn(0) ? 1.35 : 1); }
-function dashCost() { return (G.stage < 2 ? 4 : 5) * (modOn(0) ? 1.35 : 1); }
-// Gentle on-ramp (Graham 11/1: too hard): stages 1-2 are forgiving, then it ramps for strong players.
-function drainRate() { return G.stage === 0 ? 1.6 : G.stage === 1 ? 2.4 : 3.2 + (G.stage - 2) * 0.75; }
-function ringLife() { return G.stage < 2 ? 7.0 - G.stage * 0.6 : Math.max(2.6, 5.6 - (G.stage - 2) * 0.32); }
+function dashCost() { return 5 * (modOn(0) ? 1.35 : 1); }
+function drainRate() { return 3.2 + G.stage * 0.75; }
+function ringLife() { return Math.max(2.6, 5.2 - G.stage * 0.32); }
 function targetRings() { return Math.min(6, 2 + Math.floor(G.stage / 1.5)); }
 function targetKnots() { return Math.min(7, Math.floor((G.stage + 1) * 0.9)) * (modOn(1) ? 2 : 1); }
 
 function toTitle() { G.state = 'title'; G.titleT = 0; droneLevel(0.05, 200); }
 function startRun() {
-  Object.assign(G, { state: 'play', t: 0, score: 0, combo: 0, maxCombo: 0, stitches: 0, stage: 0, thread: 85, perfects: 0, multis: 0,
+  Object.assign(G, { state: 'play', t: 0, score: 0, combo: 0, maxCombo: 0, stitches: 0, stage: 0, thread: 70, perfects: 0, multis: 0,
     px: W / 2, py: H / 2, dash: null, queued: false, rings: [], knots: [], parts: [], texts: [], trail: [], waves: [], shake: 0, hitstop: 0, flash: 0,
     spawnT: 0, knotRespawn: [], runTime: 0, newBest: false, stageFlash: 0, lowBeat: 0, deadT: 0, lastDashRings: 0 });
   for (let i = 0; i < 3; i++) spawnRing(true);
@@ -326,8 +325,8 @@ function stitch(r, perfect, nth) {
   r.popT = 0;
 }
 function snag(k) {
-  const snagCost = G.stage < 2 ? 14 : 22; G.thread -= snagCost; G.combo = 0; sfx.knot(); G.shake = Math.max(G.shake, 16); G.hitstop = Math.max(G.hitstop, 0.09); G.flash = 0.5; G.flashHue = 0;
-  spawnParts(k.x, k.y, 40, 0, 260, 0.7, 3); addText(k.x, k.y - 30, 'SNAG -' + snagCost, 0, true);
+  G.thread -= 22; G.combo = 0; sfx.knot(); G.shake = Math.max(G.shake, 16); G.hitstop = Math.max(G.hitstop, 0.09); G.flash = 0.5; G.flashHue = 0;
+  spawnParts(k.x, k.y, 40, 0, 260, 0.7, 3); addText(k.x, k.y - 30, 'SNAG -22', 0, true);
   G.waves.push({ x: k.x, y: k.y, r: k.r, max: MIN * 0.25, t: 0, hue: 0 });
 }
 
