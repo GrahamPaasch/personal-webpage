@@ -146,8 +146,10 @@ cv.addEventListener('mousedown', e => {
 });
 cv.addEventListener('mouseup', e => { if (e.button === 0) input.press = false; });
 cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('touchstart', e => { e.preventDefault(); audioInit(); const t = e.touches[0]; input.mx = t.clientX; input.my = t.clientY; input.aimSrc = 'mouse'; input.press = true; input.pressEdge = true; }, { passive: false });
-cv.addEventListener('touchmove', e => { e.preventDefault(); const t = e.touches[0]; input.mx = t.clientX; input.my = t.clientY; }, { passive: false });
+// Mobile (11/1 fix): a tap aims AT the tap point and dashes there; dragging re-aims.
+function touchAim(t) { input.mx = t.clientX; input.my = t.clientY; input.mouseIn = true; input.aimSrc = 'mouse'; const dx = input.mx - G.px, dy = input.my - G.py, l = Math.hypot(dx, dy); if (l > 2) { input.aimX = dx / l; input.aimY = dy / l; } }
+cv.addEventListener('touchstart', e => { e.preventDefault(); audioInit(); touchAim(e.touches[0]); input.press = true; input.pressEdge = true; }, { passive: false });
+cv.addEventListener('touchmove', e => { e.preventDefault(); touchAim(e.touches[0]); }, { passive: false });
 cv.addEventListener('touchend', e => { e.preventDefault(); input.press = false; }, { passive: false });
 const AIMKEYS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], KeyW: [0, -1], KeyS: [0, 1], KeyA: [-1, 0], KeyD: [1, 0] };
 window.addEventListener('keydown', e => {
