@@ -12,6 +12,7 @@ const composedVersion = short ? `${baseVersion}+${short}` : baseVersion;
 const STATIC_APP_DIRS = [
   'breathing',
   'cadence',
+  'exercise',
   'cascade',
   'cascade/play',
   'create-now',
