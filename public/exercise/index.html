@@ -1,22 +1,149 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Exercise: coming soon</title>
-<meta name="description" content="A timeline of no-equipment, science-based bodyweight workout videos. Coming soon.">
+<title>Exercise</title>
+<meta name="description" content="Graham's workout timeline: one session a day, each linked to its video.">
+<meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💪</text></svg>">
 <style>
-:root{--bg:#0f1115;--card:#171a21;--ink:#e8e6e1;--mute:#9aa0aa;--acc:#e0a458;--acc2:#6fb3d2}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif}
-main{max-width:760px;margin:auto;padding:60px 18px}h1{font-size:34px;margin:.2em 0}
-.lede{color:var(--mute);font-size:18px}.card{background:var(--card);border:1px solid #262b35;border-radius:12px;padding:16px 18px;margin:22px 0}
-.tag{display:inline-block;font-size:13px;padding:2px 10px;border-radius:10px;background:#3a321f;color:var(--acc)}
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}.col{border:1px dashed #333a47;border-radius:10px;padding:12px;min-height:110px;color:var(--mute)}
-.col b{color:var(--acc2);display:block;margin-bottom:6px}
+:root{--bg:#0f1115;--card:#171a21;--ink:#e8e6e1;--mute:#9aa0aa;--acc:#e0a458;--acc2:#6fb3d2;--ok:#7fbf7f;--line:#262b35}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:760px;margin:auto;padding:18px 12px 60px}h1{font-size:28px;margin:.1em 0 .2em}
+.lede{color:var(--mute);font-size:14px;margin:0 0 12px}a{color:var(--acc2)}
+.heads{position:sticky;top:0;z-index:2;background:var(--bg);display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.heads div:last-child{color:var(--ok)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;touch-action:pan-y;user-select:none;-webkit-user-select:none;position:relative}
+.pending{grid-column:1;cursor:grab}.done{grid-column:2;border-color:#2c4a30}
+.today{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.date{font-size:12px;color:var(--mute)}.today .date{color:var(--acc)}
+.title{font-size:15px;margin:2px 0 6px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button{font:inherit;font-size:13px;background:#232833;color:var(--ink);border:1px solid #333a47;border-radius:14px;padding:4px 10px;cursor:pointer}
+button.on{background:#3a321f;color:var(--acc);border-color:var(--acc)}
+.go{margin-left:auto;background:#1f3a24;color:var(--ok);border-color:#2c4a30}
+.note{font-size:13px;color:var(--acc);margin:4px 0 0}
+.hint{font-size:12px;color:var(--mute);text-align:center;margin:6px 0}
+.later{color:#5d636e;font-size:13px;margin-top:22px;text-align:center}
+.busy{opacity:.5;pointer-events:none}
+#msg{color:#e07070;font-size:13px;min-height:1em}
 </style></head><body><main>
-<span class="tag">coming soon</span>
 <h1>Exercise</h1>
-<p class="lede">A timeline of science-based, no-equipment bodyweight workouts: strength, cardio and everything in between, each one a video with a target date on the calendar.</p>
-<div class="card cols">
-<div class="col"><b>Up next</b>Pending sessions will line up here.</div>
-<div class="col"><b>Done</b>Check one off and it moves over here, with notes on how it went.</div>
-</div>
-<p class="lede" style="font-size:14px">Built by Cadence, Graham's voice AI.</p>
-</main></body></html>
+<p class="lede">One session a day. Swipe a session right (or tap ✓) when it's done.</p>
+<div id="msg"></div>
+<div class="heads"><div>Up next</div><div>Done</div></div>
+<div id="list"></div>
+<p class="later" id="later"></p>
+</main>
+<script>
+const API = '/api/exercise';
+const PW_KEY = 'exercise-pw';
+const list = document.getElementById('list');
+const msg = document.getElementById('msg');
+const pad = (n) => String(n).padStart(2, '0');
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const fmt = (day) => new Date(day + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let state = null;
+
+async function load() {
+  const r = await fetch(`${API}?today=${localToday()}`, { cache: 'no-store' });
+  if (!r.ok) { msg.textContent = 'Could not load the timeline.'; return; }
+  render(await r.json(), true);
+}
+
+function render(data, scroll) {
+  state = data;
+  const today = data.today;
+  list.innerHTML = data.sessions.map((s) => {
+    const isToday = s.date === today && !s.done;
+    const video = `<a href="${esc(s.video)}" target="_blank" rel="noopener">▶ video</a>`;
+    if (s.done) {
+      const chips = ['too hard', 'too easy'].map((n) =>
+        `<button data-act="chip" data-note="${n}" class="${s.note === n ? 'on' : ''}">${n}</button>`).join('');
+      const custom = s.note && s.note !== 'too hard' && s.note !== 'too easy' ? `<p class="note">${esc(s.note)}</p>` : '';
+      return `<div class="row"><div class="card done" data-id="${s.id}">
+        <div class="date">${fmt(s.date)}</div><div class="title">${esc(s.title)}</div>
+        <div class="acts">${video}${chips}<button data-act="text" title="Write a note">✎</button><button data-act="undo" title="Undo">↩</button></div>${custom}</div></div>`;
+    }
+    return `<div class="row"><div class="card pending${isToday ? ' today' : ''}" data-id="${s.id}">
+      <div class="date">${isToday ? 'Today · ' : ''}${fmt(s.date)}</div><div class="title">${esc(s.title)}</div>
+      <div class="acts">${video}<button class="go" data-act="done" title="Mark done">✓</button></div></div></div>`;
+  }).join('');
+  document.getElementById('later').textContent = data.later && data.later.length ? 'Coming later: ' + data.later.join(', then ') : '';
+  if (scroll) {
+    const t = list.querySelector('.today') || list.querySelector('.pending');
+    if (t) t.scrollIntoView({ block: 'center' });
+  }
+}
+
+async function getPw(force) {
+  let pw = force ? null : localStorage.getItem(PW_KEY);
+  if (pw) return pw;
+  pw = prompt('Password to make changes');
+  if (!pw) return null;
+  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw, action: 'check' }) });
+  if (!r.ok) { alert("That's not it."); return null; }
+  localStorage.setItem(PW_KEY, pw);
+  return pw;
+}
+
+async function send(body, card) {
+  msg.textContent = '';
+  const pw = await getPw(false);
+  if (!pw) { render(state); return; }
+  if (card) card.classList.add('busy');
+  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, password: pw, today: localToday() }) });
+  if (r.status === 401) { localStorage.removeItem(PW_KEY); render(state); return send(body, card); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { msg.textContent = data.error || 'Something went wrong.'; render(state); return; }
+  render(data);
+}
+
+list.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const card = b.closest('.card'); const id = card.dataset.id;
+  const s = state.sessions.find((x) => x.id === id);
+  const act = b.dataset.act;
+  if (act === 'done') send({ action: 'done', id }, card);
+  else if (act === 'undo') send({ action: 'undo', id }, card);
+  else if (act === 'chip') send({ action: 'note', id, note: s.note === b.dataset.note ? null : b.dataset.note }, card);
+  else if (act === 'text') {
+    const n = prompt('Note (blank to clear)', s.note || '');
+    if (n !== null) send({ action: 'note', id, note: n }, card);
+  }
+});
+
+// Swipe / drag a pending card to the right to mark it done.
+let drag = null;
+list.addEventListener('pointerdown', (e) => {
+  const card = e.target.closest('.pending');
+  if (!card || e.target.closest('a,button')) return;
+  drag = { card, x: e.clientX, y: e.clientY, dx: 0, live: false, id: e.pointerId };
+});
+list.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!drag.live) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { drag = null; return; }
+    if (dx < 8) return;
+    drag.live = true; drag.card.setPointerCapture(e.pointerId); drag.card.style.transition = 'none';
+  }
+  drag.dx = Math.max(0, dx);
+  drag.card.style.transform = `translateX(${drag.dx}px)`;
+  drag.card.style.opacity = String(1 - Math.min(drag.dx / drag.card.offsetWidth, 1) * 0.4);
+});
+function endDrag(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const { card, dx, live } = drag; drag = null;
+  if (!live) return;
+  card.style.transition = 'transform .2s, opacity .2s';
+  if (dx > Math.min(110, card.offsetWidth * 0.4)) {
+    card.style.transform = `translateX(${card.offsetWidth + 10}px)`;
+    send({ action: 'done', id: card.dataset.id }, card);
+  } else { card.style.transform = ''; card.style.opacity = ''; }
+}
+list.addEventListener('pointerup', endDrag);
+list.addEventListener('pointercancel', endDrag);
+
+load();
+</script>
+</body></html>
