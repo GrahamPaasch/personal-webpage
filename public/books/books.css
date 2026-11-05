@@ -102,7 +102,7 @@ mark.nq { background: none; color: inherit; text-decoration: underline dotted va
 .note.link { border-left-color: var(--link); }
 .note a { word-break: break-word; }
 @media (min-width: 1240px) {
-  #text .note { float: right; clear: right; width: 15.5em; margin: -.2em calc(-17.5em) .8em 0; position: relative; }
+  #text .note { float: right; clear: right; width: 15.5em; margin: .15em -17.5em .6em 0; position: relative; }
 }
 
 /* ---------- page mode */

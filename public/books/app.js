@@ -339,6 +339,8 @@ function linkify(t) {
   return esc(t).replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
 }
 
+const wideMargin = () => window.matchMedia('(min-width: 1240px)').matches;
+
 function decorate(root) {
   if (!S.slug) return;
   unwrapMarks(root);
@@ -359,10 +361,15 @@ function decorate(root) {
     aside.innerHTML = n.kind === 'link'
       ? `<span class="k">↗</span><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.label || n.url)}</a>${n.text ? `<br>${linkify(n.text)}` : ''}`
       : `<span class="k">✎</span>${linkify(n.text)}`;
-    // after the last note already attached to this paragraph
-    let after = start.el;
-    while (after.nextElementSibling && after.nextElementSibling.matches('aside.note')) after = after.nextElementSibling;
-    after.after(aside);
+    if (root.id === 'text' && wideMargin()) {
+      // desktop: the note floats into the right margin, level with its paragraph
+      start.el.before(aside);
+    } else {
+      // phone / pages: inline, after the last note already attached to this paragraph
+      let after = start.el;
+      while (after.nextElementSibling && after.nextElementSibling.matches('aside.note')) after = after.nextElementSibling;
+      after.after(aside);
+    }
   }
 }
 
@@ -509,8 +516,9 @@ function track() {
     S.top = vis[0];
     const ch = S.book.chapters[S.top.c - 1];
     $('chTitle').textContent = `${ch.heading}${ch.sub.length ? ' — ' + strip(ch.sub[0]) : ''}`;
-    $('pct').textContent = `${fmtAddr(S.top)} · ${Math.round(((S.top.i + 1) / S.paras.length) * 100)}%`;
     updatePlacebar();
+    const shown = S.hold != null ? paraAt(S.place) || S.top : S.top; // during the resume fade, report the place itself
+    $('pct').textContent = `${fmtAddr(shown)} · ${Math.round(((shown.i + 1) / S.paras.length) * 100)}%`;
     scheduleReport();
   });
 }
@@ -844,6 +852,7 @@ async function recall() {
     const k = here ? gists.indexOf(here) : -1;
     if (k >= 0) groups.push(gists.slice(Math.max(0, k - 3), k + 1).filter((g) => g.text));
     for (let j = k - 4; j >= 0; j -= 4) groups.push(gists.slice(Math.max(0, j - 3), j + 1).filter((g) => g.text));
+    for (let j = groups.length - 1; j >= 0; j--) if (!groups[j].length) groups.splice(j, 1);
   }
   const step = (n) => {
     if (!groups.length) {
@@ -1008,9 +1017,13 @@ function wire() {
     }
     track();
   }, { passive: true });
+  let wasWide = wideMargin();
   window.addEventListener('resize', () => {
     if (S.mode === 'pages' && S.book) paginate(S.top);
-    else track();
+    else {
+      if (wideMargin() !== wasWide) { wasWide = wideMargin(); refreshNotes(); }
+      track();
+    }
   });
   window.addEventListener('hashchange', () => {
     const a = parseAddr(location.hash);
