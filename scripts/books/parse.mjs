@@ -249,7 +249,7 @@ export function cleanHeading(s) {
   return t;
 }
 
-const SKIP_HEADING = /^(contents|table of contents|list of (illustrations|maps|plates)|illustrations|maps|index|general index|footnotes?:?|notes:?|transcriber'?s? notes?|the full project gutenberg|advertisements?|new library edition|.*'s works$)/i;
+const SKIP_HEADING = /^(contents|table of contents|list of (illustrations|maps|plates)|illustrations|maps|index|general index|footnotes?:?|notes:?|transcriber'?s? notes?|the full project gutenberg|advertisements?|new library edition|.*'s works$|imprint|colophon|uncopyright|endnotes|copyright)$|^(the full project gutenberg)/i;
 
 // ---------------------------------------------------------------- the parser
 
@@ -269,7 +269,7 @@ export function parseBookHtml(html, opts = {}) {
   const fullTitle = decodeEntitiesLite(metas['dc.title'] || (titleEl ? textOf(titleEl) : '') || 'Untitled')
     .replace(/\s*\|\s*Project Gutenberg\s*$/, '').trim();
   const title = opts.title || fullTitle.split(/\n|&#10;/)[0].split(/,\s*(?:or|being|containing)\b/i)[0].trim();
-  const author = opts.author || authorName(decodeEntitiesLite(metas['dc.creator'] || ''));
+  const author = opts.author || (metas['dc.creator'] ? authorName(decodeEntitiesLite(metas['dc.creator'])) : metas.author || 'Unknown');
 
   // --- footnote prepass: which ids are footnote targets, and which anchors are back-links
   const fnByElement = new Map(); // p.footnote element -> key
