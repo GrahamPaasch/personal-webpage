@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Books</title>
+<meta name="description" content="Graham's library of free public-domain books, with his notes in the margins.">
+<meta name="theme-color" content="#14130f">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/books/books.css">
+<script>
+  // Apply saved look before first paint (no flash of the wrong theme).
+  try {
+    const s = JSON.parse(localStorage.getItem('books-settings') || '{}');
+    const d = document.documentElement;
+    d.dataset.theme = s.theme || 'dark';
+    d.dataset.font = s.font || 'serif';
+    d.dataset.nums = s.nums === false ? 'off' : 'on';
+    d.style.setProperty('--fs', (s.size || 19) + 'px');
+    d.style.setProperty('--lh', String(s.lh || 1.62));
+    d.style.setProperty('--measure', (s.measure || 34) + 'em');
+  } catch (e) {}
+</script>
+<script type="module" src="/books/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#text">Skip to the text</a>
+
+<header id="top" class="bar">
+  <button id="libBtn" class="icon" aria-label="Library" title="Library">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h3v16H4zM9 4h3v16H9zM14.5 4.6l2.9-.8 4.1 15.5-2.9.8z"/></svg>
+  </button>
+  <div class="crumb" id="crumb"><span id="bookTitle">Books</span><span id="chTitle"></span></div>
+  <span id="pct" aria-label="Progress"></span>
+</header>
+
+<main id="library" hidden>
+  <h1>Books</h1>
+  <p id="totals" class="totals"></p>
+  <ul id="shelf" class="shelf"></ul>
+  <p class="foot">Free public-domain books. Notes, highlights and links in the margins are Graham's.
+    Everything here is copy-friendly: select text and copy, and the citation comes with it.</p>
+</main>
+
+<main id="reader" hidden>
+  <article id="text" class="text" aria-label="Book text"></article>
+  <div id="pages" hidden><div id="flow" class="text"></div></div>
+</main>
+
+<div id="placebar" class="floating" hidden>
+  <button id="backBtn" class="pill primary"></button>
+  <button id="moveBtn" class="pill" title="Make this paragraph your place">Move place here</button>
+</div>
+<div id="trailbar" class="floating trail" hidden>
+  <span id="trailMsg"></span>
+  <button id="trailBack" class="pill primary">Return to my place</button>
+</div>
+<div id="selbar" class="floating sel" hidden role="toolbar" aria-label="Selection">
+  <button data-sel="highlight" class="pill">Highlight</button>
+  <button data-sel="note" class="pill">Note</button>
+  <button data-sel="link" class="pill">Link</button>
+  <button data-sel="cite" class="pill">Copy link</button>
+</div>
+
+<nav id="bottom" class="bar" aria-label="Reader">
+  <button id="tocBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Contents</span></button>
+  <button id="recallBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9M12 7v5l3 2M21 3v6h-6"/></svg><span>Where was I?</span></button>
+  <button id="placeBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>My place</span></button>
+  <button id="setBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19 9 5h1l5 14M6 14h7M16 19l2.5-7h.5l2.5 7M17 17h4"/></svg><span>Look</span></button>
+</nav>
+
+<dialog id="tocDlg" aria-labelledby="tocH">
+  <header><h2 id="tocH">Contents</h2><button class="x" data-close aria-label="Close">✕</button></header>
+  <ol id="tocList" class="toc"></ol>
+</dialog>
+
+<dialog id="setDlg" aria-labelledby="setH">
+  <header><h2 id="setH">Look &amp; feel</h2><button class="x" data-close aria-label="Close">✕</button></header>
+  <div class="opts">
+    <fieldset><legend>Reading</legend>
+      <label><input type="radio" name="mode" value="scroll"> Continuous scroll</label>
+      <label><input type="radio" name="mode" value="pages"> Page turns</label>
+    </fieldset>
+    <fieldset><legend>Theme</legend>
+      <label><input type="radio" name="theme" value="dark"> Dark</label>
+      <label><input type="radio" name="theme" value="sepia"> Sepia</label>
+      <label><input type="radio" name="theme" value="light"> Light</label>
+    </fieldset>
+    <fieldset><legend>Type</legend>
+      <label><input type="radio" name="font" value="serif"> Serif</label>
+      <label><input type="radio" name="font" value="sans"> Sans</label>
+      <label><input type="radio" name="font" value="legible"> Legible</label>
+    </fieldset>
+    <div class="row"><span>Size</span><button data-size="-1" aria-label="Smaller text">A−</button><output id="sizeOut"></output><button data-size="1" aria-label="Larger text">A+</button></div>
+    <div class="row"><span>Spacing</span><button data-lh="-1" aria-label="Tighter lines">−</button><output id="lhOut"></output><button data-lh="1" aria-label="Looser lines">+</button></div>
+    <div class="row"><span>Width</span><button data-measure="-1" aria-label="Narrower column">−</button><output id="measureOut"></output><button data-measure="1" aria-label="Wider column">+</button></div>
+    <label class="check"><input type="checkbox" id="numsChk"> Paragraph numbers in the margin</label>
+    <div class="row auth"><span id="authMsg"></span><button id="authBtn"></button></div>
+  </div>
+</dialog>
+
+<dialog id="recallDlg" aria-labelledby="recallH">
+  <header><h2 id="recallH">Where was I?</h2><button class="x" data-close aria-label="Close">✕</button></header>
+  <div id="recallBody"></div>
+</dialog>
+
+<dialog id="composeDlg" aria-labelledby="composeH">
+  <form method="dialog" id="composeForm">
+    <header><h2 id="composeH">Note</h2><button class="x" value="cancel" aria-label="Close" formnovalidate>✕</button></header>
+    <blockquote id="composeQuote"></blockquote>
+    <label id="urlRow">Link <input type="url" id="composeUrl" placeholder="https://…" inputmode="url"></label>
+    <label id="labelRow">Label <input type="text" id="composeLabel" placeholder="What it is (optional)"></label>
+    <label id="textRow"><span id="textLabel">Note</span> <textarea id="composeText" rows="4"></textarea></label>
+    <p class="hint">Public, shown in the margin. No date is shown.</p>
+    <div class="actions"><button value="cancel" formnovalidate>Cancel</button><button value="save" class="primary" id="composeSave">Save</button></div>
+  </form>
+</dialog>
+
+<dialog id="noteDlg" aria-labelledby="noteH">
+  <header><h2 id="noteH">Note</h2><button class="x" data-close aria-label="Close">✕</button></header>
+  <div id="noteBody"></div>
+  <div class="actions"><button id="noteLink">Copy link</button><button id="noteDel" class="danger">Delete</button></div>
+</dialog>
+
+<dialog id="fnDlg" class="sheet" aria-labelledby="fnH">
+  <header><h2 id="fnH">Footnote</h2><button class="x" data-close aria-label="Close">✕</button></header>
+  <div id="fnBody"></div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<noscript><p style="padding:2em">The reader needs JavaScript. The raw book text is at /books/data/.</p></noscript>
+</body>
+</html>

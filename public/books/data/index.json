@@ -1,0 +1,36 @@
+{
+ "books": [
+  {
+   "slug": "history-of-louisiana",
+   "title": "The History of Louisiana",
+   "author": "Le Page du Pratz",
+   "cover": "/books/data/history-of-louisiana/9153-cover.png",
+   "source": {
+    "kind": "gutenberg",
+    "id": 9153,
+    "url": "https://www.gutenberg.org/ebooks/9153"
+   },
+   "stats": {
+    "chapters": 48,
+    "paragraphs": 1249,
+    "words": 138893
+   }
+  },
+  {
+   "slug": "la-salle",
+   "title": "La Salle and the Discovery of the Great West",
+   "author": "Francis Parkman",
+   "cover": "/books/data/la-salle/40143-cover.png",
+   "source": {
+    "kind": "gutenberg",
+    "id": 40143,
+    "url": "https://www.gutenberg.org/ebooks/40143"
+   },
+   "stats": {
+    "chapters": 34,
+    "paragraphs": 592,
+    "words": 106727
+   }
+  }
+ ]
+}

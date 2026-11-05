@@ -10,6 +10,7 @@ const composedVersion = short ? `${baseVersion}+${short}` : baseVersion;
  * the actual `foo/index.html`. Every self-contained app needs an entry here.
  */
 const STATIC_APP_DIRS = [
+  'books',
   'breathing',
   'cadence',
   'exercise',
@@ -42,6 +43,9 @@ const STATIC_APP_PAGES = [
 // Only the slashless form is needed: with the default `trailingSlash: false`,
 // Next 308s `/foo/` to `/foo` before rewrites run.
 const staticRewrites = [
+  // /books/<slug> is the reader too (the book is picked client-side); real
+  // files under public/books/ (app.js, data/*.json) are served before rewrites.
+  { source: '/books/:slug([a-z0-9-]+)', destination: '/books/index.html' },
   ...STATIC_APP_DIRS.map((dir) => ({ source: `/${dir}`, destination: `/${dir}/index.html` })),
   ...STATIC_APP_PAGES.map((page) => ({ source: `/${page}`, destination: `/${page}.html` })),
 ];
