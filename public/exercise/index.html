@@ -55,7 +55,8 @@ function render(data, scroll) {
   const today = data.today;
   list.innerHTML = data.sessions.map((s) => {
     const isToday = s.date === today && !s.done;
-    const video = `<a href="${esc(s.video)}" target="_blank" rel="noopener">▶ video</a>`;
+    const links = s.links && s.links.length ? s.links : [{ label: 'video', url: s.video }];
+    const video = links.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">▶ ${esc(l.label)}</a>`).join('');
     if (s.done) {
       const chips = ['too hard', 'too easy'].map((n) =>
         `<button data-act="chip" data-note="${n}" class="${s.note === n ? 'on' : ''}">${n}</button>`).join('');

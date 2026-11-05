@@ -7,7 +7,25 @@
  */
 
 /** Edit here to point the warm-up sessions at a better video. */
-export const CALI_WARMUP_VIDEO = 'https://calimove.com';
+export const CALI_WARMUP_VIDEO = 'https://www.calimove.com/courses/782920/lectures/14311137';
+/** Cali Move "Mobility Routine" lecture, used as the cool-down (Graham's Fitness bookmarks, 2026-11-04). */
+export const CALI_COOLDOWN_VIDEO = 'https://www.calimove.com/courses/782920/lectures/14321525';
+
+export type VideoLink = { label: string; url: string };
+
+/**
+ * The links shown on a session card. Derived at read time, so sessions already
+ * stored with the old placeholder URL pick up the direct lecture links.
+ */
+export function linksFor(s: Pick<Session, 'id' | 'video'>): VideoLink[] {
+  if (s.id.startsWith('cm-warmup-')) {
+    return [
+      { label: 'warm-up', url: CALI_WARMUP_VIDEO },
+      { label: 'cool-down', url: CALI_COOLDOWN_VIDEO },
+    ];
+  }
+  return [{ label: 'video', url: s.video }];
+}
 
 export type Session = {
   id: string;

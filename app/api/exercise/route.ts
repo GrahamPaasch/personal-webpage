@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { rateLimit, rateLimitHeaders } from '@/lib/rateLimit';
 import { readTimeline, updateTimeline } from '@/lib/exercise/store';
-import { apply, schedule, todayIn, type Action } from '@/lib/exercise/timeline';
+import { apply, linksFor, schedule, todayIn, type Action } from '@/lib/exercise/timeline';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,7 @@ const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =
   Response.json(body, { status, headers: { ...NO_STORE, ...extra } });
 
 function view(data: Awaited<ReturnType<typeof readTimeline>>, today: string) {
-  return { today, sessions: schedule(data, today), later: data.later };
+  return { today, sessions: schedule(data, today).map((s) => ({ ...s, links: linksFor(s) })), later: data.later };
 }
 
 const dayParam = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : todayIn());

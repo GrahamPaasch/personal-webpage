@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apply, schedule, seedTimeline } from '@/lib/exercise/timeline';
+import { apply, CALI_COOLDOWN_VIDEO, CALI_WARMUP_VIDEO, linksFor, schedule, seedTimeline } from '@/lib/exercise/timeline';
 
 describe('exercise timeline', () => {
   it('seeds 21 daily sessions from Thu 2026-11-05', () => {
@@ -33,5 +33,17 @@ describe('exercise timeline', () => {
     apply(d, { action: 'undo' }, '2026-11-05');
     expect(d.sessions[0]).toMatchObject({ done: null, note: null });
     expect(apply(d, { action: 'note', id: 'cm-warmup-01', note: 'x' }, '2026-11-05').ok).toBe(false);
+  });
+});
+
+describe('linksFor', () => {
+  it('gives warm-up sessions direct warm-up and cool-down links, even with the old stored URL', () => {
+    expect(linksFor({ id: 'cm-warmup-01', video: 'https://calimove.com' })).toEqual([
+      { label: 'warm-up', url: CALI_WARMUP_VIDEO },
+      { label: 'cool-down', url: CALI_COOLDOWN_VIDEO },
+    ]);
+  });
+  it('falls back to the stored video for other sessions', () => {
+    expect(linksFor({ id: 'kot-01', video: 'https://example.com/v' })).toEqual([{ label: 'video', url: 'https://example.com/v' }]);
   });
 });
