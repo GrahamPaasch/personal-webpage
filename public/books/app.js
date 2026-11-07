@@ -457,12 +457,19 @@ function backToPlace() {
 async function moveHere() {
   const p = S.top;
   if (!p) return;
+  const prev = S.place;
+  await setBookmark(p);
+  if (prev && prev.i !== p.i) toast(`Bookmark moved to ${fmtAddr(p)} (was ${fmtAddr(prev)})`, () => setBookmark(prev).then(() => toast(`Bookmark back at ${fmtAddr(prev)}`)));
+  else toast(`Bookmark at ${fmtAddr(p)}`);
+}
+
+/** Put the bookmark on paragraph p. Never scrolls or jumps — the view stays where it is. */
+async function setBookmark(p) {
   S.place = { c: p.c, p: p.p, i: p.i };
   S.pendingWords = 0;
   markPlace();
   saveLocal(S.slug, S.pw ? { pending: S.place } : { place: S.place });
   track();
-  toast(`Your place is now ${fmtAddr(p)}`);
   if (!S.pw) return;
   try {
     const d = await api('POST', { action: 'move-place', slug: S.slug, place: S.place });
@@ -490,6 +497,9 @@ function visibleParasScroll() {
     if (r.top >= bottom) break;
     out.push(ps[k]);
   }
+  // A screen with no paragraph on it (title page, a full-page plate) still has a position: the next paragraph down.
+  // Without this the reader froze on the last paragraph it saw, and the bookmark controls went stale/missing.
+  if (!out.length && ps[lo]) out.push(ps[lo]);
   return out;
 }
 
@@ -538,8 +548,11 @@ function atPlaceish() {
 function updatePlacebar() {
   const away = !atPlaceish();
   const behind = S.place && S.top && S.top.i < S.place.i;
-  $('placebar').hidden = !away || !!S.trail || !$('selbar').hidden;
-  if (away) $('backBtn').textContent = `${behind ? '↓' : '↑'} My place · ${fmtAddr(S.place)}`;
+  // The bookmark controls never disappear (spec 32): "Put bookmark here" is always on screen; "Go to bookmark"
+  // shows whenever you're away from it. Only the selection toolbar or the reread trail (which has both) replace it.
+  $('placebar').hidden = !!S.trail || !$('selbar').hidden;
+  $('backBtn').hidden = !away || !S.place;
+  if (away && S.place) $('backBtn').textContent = `${behind ? '↓' : '↑'} Go to bookmark · ${fmtAddr(S.place)}`;
   if (S.trail) {
     const p = S.place && S.top ? S.place.i - S.top.i : 0;
     $('trailMsg').textContent = p > 0 ? `Rereading · ${p} paragraph${p === 1 ? '' : 's'} to your place` : 'Caught up with your place';
@@ -903,12 +916,15 @@ $('tocList').onclick = (e) => {
 // ---------------------------------------------------------------- misc UI
 
 let toastTimer = 0;
-function toast(msg) {
+function toast(msg, undo) {
   const t = $('toast');
-  t.textContent = msg;
+  $('toastMsg').textContent = msg;
+  const u = $('toastUndo');
+  u.hidden = !undo;
+  u.onclick = undo ? () => { t.classList.remove('on'); undo(); } : null;
   t.classList.add('on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('on'), 2400);
+  toastTimer = setTimeout(() => t.classList.remove('on'), undo ? 6000 : 2400);
 }
 
 function wire() {
@@ -928,6 +944,7 @@ function wire() {
   $('placeBtn').onclick = backToPlace;
   $('backBtn').onclick = backToPlace;
   $('trailBack').onclick = backToPlace;
+  $('trailMove').onclick = () => { moveHere(); S.trail = null; $('trailbar').hidden = true; updatePlacebar(); };
   $('moveBtn').onclick = moveHere;
   $('setBtn').onclick = () => { settingsUi(); $('setDlg').showModal(); };
   for (const r of document.querySelectorAll('#setDlg input[type=radio]')) {

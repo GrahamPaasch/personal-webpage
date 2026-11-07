@@ -48,12 +48,13 @@
 </main>
 
 <div id="placebar" class="floating" hidden>
-  <button id="backBtn" class="pill primary"></button>
-  <button id="moveBtn" class="pill" title="Make this paragraph your place">Move place here</button>
+  <button id="backBtn" class="pill primary" title="Open the book at your bookmark (doesn't move it)"></button>
+  <button id="moveBtn" class="pill" title="Put your bookmark on the paragraph at the top of the screen">🔖 Put bookmark here</button>
 </div>
 <div id="trailbar" class="floating trail" hidden>
   <span id="trailMsg"></span>
-  <button id="trailBack" class="pill primary">Return to my place</button>
+  <button id="trailBack" class="pill primary">Go to bookmark</button>
+  <button id="trailMove" class="pill" title="Put your bookmark on the paragraph at the top of the screen">🔖 Put bookmark here</button>
 </div>
 <div id="selbar" class="floating sel" hidden role="toolbar" aria-label="Selection">
   <button data-sel="highlight" class="pill">Highlight</button>
@@ -65,7 +66,7 @@
 <nav id="bottom" class="bar" aria-label="Reader">
   <button id="tocBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Contents</span></button>
   <button id="recallBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9M12 7v5l3 2M21 3v6h-6"/></svg><span>Where was I?</span></button>
-  <button id="placeBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>My place</span></button>
+  <button id="placeBtn" title="Jump to your bookmark (the bookmark itself stays put)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg><span>Go to bookmark</span></button>
   <button id="setBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19 9 5h1l5 14M6 14h7M16 19l2.5-7h.5l2.5 7M17 17h4"/></svg><span>Look</span></button>
 </nav>
 
@@ -127,7 +128,7 @@
   <div id="fnBody"></div>
 </dialog>
 
-<div id="toast" role="status" aria-live="polite"></div>
+<div id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastUndo" class="pill" hidden>Undo</button></div>
 <noscript><p style="padding:2em">The reader needs JavaScript. The raw book text is at /books/data/.</p></noscript>
 </body>
 </html>
