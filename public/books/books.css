@@ -127,6 +127,13 @@ body.pages[data-nums] #flow .para { padding-left: 0; }
 .pill.primary, button.primary { background: var(--acc); color: var(--bg); border-color: var(--acc); font-weight: 600; }
 .sel .pill { box-shadow: none; }
 body.hide-bars .floating { bottom: calc(var(--safe-b) + 14px); }
+/* Bookmark controls live in the top-right corner, off the text column (his ask 11/7: the bottom pill covered text). */
+#placebar, #trailbar { left: auto; right: 10px; transform: none; bottom: auto; top: calc(var(--bar-h) + 8px); justify-content: flex-end; }
+body.hide-bars #placebar, body.hide-bars #trailbar { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 8px); }
+#placebar .pill, #trailbar .pill { min-height: 32px; padding: 5px 11px; font-size: 13px; opacity: .92; }
+#placebar .pill:hover, #trailbar .pill:hover { opacity: 1; }
+#placebar { flex-direction: column; align-items: flex-end; gap: 6px; }
+@media (max-width: 760px) { #placebar .lbl, #trailbar .lbl { display: none; } #placebar, #trailbar { right: 4px; } }
 
 /* ---------- dialogs */
 dialog { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 16px; padding: 0; width: min(560px, calc(100vw - 20px)); max-height: min(86vh, 900px); }
@@ -186,7 +193,7 @@ body.library main#library { display: block; }
 .shelf .bar2 i { display: block; height: 100%; background: var(--acc); }
 .foot { color: var(--faint); font-size: 13px; margin-top: 2em; }
 
-#toast { position: fixed; top: calc(var(--bar-h) + 10px); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg);
+#toast { position: fixed; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg);
   padding: 8px 14px; border-radius: 18px; font-size: 14px; z-index: 60; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: calc(100vw - 24px); }
 #toast.on { opacity: 1; }
 #toast.on:has(#toastUndo:not([hidden])) { pointer-events: auto; display: flex; align-items: center; gap: 10px; }
