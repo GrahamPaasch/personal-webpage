@@ -76,6 +76,7 @@ const nextConfig = {
   // Password-gated pages read their HTML from private/ at request time.
   outputFileTracingIncludes: {
     '/frankfurt': ['./private/frankfurt/**'],
+    '/parents2026': ['./private/parents2026/**'],
   },
   async rewrites() {
     return staticRewrites;
