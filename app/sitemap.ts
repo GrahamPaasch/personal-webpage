@@ -64,6 +64,7 @@ const STATIC_APP_ROUTES = [
   '/labs/ai-fabric/bom',
   '/labs/bgp-vs-ospf',
   '/labs/srv6-no-routing',
+  '/labs/multiplane',
   '/panelclash',
   '/sidewalks-of-rage',
   '/viola-gauntlet',

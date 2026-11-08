@@ -20,6 +20,8 @@ const STATIC_APP_DIRS = [
   'labs/ai-fabric',
   'labs/bgp-vs-ospf',
   'labs/srv6-no-routing',
+  'labs/multiplane',
+  'labs/multiplane/collectives',
   'juggling/13-club-feed',
   'juggling/extra-club-patterns',
   'panelclash',

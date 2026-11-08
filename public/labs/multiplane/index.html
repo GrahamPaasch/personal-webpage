@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NVIDIA Spectrum-X Multiplane: 8 Planes, One Silent Failure (Free Lab) | Graham Paasch</title>
+<meta name="description" content="A free containerlab model of NVIDIA Spectrum-X Multiplane: 8 independent two-tier planes, static routes only, 128 iperf3 flows. Kill plane 3 silently and compare BFD (0.29 s), ping timeouts (6.69 s) and no detection (never). Bandwidth read 87.5% the whole time.">
+<meta property="og:title" content="The failure that looks fine is the dangerous one: Spectrum-X Multiplane lab">
+<meta property="og:description" content="Kill 1 of 8 planes silently: bandwidth reads 87.5% while 14 of 128 flows are dead. BFD, ping timeouts, or nothing. Free one-command containerlab kit.">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://www.grahampaasch.com/labs/multiplane">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c232d; --line: #30363d;
+    --text: #e6edf3; --muted: #9aa7b4; --accent: #58a6ff; --spine: #d2a8ff;
+    --leaf: #7ee787; --host: #ffa657; --bad: #ff7b72; --good: #3fb950; --warn: #e3b341;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 21px/1.6 -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 0 32px 120px; }
+  header.hero { padding: 90px 0 50px; border-bottom: 1px solid var(--line); margin-bottom: 30px; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 17px; }
+  h1 { font-size: 58px; line-height: 1.12; margin: 14px 0 22px; letter-spacing: -.01em; }
+  h1 .hl { color: var(--leaf); }
+  .hook { font-size: 27px; color: var(--muted); max-width: 900px; margin: 0; }
+  h2 { font-size: 40px; margin: 80px 0 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+  h2 .num { color: var(--accent); margin-right: 14px; }
+  h3 { font-size: 28px; margin: 40px 0 10px; color: var(--text); }
+  p, li { max-width: 960px; }
+  a { color: var(--accent); }
+  strong { color: #fff; }
+  code { font-family: "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; font-size: .88em;
+    background: var(--panel2); padding: 2px 7px; border-radius: 5px; color: #ffd8a8; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px;
+    white-space: pre-wrap; overflow-wrap: anywhere; font: 18px/1.5 "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; margin: 14px 0 22px; }
+  pre code { background: none; padding: 0; color: var(--text); font-size: inherit; }
+  .term { position: relative; }
+  .term .tag { position: absolute; top: -12px; right: 16px; font: 700 13px/1 Inter, sans-serif; letter-spacing: .08em;
+    text-transform: uppercase; padding: 6px 10px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+  .term .tag.real { color: var(--good); border-color: var(--good); }
+  .term .tag.sample { color: var(--warn); border-color: var(--warn); }
+  .prompt { color: var(--leaf); }
+  .c { color: #8b949e; font-style: italic; }
+  .k { color: var(--spine); }
+  .v { color: var(--host); }
+  .ok { color: var(--good); font-weight: 700; }
+  .bad { color: var(--bad); font-weight: 700; }
+  .callout { border-left: 5px solid var(--accent); background: var(--panel); padding: 18px 24px; border-radius: 0 10px 10px 0; margin: 22px 0; }
+  .callout.wow { border-color: var(--leaf); }
+  .callout.warn { border-color: var(--warn); }
+  .callout.bad { border-color: var(--bad); }
+  .callout p { margin: 6px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; }
+  .card h4 { margin: 0 0 8px; font-size: 23px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0 26px; font-size: 19px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 11px 14px; text-align: left; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 15px; letter-spacing: .06em; }
+  tr:hover td { background: var(--panel); }
+  td.spine { color: var(--spine); font-weight: 700; } td.leaf { color: var(--leaf); font-weight: 700; } td.host { color: var(--host); font-weight: 700; }
+  .anno { display: grid; grid-template-columns: minmax(380px, 1fr) 1.15fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 16px 0 28px; }
+  .anno > div { padding: 9px 18px; border-bottom: 1px solid var(--line); }
+  .anno .cfg { background: var(--panel); font: 18px/1.45 "JetBrains Mono", Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+  .anno .why { background: var(--bg); color: var(--muted); font-size: 18px; line-height: 1.45; }
+  .anno .why b { color: var(--text); }
+  .anno .cfg.hot { color: var(--leaf); }
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding: 4px 0 18px 64px; }
+  .steps > li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel2); border: 2px solid var(--accent); color: var(--accent); font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin: 26px 0; }
+  .score { border-radius: 14px; padding: 26px; text-align: center; border: 2px solid; }
+  .score.before { border-color: var(--bad); background: rgba(255,123,114,.07); }
+  .score.after { border-color: var(--good); background: rgba(63,185,80,.07); }
+  .score .big { font-size: 84px; font-weight: 800; line-height: 1; }
+  .score.before .big { color: var(--bad); } .score.after .big { color: var(--good); }
+  .score .lbl { color: var(--muted); font-size: 19px; margin-top: 8px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 22px; margin: 14px 0 30px; }
+  summary { cursor: pointer; font-weight: 700; color: var(--accent); font-size: 20px; }
+  details[open] summary { margin-bottom: 10px; }
+  .objectives li { margin: 6px 0; }
+  .lablink { display: inline-block; margin-top: 10px; font-size: 28px; font-weight: 800; padding: 16px 28px; border-radius: 12px;
+    background: var(--panel2); border: 2px solid var(--accent); text-decoration: none; }
+  .toc { columns: 2; font-size: 19px; color: var(--muted); padding-left: 22px; }
+  .toc a { color: var(--muted); text-decoration: none; } .toc a:hover { color: var(--accent); }
+  svg text { font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin: 18px 0 26px; }
+  footer { color: var(--muted); font-size: 16px; margin-top: 80px; border-top: 1px solid var(--line); padding-top: 20px; }
+  @media (max-width: 860px) { .grid2, .scoreboard, .anno { grid-template-columns: 1fr; } h1 { font-size: 42px; } .toc { columns: 1; } }
+</style>
+<style>
+  .punch { display: grid; grid-template-columns: 170px 1fr; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0 30px; }
+  .punch > div { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .punch .where { background: var(--panel2); font-weight: 800; color: var(--muted); font-size: 19px; }
+  .punch .addr { background: var(--panel); font: 700 30px/1.3 "JetBrains Mono", Menlo, Consolas, monospace; letter-spacing: .01em; }
+  .punch .addr small { display: block; font: 17px/1.45 -apple-system, "Segoe UI", Inter, sans-serif; color: var(--muted); margin-top: 6px; letter-spacing: 0; }
+  .blk { color: #8b949e; } .sp { color: var(--spine); } .lf { color: var(--leaf); } .fn { color: var(--host); }
+  .gone { color: #4a525c; text-decoration: line-through; }
+  .ph { display: inline-block; background: rgba(227,179,65,.12); border: 2px dashed var(--warn); color: var(--warn);
+    border-radius: 8px; padding: 0 10px; font-weight: 800; }
+  .score .big .ph { font-size: 44px; padding: 6px 14px; }
+  .scoreboard.three { grid-template-columns: 1fr 1fr 1fr; }
+  .score.mid { border-color: var(--warn); background: rgba(227,179,65,.06); } .score.mid .big { color: var(--warn); }
+  .honest { border: 2px solid var(--bad); border-radius: 14px; padding: 8px 28px 18px; background: rgba(255,123,114,.05); margin: 26px 0; }
+  .honest h3 { color: var(--bad); margin-top: 18px; }
+  .honest table td:first-child { color: #fff; font-weight: 700; }
+  .cold { font-size: 64px; font-weight: 800; line-height: 1.1; margin: 10px 0 24px; }
+  figure.anim { margin: 22px 0 30px; } figure.anim video { width: 100%; border-radius: 14px; background: #000; display: block; }
+  .scoreboard.three .score .big { font-size: 52px; white-space: nowrap; }
+  figure.anim figcaption { color: var(--muted); font-size: 17px; margin-top: 8px; }
+  .cold .no { color: var(--bad); } .cold .yes { color: var(--leaf); }
+  ol.sources li { margin: 10px 0; }
+  @media (max-width: 860px) { .scoreboard.three, .punch { grid-template-columns: 1fr; } .cold { font-size: 44px; } .punch .addr { font-size: 22px; } }
+</style>
+<style>
+  .bars .bar { margin: 12px 0; } .bars .lbl { font-weight: 700; margin-bottom: 4px; font-size: 19px; } .bars .lbl small { color: var(--muted); font-weight: 400; }
+  .track { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; height: 38px; overflow: hidden; }
+  .track .fill { height: 100%; border-radius: 7px; min-width: 4px; }
+  .track .val { position: absolute; right: 12px; top: 4px; font-weight: 800; font-size: 21px; }
+  .bar.good .fill { background: var(--good); } .bar.warn .fill { background: var(--warn); } .bar.dead .fill { background: var(--bad); } .bar.dead .val { color: #fff; text-shadow: 0 0 4px #000, 0 0 8px #000; }
+  .bar.ref .fill { background: var(--accent); } .fill.never { background: repeating-linear-gradient(45deg,#ff7b72,#ff7b72 14px,#a83232 14px,#a83232 28px) !important; }
+  .scoreboard.four { grid-template-columns: repeat(4, 1fr); } .scoreboard.four .score .big { font-size: 46px; white-space: nowrap; }
+  .score.blue { border-color: var(--accent); background: rgba(88,166,255,.07); } .score.blue .big { color: var(--accent); }
+  .runs img { width: 100%; border-radius: 12px; border: 1px solid var(--line); background: #fff; }
+  .embed { position: relative; padding-top: 70%; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin: 18px 0 8px; }
+  .embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #0f1218; }
+  td.n, th.n { text-align: right; } .tablewrap { overflow-x: auto; }
+  @media (max-width: 860px) { .scoreboard.four { grid-template-columns: 1fr 1fr; } .embed { padding-top: 120%; } }
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+  <div class="kicker">AI Agents Build the Lab &middot; Episode 4 &middot; Free lab kit &middot; containerlab &middot; Spectrum-X Multiplane</div>
+  <h1>The failure that <span class="hl">looks fine</span><br>is the dangerous one</h1>
+  <p class="hook">NVIDIA says Spectrum-X Multiplane splits each GPU's bandwidth across up to 8 independent two-tier planes. We built that shape from containers: 8 planes, 4 "GPU" hosts with one NIC per plane, 128 iperf3 flows, static routes only. Then we silently killed plane 3.</p>
+  <p class="hook">Bandwidth read <strong>87.5%</strong> the whole time. <strong>14 of 128 flows were dead.</strong> An all-reduce waits for its <em>slowest</em> flow.</p>
+  <p style="margin:22px 0 0"><a class="lablink" href="/labs/multiplane/multiplane-lab.zip" download>Download the free lab kit (.zip)</a></p>
+  <p style="margin:10px 0 0;font-size:18px;color:var(--muted)">All 28 containers, the failure scripts, the BFD / ping-timeout / no-detection switch and the graphs in one containerlab command. MIT licensed. <a href="#demo">How to run it &darr;</a> &middot; <a href="/labs/srv6-no-routing">Episode 3's lab</a> &middot; <a href="https://www.youtube.com/playlist?list=PLZPz67cofgXQ">The series on YouTube</a></p>
+<div id="video" class="video-slot">
+  <!-- YOUTUBE_EMBED -->
+</div>
+</header>
+
+<h3>On this page</h3>
+<ol class="toc">
+  <li><a href="#idea">The idea in plain English</a></li>
+  <li><a href="#topo">The topology</a></li>
+  <li><a href="#score">The scoreboard</a></li>
+  <li><a href="#why">Why one slow flow matters (collectives explainer)</a></li>
+  <li><a href="#demo">Run it yourself</a></li>
+  <li><a href="#graphs">The graphs, run by run</a></li>
+  <li><a href="#runs">Every recorded run</a></li>
+  <li><a href="#honest">What a software lab can't show</a></li>
+  <li><a href="#ex">Exercises</a></li>
+  <li><a href="#src">Sources</a></li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="idea"><span class="num">1</span>The idea in plain English</h2>
+<p>A normal AI network gives each GPU one fat connection into one fabric. NVIDIA says Spectrum-X Multiplane instead slices that bandwidth into up to 8 <strong>planes</strong>: 8 separate two-tier networks that never touch each other, with the GPU's SuperNIC (ConnectX-9, 1.6 Tb/s, that is terabits) holding one lane into each. NVIDIA says that gets you more than 128k endpoints in two tiers, and that with 1 of 8 planes down you keep about 90% of your bandwidth.</p>
+<p>That "about 90%" is plain 1/N arithmetic. Lose 1 lane of 8 and you have 7/8 = <strong>87.5%</strong> left. Our lab gets exactly that number, and so does real hardware: it also keeps roughly 7/8. What real hardware wins on is <strong>recovery time</strong>. NVIDIA says software load balancing takes 1.08 s to react and the SuperNIC hardware hides a link flap in 2.68 ms.</p>
+<div class="callout warn"><p><strong>Not a race against NVIDIA.</strong> Our numbers come from a tiny container lab: 4 hosts, 500 Mbit/s per plane, software forwarding. NVIDIA's come from real fabrics and real silicon. Don't compare 0.29 s with 1.08 s; they measure different things on different machines.</p></div>
+<p>The lab asks a narrower question you <em>can</em> answer in software: <strong>when a plane dies, how does a host find out, and what happens to the flows that were on it?</strong> There is no routing protocol anywhere. Each plane's switches carry a handful of static routes (a whole plane's config is 8 lines), and Linux ECMP on each host spreads flows across the 8 NICs by a 5-tuple hash.</p>
+
+<!-- ============================================================ -->
+<h2 id="topo"><span class="num">2</span>The topology</h2>
+<p>8 planes, each its own 2-leaf + 1-spine fabric (FRR 10.5.5, static routes only), 4 GPU hosts <code>g1</code>..<code>g4</code> with NIC <code>ethN</code> into plane N and address <code>10.255.0.N</code> on loopback. 28 containers. Each NIC is shaped to 500 Mbit/s, so one GPU = 8 x 500 = 4 Gbit/s and 8 planes of load show as 8 Gbit/s per pair.</p>
+<div class="diagram">
+<svg viewBox="0 0 1100 640" xmlns="http://www.w3.org/2000/svg" font-family="system-ui" font-size="13"><line x1="70" y1="200" x2="330" y2="70" stroke="#76b900" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="440" x2="330" y2="70" stroke="#76b900" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="200" x2="770" y2="70" stroke="#76b900" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="440" x2="770" y2="70" stroke="#76b900" stroke-opacity=".55" stroke-width="2"/><line x1="330" y1="70" x2="770" y2="70" stroke="#76b900" stroke-width="4"/><rect x="292" y="55" width="76" height="30" rx="7" fill="#171c25" stroke="#76b900" stroke-width="2"/><text x="330" y="75" fill="#e6e9ef" text-anchor="middle">p1-leaf1</text><rect x="512" y="55" width="76" height="30" rx="7" fill="#171c25" stroke="#76b900" stroke-width="2"/><text x="550" y="75" fill="#e6e9ef" text-anchor="middle">p1-spine</text><rect x="732" y="55" width="76" height="30" rx="7" fill="#171c25" stroke="#76b900" stroke-width="2"/><text x="770" y="75" fill="#e6e9ef" text-anchor="middle">p1-leaf2</text><text x="550" y="50" fill="#76b900" text-anchor="middle" font-weight="700">Plane 1</text><line x1="70" y1="200" x2="330" y2="140" stroke="#3fa7ff" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="440" x2="330" y2="140" stroke="#3fa7ff" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="200" x2="770" y2="140" stroke="#3fa7ff" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="440" x2="770" y2="140" stroke="#3fa7ff" stroke-opacity=".55" stroke-width="2"/><line x1="330" y1="140" x2="770" y2="140" stroke="#3fa7ff" stroke-width="4"/><rect x="292" y="125" width="76" height="30" rx="7" fill="#171c25" stroke="#3fa7ff" stroke-width="2"/><text x="330" y="145" fill="#e6e9ef" text-anchor="middle">p2-leaf1</text><rect x="512" y="125" width="76" height="30" rx="7" fill="#171c25" stroke="#3fa7ff" stroke-width="2"/><text x="550" y="145" fill="#e6e9ef" text-anchor="middle">p2-spine</text><rect x="732" y="125" width="76" height="30" rx="7" fill="#171c25" stroke="#3fa7ff" stroke-width="2"/><text x="770" y="145" fill="#e6e9ef" text-anchor="middle">p2-leaf2</text><text x="550" y="120" fill="#3fa7ff" text-anchor="middle" font-weight="700">Plane 2</text><line x1="70" y1="200" x2="330" y2="210" stroke="#ff5d5d" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="440" x2="330" y2="210" stroke="#ff5d5d" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="200" x2="770" y2="210" stroke="#ff5d5d" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="440" x2="770" y2="210" stroke="#ff5d5d" stroke-opacity=".55" stroke-width="2"/><line x1="330" y1="210" x2="770" y2="210" stroke="#ff5d5d" stroke-width="4"/><rect x="292" y="195" width="76" height="30" rx="7" fill="#171c25" stroke="#ff5d5d" stroke-width="2"/><text x="330" y="215" fill="#e6e9ef" text-anchor="middle">p3-leaf1</text><rect x="512" y="195" width="76" height="30" rx="7" fill="#171c25" stroke="#ff5d5d" stroke-width="2"/><text x="550" y="215" fill="#e6e9ef" text-anchor="middle">p3-spine</text><rect x="732" y="195" width="76" height="30" rx="7" fill="#171c25" stroke="#ff5d5d" stroke-width="2"/><text x="770" y="215" fill="#e6e9ef" text-anchor="middle">p3-leaf2</text><text x="550" y="190" fill="#ff5d5d" text-anchor="middle" font-weight="700">Plane 3 ← kill target</text><line x1="70" y1="200" x2="330" y2="280" stroke="#ffb84d" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="440" x2="330" y2="280" stroke="#ffb84d" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="200" x2="770" y2="280" stroke="#ffb84d" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="440" x2="770" y2="280" stroke="#ffb84d" stroke-opacity=".55" stroke-width="2"/><line x1="330" y1="280" x2="770" y2="280" stroke="#ffb84d" stroke-width="4"/><rect x="292" y="265" width="76" height="30" rx="7" fill="#171c25" stroke="#ffb84d" stroke-width="2"/><text x="330" y="285" fill="#e6e9ef" text-anchor="middle">p4-leaf1</text><rect x="512" y="265" width="76" height="30" rx="7" fill="#171c25" stroke="#ffb84d" stroke-width="2"/><text x="550" y="285" fill="#e6e9ef" text-anchor="middle">p4-spine</text><rect x="732" y="265" width="76" height="30" rx="7" fill="#171c25" stroke="#ffb84d" stroke-width="2"/><text x="770" y="285" fill="#e6e9ef" text-anchor="middle">p4-leaf2</text><text x="550" y="260" fill="#ffb84d" text-anchor="middle" font-weight="700">Plane 4</text><line x1="70" y1="200" x2="330" y2="350" stroke="#b48cff" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="440" x2="330" y2="350" stroke="#b48cff" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="200" x2="770" y2="350" stroke="#b48cff" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="440" x2="770" y2="350" stroke="#b48cff" stroke-opacity=".55" stroke-width="2"/><line x1="330" y1="350" x2="770" y2="350" stroke="#b48cff" stroke-width="4"/><rect x="292" y="335" width="76" height="30" rx="7" fill="#171c25" stroke="#b48cff" stroke-width="2"/><text x="330" y="355" fill="#e6e9ef" text-anchor="middle">p5-leaf1</text><rect x="512" y="335" width="76" height="30" rx="7" fill="#171c25" stroke="#b48cff" stroke-width="2"/><text x="550" y="355" fill="#e6e9ef" text-anchor="middle">p5-spine</text><rect x="732" y="335" width="76" height="30" rx="7" fill="#171c25" stroke="#b48cff" stroke-width="2"/><text x="770" y="355" fill="#e6e9ef" text-anchor="middle">p5-leaf2</text><text x="550" y="330" fill="#b48cff" text-anchor="middle" font-weight="700">Plane 5</text><line x1="70" y1="200" x2="330" y2="420" stroke="#3fd6c6" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="440" x2="330" y2="420" stroke="#3fd6c6" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="200" x2="770" y2="420" stroke="#3fd6c6" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="440" x2="770" y2="420" stroke="#3fd6c6" stroke-opacity=".55" stroke-width="2"/><line x1="330" y1="420" x2="770" y2="420" stroke="#3fd6c6" stroke-width="4"/><rect x="292" y="405" width="76" height="30" rx="7" fill="#171c25" stroke="#3fd6c6" stroke-width="2"/><text x="330" y="425" fill="#e6e9ef" text-anchor="middle">p6-leaf1</text><rect x="512" y="405" width="76" height="30" rx="7" fill="#171c25" stroke="#3fd6c6" stroke-width="2"/><text x="550" y="425" fill="#e6e9ef" text-anchor="middle">p6-spine</text><rect x="732" y="405" width="76" height="30" rx="7" fill="#171c25" stroke="#3fd6c6" stroke-width="2"/><text x="770" y="425" fill="#e6e9ef" text-anchor="middle">p6-leaf2</text><text x="550" y="400" fill="#3fd6c6" text-anchor="middle" font-weight="700">Plane 6</text><line x1="70" y1="200" x2="330" y2="490" stroke="#ff7ac8" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="440" x2="330" y2="490" stroke="#ff7ac8" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="200" x2="770" y2="490" stroke="#ff7ac8" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="440" x2="770" y2="490" stroke="#ff7ac8" stroke-opacity=".55" stroke-width="2"/><line x1="330" y1="490" x2="770" y2="490" stroke="#ff7ac8" stroke-width="4"/><rect x="292" y="475" width="76" height="30" rx="7" fill="#171c25" stroke="#ff7ac8" stroke-width="2"/><text x="330" y="495" fill="#e6e9ef" text-anchor="middle">p7-leaf1</text><rect x="512" y="475" width="76" height="30" rx="7" fill="#171c25" stroke="#ff7ac8" stroke-width="2"/><text x="550" y="495" fill="#e6e9ef" text-anchor="middle">p7-spine</text><rect x="732" y="475" width="76" height="30" rx="7" fill="#171c25" stroke="#ff7ac8" stroke-width="2"/><text x="770" y="495" fill="#e6e9ef" text-anchor="middle">p7-leaf2</text><text x="550" y="470" fill="#ff7ac8" text-anchor="middle" font-weight="700">Plane 7</text><line x1="70" y1="200" x2="330" y2="560" stroke="#c8d94a" stroke-opacity=".55" stroke-width="2"/><line x1="70" y1="440" x2="330" y2="560" stroke="#c8d94a" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="200" x2="770" y2="560" stroke="#c8d94a" stroke-opacity=".55" stroke-width="2"/><line x1="1030" y1="440" x2="770" y2="560" stroke="#c8d94a" stroke-opacity=".55" stroke-width="2"/><line x1="330" y1="560" x2="770" y2="560" stroke="#c8d94a" stroke-width="4"/><rect x="292" y="545" width="76" height="30" rx="7" fill="#171c25" stroke="#c8d94a" stroke-width="2"/><text x="330" y="565" fill="#e6e9ef" text-anchor="middle">p8-leaf1</text><rect x="512" y="545" width="76" height="30" rx="7" fill="#171c25" stroke="#c8d94a" stroke-width="2"/><text x="550" y="565" fill="#e6e9ef" text-anchor="middle">p8-spine</text><rect x="732" y="545" width="76" height="30" rx="7" fill="#171c25" stroke="#c8d94a" stroke-width="2"/><text x="770" y="565" fill="#e6e9ef" text-anchor="middle">p8-leaf2</text><text x="550" y="540" fill="#c8d94a" text-anchor="middle" font-weight="700">Plane 8</text><rect x="15" y="166" width="110" height="68" rx="12" fill="#1c2433" stroke="#e6e9ef" stroke-width="2"/><text x="70" y="196" fill="#fff" text-anchor="middle" font-size="18" font-weight="800">G1</text><text x="70" y="218" fill="#9aa4b2" text-anchor="middle">8 NICs × 500M</text><rect x="15" y="406" width="110" height="68" rx="12" fill="#1c2433" stroke="#e6e9ef" stroke-width="2"/><text x="70" y="436" fill="#fff" text-anchor="middle" font-size="18" font-weight="800">G2</text><text x="70" y="458" fill="#9aa4b2" text-anchor="middle">8 NICs × 500M</text><rect x="975" y="166" width="110" height="68" rx="12" fill="#1c2433" stroke="#e6e9ef" stroke-width="2"/><text x="1030" y="196" fill="#fff" text-anchor="middle" font-size="18" font-weight="800">G3</text><text x="1030" y="218" fill="#9aa4b2" text-anchor="middle">8 NICs × 500M</text><rect x="975" y="406" width="110" height="68" rx="12" fill="#1c2433" stroke="#e6e9ef" stroke-width="2"/><text x="1030" y="436" fill="#fff" text-anchor="middle" font-size="18" font-weight="800">G4</text><text x="1030" y="458" fill="#9aa4b2" text-anchor="middle">8 NICs × 500M</text></svg>
+</div>
+<p style="font-size:17px;color:var(--muted)">One plane is drawn with its two leaves and spine; the other seven are identical and share nothing with it. <code>cat configs/p3-spine.frr.conf</code> in the kit shows the whole routing story for plane 3.</p>
+
+<!-- ============================================================ -->
+<h2 id="score"><span class="num">3</span>The scoreboard</h2>
+<p>Real numbers from the on-camera runs on 8 November: 128 TCP flows (64 each from g1 to g3 and g2 to g4), plane 3 of 8 killed.</p>
+<div class="scoreboard four">
+  <div class="score blue"><div class="big">87.5%</div><div class="lbl">throughput kept, every run (7/8)</div></div>
+  <div class="score after"><div class="big">0.29 s</div><div class="lbl">BFD: stuck flows moving again</div></div>
+  <div class="score mid"><div class="big">6.69 s</div><div class="lbl">ping timeouts: flows back</div></div>
+  <div class="score before"><div class="big">NEVER</div><div class="lbl">no detection (until restore)</div></div>
+</div>
+<div class="callout bad"><p><strong>The gray failure.</strong> We took down only the leaf-to-spine links of plane 3. The GPU NICs stay lit, the host sees a healthy carrier, and the plane quietly black-holes whatever is sent to it. With no detection, <strong>14 of the 128 flows were dead for the entire run</strong> while the bandwidth meter said 87.5%. That looks like a clean "one plane down" result. It is not.</p></div>
+<h3>How long until the stuck flows move again</h3>
+<div class="bars">
+<div class="bar good"><div class="lbl">BFD (multihop 100 ms x 3) &middot; silent failure <small>detected in 0.165 s; 13 flows were on plane 3</small></div><div class="track"><div class="fill" style="width:2.2%"></div><span class="val">0.29 s</span></div></div>
+<div class="bar warn"><div class="lbl">Ping timeouts (1 s x 3) &middot; silent failure <small>detected in 3.77 s; 14 flows were on plane 3</small></div><div class="track"><div class="fill" style="width:51.5%"></div><span class="val">6.69 s</span></div></div>
+<div class="bar dead"><div class="lbl">No detection &middot; silent failure <small>14 flows dead the whole time</small></div><div class="track"><div class="fill never" style="width:100%"></div><span class="val">NEVER</span></div></div>
+<div class="bar good"><div class="lbl">No detection &middot; cable pull (all links, the NIC loses carrier) <small>the kernel sees the carrier drop</small></div><div class="track"><div class="fill" style="width:1.6%"></div><span class="val">0.21 s</span></div></div>
+</div>
+<p style="font-size:17px;color:var(--muted)">Bars are linear, 0 to 13 s. Detection is not the same as recovery: ping timeouts noticed the failure at 3.77 s, but the flows were not moving again until 6.69 s, because TCP's retransmit timer backs off (0.2, 0.4, 0.8, 1.6, 3.2 s ...) and a flow that lost packets just sits until its next retry lands on a working path. BFD fixed the route in 0.165 s and the stuck flows were moving 0.29 s after the failure, close to Linux's default 200 ms minimum RTO. We left that 200 ms default alone on purpose (see the exercises).</p>
+<div class="callout"><p><strong>Why a cable pull is easy and a gray failure is hard.</strong> Pull the whole plane (NIC loses carrier) and the Linux kernel drops that nexthop by itself in 0.21 s, even with no detection. A gray failure gives the kernel nothing to react to. You need something watching the path itself: BFD, probes, or NVIDIA's hardware.</p></div>
+
+<!-- ============================================================ -->
+<h2 id="why"><span class="num">4</span>Why one slow flow matters</h2>
+<p>Training does not use the average flow. In an all-reduce every GPU waits until the <em>last</em> piece arrives before the step can finish. 14 dead flows out of 128 means every step stalls for as long as those 14 stay stuck, even though the meter shows 87.5% of the bandwidth moving. This explainer (with audio) walks through the collectives step by step.</p>
+<div class="embed"><iframe src="/labs/multiplane/collectives" title="Collectives explained: how GPUs talk during AI training" loading="lazy"></iframe></div>
+<p style="font-size:17px;color:var(--muted)">Prefer a full page? <a href="/labs/multiplane/collectives">Open the explainer on its own</a>.</p>
+
+<!-- ============================================================ -->
+<h2 id="demo"><span class="num">5</span>Run it yourself</h2>
+<p>Needs Linux with Docker, <a href="https://containerlab.dev/install/">containerlab</a>, sudo and python3 with the venv module (first run pip-installs matplotlib for the graphs). The first <code>up</code> pulls <code>quay.io/frrouting/frr:10.5.5</code> and builds a small image <code>multiplane/gpu:10.5.5</code> on top of it (iperf3, python3, iputils). 28 containers; expect a busy machine and fan noise, and shut it down when you are done.</p>
+<p><a class="lablink" href="/labs/multiplane/multiplane-lab.zip" download>Download the lab kit (.zip)</a></p>
+<pre><code><span class="prompt">$</span> unzip multiplane-lab.zip &amp;&amp; cd multiplane-lab
+<span class="prompt">$</span> ./lab.sh up         <span class="c"># builds the image if missing, deploys 28 containers, shapes NICs, BFD on (about 20 s)</span>
+<span class="prompt">$</span> ./lab.sh status     <span class="c"># g1 reaches g3 over 8 next hops, 24/24 BFD sessions up</span>
+<span class="prompt">$</span> ./lab.sh watch      <span class="c"># second terminal: live per-plane Gbit/s</span>
+<span class="prompt">$</span> ./lab.sh load 120    <span class="c"># 120 seconds of load: 128 TCP flows, ~8 Gbit/s per GPU pair</span>
+<span class="prompt">$</span> ./lab.sh kill 3 --gray   <span class="c"># plane 3 goes silent (fabric links only; NICs stay lit): total drops to ~7.0 Gbit/s</span>
+<span class="prompt">$</span> ./lab.sh restore 3
+<span class="prompt">$</span> ./lab.sh load stop
+
+<span class="prompt">$</span> ./lab.sh measure --mode bfd   --gray    <span class="c"># recorded run: 30 s, kill at 8 s, restore at 20 s; CSVs + graph.png</span>
+<span class="prompt">$</span> ./lab.sh measure --mode probe --gray
+<span class="prompt">$</span> ./lab.sh measure --mode none  --gray
+<span class="prompt">$</span> column -s, -t results/summary.csv
+<span class="prompt">$</span> ./lab.sh down       <span class="c"># destroy it</span></code></pre>
+<p>The README has the 10-step run sheet and every script. Tested end to end from the shipped zip on Ubuntu with containerlab: up in about 18 s, 8 next hops, 24/24 BFD, and the three gray-failure runs reproduced the pattern (BFD back in well under a second, ping timeouts around 7 s, no detection never). Exact flow counts and tens of milliseconds vary run to run because the 5-tuple hash puts a different number of flows on plane 3 each time. Other BFD runs on this lab (the earlier takes and the kit test) gave 0.69 to 0.71 s instead of 0.29 s: the answer depends on where in TCP's backoff each stuck flow happened to be.</p>
+
+<!-- ============================================================ -->
+<h2 id="graphs"><span class="num">6</span>The graphs, run by run</h2>
+<p>One graph per detection mode, all for the same gray failure of plane 3 (killed at 8 s, restored at 20 s). Look for the "flows stuck" line: how many flows sit at zero, and for how long.</p>
+<div class="runs">
+<h3>BFD: stuck flows clear in 0.29 s</h3><img src="graphs/bfd-gray.png" alt="Throughput and stuck flows over time, BFD detection, gray failure of plane 3" loading="lazy">
+<h3>Ping timeouts: a stair-step, 6.69 s</h3><img src="graphs/probe-gray.png" alt="Throughput and stuck flows over time, ping timeout detection, gray failure of plane 3" loading="lazy">
+<h3>No detection: the dead flows never come back</h3><img src="graphs/none-gray.png" alt="Throughput and stuck flows over time, no detection, gray failure of plane 3" loading="lazy">
+</div>
+
+<!-- ============================================================ -->
+<h2 id="runs"><span class="num">7</span>Every recorded run</h2>
+<p>All ten runs from build day, including the cable-pull ("all links") cases and the earlier takes. The four at 14:xx are the ones on camera. Throughput kept is 87.5% every time, because 7 of 8 planes is 7/8.</p>
+<div class="tablewrap"><table>
+<tr><th>Time</th><th>Detection</th><th>Failure</th><th class="n">Noticed after</th><th class="n">Stuck flows moving again</th><th class="n">Flows on plane 3</th><th class="n">Kept</th></tr>
+<tr><td>13:16</td><td>BFD 100 ms x 3</td><td>silent (gray)</td><td class="n">0.225 s</td><td class="n"><strong>0.71 s</strong></td><td class="n">16/128</td><td class="n">87.5%</td></tr>
+<tr><td>13:18</td><td>BFD 100 ms x 3</td><td>cable pull</td><td class="n">kernel sees carrier</td><td class="n"><strong>0.22 s</strong></td><td class="n">3/128</td><td class="n">87.6%</td></tr>
+<tr><td>13:18</td><td>ping timeouts 1 s x 3</td><td>silent (gray)</td><td class="n">3.857 s</td><td class="n"><strong>6.8 s</strong></td><td class="n">22/128</td><td class="n">87.5%</td></tr>
+<tr><td>13:19</td><td>ping timeouts 1 s x 3</td><td>cable pull</td><td class="n">kernel sees carrier</td><td class="n"><strong>0.23 s</strong></td><td class="n">5/128</td><td class="n">87.5%</td></tr>
+<tr><td>13:20</td><td>none</td><td>silent (gray)</td><td class="n">never</td><td class="n"><strong>never</strong></td><td class="n">16/128</td><td class="n">87.5%</td></tr>
+<tr><td>13:22</td><td>BFD 100 ms x 3</td><td>silent (gray)</td><td class="n">0.2 s</td><td class="n"><strong>0.7 s</strong></td><td class="n">16/128</td><td class="n">87.5%</td></tr>
+<tr><td>14:08 (on camera)</td><td>BFD 100 ms x 3</td><td>silent (gray)</td><td class="n">0.165 s</td><td class="n"><strong>0.29 s</strong></td><td class="n">13/128</td><td class="n">87.7%</td></tr>
+<tr><td>14:09 (on camera)</td><td>ping timeouts 1 s x 3</td><td>silent (gray)</td><td class="n">3.768 s</td><td class="n"><strong>6.69 s</strong></td><td class="n">14/128</td><td class="n">87.5%</td></tr>
+<tr><td>14:11 (on camera)</td><td>none</td><td>silent (gray)</td><td class="n">never</td><td class="n"><strong>never</strong></td><td class="n">14/128</td><td class="n">87.5%</td></tr>
+<tr><td>14:14 (on camera)</td><td>none</td><td>cable pull</td><td class="n">kernel sees carrier</td><td class="n"><strong>0.21 s</strong></td><td class="n">2/128</td><td class="n">87.6%</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="honest"><span class="num">8</span>What a software lab can't show</h2>
+<div class="honest">
+<h3>Can</h3>
+<p>The architecture (independent planes, one NIC per plane, multipath across planes, no routing protocol), the 1/N bandwidth arithmetic (7/8 = 87.5%, close to NVIDIA's "about 90%"), and how much detection time matters, which we measured ourselves.</p>
+<h3>Can't</h3>
+<ul>
+<li><strong>NVIDIA's 2.68 ms.</strong> NVIDIA says that comes from SuperNIC hardware doing per-packet load balancing and failover. Here the NIC is a veth, failover is a kernel route change, and the recovery floor is TCP's 200 ms minimum RTO. We spread <em>flows</em>, not packets.</li>
+<li><strong>Real scale.</strong> 500 Mbit/s per plane, software forwarding, 4 hosts. 128k endpoints is a radix calculation, not something to demo.</li>
+<li><strong>NVIDIA's 1.08 s software load balancing.</strong> Our "ping timeouts" mode is a stand-in for the idea, not their setup. And our 0.29 s with BFD is not "faster than NVIDIA": different machine, different measurement.</li>
+<li><strong>Real hardware wins on recovery time, not bandwidth kept.</strong> Both keep about 7/8. The difference is how long the flows on the dead plane stay stuck.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="ex"><span class="num">9</span>Exercises</h2>
+<ol class="steps">
+<li><strong>Lower the RTO per route.</strong> Linux can lower TCP's minimum retransmit timeout per route (<code>ip route ... rto_min 20ms</code>); we kept the 200 ms default. In <code>none</code> or <code>probe</code> mode the routes are ordinary kernel routes, so set it on g1's and g2's routes (<code>docker exec clab-multiplane-g1 ip route show 10.255.0.3</code>, then <code>ip route change</code> with <code>rto_min</code> added, on every host that sends). Predict first: what should happen to the 6.69 s ping-timeout figure and the 0.29 s BFD figure? Then re-run <code>./lab.sh measure --mode probe --gray</code>.</li>
+<li><strong>Four planes.</strong> <code>PLANES=4 python3 gen.py &amp;&amp; ./lab.sh down &amp;&amp; ./lab.sh up</code>. Predict the throughput kept when plane 3 dies (hint: 3/4). Then check whether more flows land on the dead plane per plane.</li>
+<li><strong>Tune the probe.</strong> <code>PROBE_INTERVAL=0.2 PROBE_MISSES=3 ./lab.sh detect probe</code>. How far down can plain probing go before it flaps on a healthy plane? How does detection time map to recovery time now that TCP's backoff is the other half?</li>
+<li><strong>Watch it live.</strong> Run <code>./lab.sh watch</code> while you <code>kill 3 --gray</code> with no detection (<code>./lab.sh detect none</code>), and read the per-plane rates. Plane 3 goes to zero, and the total says 7 Gbit/s. Which number would your dashboard alert on?</li>
+<li><strong>Flip the failure.</strong> Compare <code>kill 3 --gray</code> with <code>kill 3</code> (cable pull) in <code>none</code> mode and explain, from what the kernel can see, why one recovers in 0.21 s and the other never does.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="src"><span class="num">10</span>Sources</h2>
+<ol class="sources">
+  <li>NVIDIA, "Giga-scale AI Ethernet evolution: how Spectrum-X Ethernet rewrites the rules" (Aug 2026; NVIDIA repeated it at OCP in Oct 2026): <a href="https://developer.nvidia.com/blog/giga-scale-ai-ethernet-evolution-spectrum-x-ethernet-rewrites-rules/">https://developer.nvidia.com/blog/giga-scale-ai-ethernet-evolution-spectrum-x-ethernet-rewrites-rules/</a>. Every NVIDIA figure on this page (128k endpoints, about 90% with 1 of 8 planes down, 1.08 s software load balancing, 2.68 ms in SuperNIC hardware, ConnectX-9 at 1.6 Tb/s) is "NVIDIA says" from this post.</li>
+  <li>Episode 3 lab (SRv6, no routing protocol, the host steers around a dead path): <a href="/labs/srv6-no-routing">https://www.grahampaasch.com/labs/srv6-no-routing</a></li>
+  <li>Episode 2 lab (eBGP vs OSPF): <a href="/labs/bgp-vs-ospf">https://www.grahampaasch.com/labs/bgp-vs-ospf</a></li>
+  <li>Episode 1 lab (the eBGP AI-cluster fabric): <a href="/labs/ai-fabric">https://www.grahampaasch.com/labs/ai-fabric</a></li>
+  <li>containerlab: <a href="https://containerlab.dev">containerlab.dev</a> &middot; FRRouting 10.5.5 BFD and static routes: <a href="https://docs.frrouting.org/en/latest/bfd.html">docs.frrouting.org</a></li>
+</ol>
+
+<p>More: <a href="/labs/srv6-no-routing">episode 3's lab</a> &middot; <a href="/labs/bgp-vs-ospf">episode 2's lab</a> &middot; <a href="/labs/ai-fabric">episode 1's lab</a> &middot; <a href="https://www.youtube.com/playlist?list=PLZPz67cofgXQ">AI Agents Build the Lab on YouTube</a> &middot; <a href="https://www.grahampaasch.com/cadence">how Graham runs the agent team that built this</a></p>
+
+<footer>Episode 4 of "AI Agents Build the Lab" &middot; Graham Paasch &middot; lab built and tested live by a team of Claude Code agents (<a href="https://www.grahampaasch.com/cadence">how the team works</a>) &middot; FRRouting 10.5.5 and containerlab &middot; kit MIT licensed</footer>
+</main>
+</body>
+</html>

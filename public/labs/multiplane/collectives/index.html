@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Collectives explained: how GPUs talk during AI training</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧮</text></svg>">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0c0f15;color:#e6e9ef;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;height:100vh}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:10px 26px 0}
+.brand{font-size:22px;color:#9aa4b2;font-weight:600}
+.brand a{color:#9aa4b2;text-decoration:none}
+.st{text-align:center}
+#stitle{font-size:40px;font-weight:800;letter-spacing:.3px}
+#stitle .num{color:#76b900;margin-right:10px}
+#analogy{font-size:24px;color:#ffd27a;margin-top:2px;min-height:1.3em}
+#pips{justify-self:end;display:flex;gap:7px}
+#pips span{width:16px;height:16px;border-radius:50%;background:#273042;display:block}
+#pips span.done{background:#5b6a82}#pips span.on{background:#76b900}
+#stage{width:100%;height:100%;display:block}
+#cap{font-size:32px;line-height:1.3;text-align:center;padding:6px 60px 8px;min-height:2.8em;display:flex;align-items:center;justify-content:center}
+#ctl{display:flex;align-items:center;gap:12px;padding:10px 22px 14px;background:#11151d;border-top:1px solid #222a38;flex-wrap:wrap}
+button{font:inherit;background:#1f2736;color:#e6e9ef;border:1px solid #33405a;border-radius:10px;padding:10px 16px;font-size:20px;cursor:pointer}
+button:hover{border-color:#76b900}
+#play{background:#76b900;color:#0c0f15;border:0;font-weight:800;font-size:26px;min-width:150px;padding:12px 22px}
+#scenes{display:flex;gap:6px;margin-left:8px}
+#scenes button{padding:8px 0;width:44px;font-size:19px}
+#scenes button.on{background:#76b900;color:#0c0f15;border-color:#76b900;font-weight:800}
+.sp{display:flex;align-items:center;gap:10px;font-size:20px;color:#9aa4b2;margin-left:auto}
+input[type=range]{width:110px;accent-color:#76b900}
+label.auto{display:flex;align-items:center;gap:8px;font-size:20px;color:#c9d1dd;cursor:pointer}
+label.auto input{width:22px;height:22px;accent-color:#76b900}
+.keys{font-size:15px;color:#6b7588}
+#mute.off{color:#ff8a7a;border-color:#ff8a7a}
+#start{position:fixed;inset:0;background:rgba(8,10,15,.78);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:10;backdrop-filter:blur(3px)}
+#start.hide{display:none}
+#start button{background:#76b900;color:#0c0f15;border:0;font-weight:800;font-size:46px;padding:26px 54px;border-radius:20px;box-shadow:0 10px 40px rgba(118,185,0,.35)}
+#start button:hover{filter:brightness(1.1)}
+#start .sub{font-size:22px;color:#9aa4b2}
+#start a{font-size:20px;color:#9aa4b2;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><a href="/labs/multiplane">🧮 Collectives explained</a></div>
+  <div class="st"><div id="stitle"></div><div id="analogy"></div></div>
+  <div id="pips"></div>
+</header>
+<svg id="stage" viewBox="0 0 1600 760" preserveAspectRatio="xMidYMid meet" font-family="system-ui,-apple-system,Segoe UI,sans-serif"></svg>
+<div id="cap"></div>
+<div id="ctl">
+  <button id="prev" title="Previous scene (←)">⏮ Back</button>
+  <button id="bback" title="Previous beat (,)">◀ beat</button>
+  <button id="play" title="Play / pause (space)">▶ Play</button>
+  <button id="bfwd" title="Next beat (.)">beat ▶</button>
+  <button id="next" title="Next scene (→)">Next ⏭</button>
+  <button id="mute" title="Mute / unmute narration (m) · keys: space play, ← → scene, , . beat">🔊 Voice</button>
+  <div id="scenes"></div>
+  <div class="sp">Speed <input id="speed" type="range" min="0.25" max="3" step="0.25" value="1"><b id="spv" style="color:#e6e9ef;min-width:3.2em">1×</b></div>
+  <label class="auto"><input id="auto" type="checkbox" checked> Auto-advance</label>
+</div>
+<div id="start"><button id="startbtn">▶ Play with narration</button><div class="sub">about 8 minutes · the animation follows the voice</div><a id="startsilent">or watch silently</a></div>
+<script>
+"use strict";
+/* ---------- basics ---------- */
+const C=['#3fa7ff','#ff8a3d','#c77dff','#34d399'];          // one color per GPU's data
+const PLANE=['#76b900','#3fa7ff','#ff5d5d','#ffb84d','#b48cff','#3fd6c6','#ff7ac8','#c8d94a']; // same as topology page
+const V=[[1,2,3,4],[10,20,30,40],[100,200,300,400],[1000,2000,3000,4000]];
+const NS='http://www.w3.org/2000/svg';
+const stage=document.getElementById('stage');
+function el(tag,a,parent){const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);if(parent)parent.appendChild(e);return e}
+function txt(parent,x,y,s,a){const t=el('text',Object.assign({x,y},a||{}),parent);t.textContent=s;return t}
+
+/* ---------- virtual clock: pause + speed affect everything ---------- */
+let vnow=0,last=performance.now(),paused=true,speed=1,gen=0,INSTANT=false;
+const ABORT={abort:true};
+const waiters=[];
+function tick(){
+  const t=performance.now(),dt=Math.min(100,t-last);last=t;
+  if(!paused)vnow+=dt*speed;
+  for(let i=waiters.length-1;i>=0;i--){
+    const w=waiters[i];
+    if(w.g!==gen){waiters.splice(i,1);w.rej(ABORT);continue}
+    if(w.step)w.step();
+    if(vnow>=w.at){waiters.splice(i,1);w.res()}
+  }
+}
+function frame(){tick();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+setInterval(()=>{if(performance.now()-last>60)tick()},16);   // keeps time moving if rAF is throttled (headless, hidden tab)
+function wait(ms){if(INSTANT)return Promise.resolve();const g=gen;return new Promise((res,rej)=>waiters.push({at:vnow+ms,res,rej,g}))}
+const easeIO=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const lin=t=>t;
+async function tween(ms,fn,ease=easeIO){
+  if(INSTANT){fn(1);return}
+  const t0=vnow,g=gen;
+  await new Promise((res,rej)=>waiters.push({at:t0+ms,res,rej,g,step:()=>fn(ease(Math.min(1,(vnow-t0)/ms)))}));
+  fn(1);
+}
+const fadeIn=(e,ms=450)=>{e.style.opacity=0;return tween(ms,p=>e.style.opacity=p)};
+const fadeTo=(e,to,ms=450)=>{const f=+(e.style.opacity||1);return tween(ms,p=>e.style.opacity=f+(to-f)*p)};
+
+/* ---------- colors for "whose data is in here" ---------- */
+let defs,gradMemo={};
+function fillFor(con){
+  if(!con.length)return '#121722';
+  if(con.length===1)return C[con[0]];
+  const key=con.join('');
+  if(!gradMemo[key]){
+    const id='g'+key,g=el('linearGradient',{id,x1:0,x2:1,y1:0,y2:0},defs),n=con.length;
+    con.forEach((c,k)=>{el('stop',{offset:k/n,'stop-color':C[c]},g);el('stop',{offset:(k+1)/n,'stop-color':C[c]},g)});
+    gradMemo[key]=`url(#${id})`;
+  }
+  return gradMemo[key];
+}
+
+/* ---------- cells (one number = one chunk) ---------- */
+const BW=560,BH=180,CW=118,CH=92,GAP=12,PADX=26,CELLY=62;
+const POS=[[100,70],[940,70],[940,505],[100,505]];  // ring order: 1 top-left, 2 top-right, 3 bottom-right, 4 bottom-left
+function fsize(s){const n=String(s).length;return n<=4?38:n<=6?30:n<=7?25:22}
+function makeCell(parent,x,y){
+  const g=el('g',{},parent);
+  const rect=el('rect',{x,y,width:CW,height:CH,rx:12},g);
+  const text=txt(g,x+CW/2,y+CH/2+12,'',{'text-anchor':'middle','font-weight':800,fill:'#fff',stroke:'#0b0e14','stroke-width':6,'paint-order':'stroke','stroke-linejoin':'round'});
+  return {x,y,g,rect,text,val:null,con:[]};
+}
+function setCell(c,val,con,shown){
+  c.val=val;c.con=[...new Set(con)].sort();c.g.style.opacity=1;
+  if(val==null){c.rect.setAttribute('fill','#121722');c.rect.setAttribute('stroke','#3a4558');c.rect.setAttribute('stroke-width',2);c.rect.setAttribute('stroke-dasharray','7 7');c.text.textContent='';return}
+  c.rect.setAttribute('fill',fillFor(c.con));c.rect.removeAttribute('stroke-dasharray');
+  if(shown!==undefined){c.rect.setAttribute('stroke','#fff');c.rect.setAttribute('stroke-width',4)}else c.rect.setAttribute('stroke','none');
+  const s=shown!==undefined?shown:String(val);c.text.textContent=s;c.text.setAttribute('font-size',fsize(s));
+}
+function token(parent,val,con){
+  const g=el('g',{},parent);
+  el('rect',{x:0,y:0,width:CW,height:CH,rx:12,fill:fillFor([...new Set(con)].sort()),stroke:'#fff','stroke-width':2},g);
+  const s=String(val);
+  txt(g,CW/2,CH/2+12,s,{'text-anchor':'middle','font-weight':800,'font-size':fsize(s),fill:'#fff',stroke:'#0b0e14','stroke-width':6,'paint-order':'stroke'});
+  return g;
+}
+/* a chunk flies from cell a to cell b. mode: copy | add | move */
+async function fly(S,a,b,o={}){
+  const mode=o.mode||'copy',val=o.val!=null?o.val:a.val,con=(o.con||a.con).slice(),dur=o.dur||1100;
+  if(mode==='move'||o.empty)setCell(a,null,[]);
+  if(!INSTANT){
+    const t=token(S.fx,val,con),dx=b.x-a.x,dy=b.y-a.y,arc=o.arc!=null?o.arc:.06;
+    t.setAttribute('transform',`translate(${a.x},${a.y})`);
+    await tween(dur,p=>{const k=4*p*(1-p);t.setAttribute('transform',`translate(${a.x+dx*p-dy*arc*k},${a.y+dy*p+dx*arc*k})`)});
+    t.remove();
+  }
+  if(mode==='add'&&b.val!=null){
+    const old=b.val,nv=old+val,nc=b.con.concat(con);
+    setCell(b,nv,nc,INSTANT?undefined:`${old}+${val}`);
+    if(!INSTANT){await wait(o.hold||850);if(b.val===nv)setCell(b,nv,nc)}
+  }else setCell(b,val,con);
+}
+function note(parent,x,y,s,o={}){
+  const g=el('g',{},parent);
+  const r=el('rect',{rx:12,fill:o.fill||'#0c0f15',stroke:o.stroke||'#2b3446','stroke-width':2},g);
+  const t=txt(g,x,y,'',{fill:o.color||'#e6e9ef','font-size':o.size||28,'text-anchor':o.anchor||'middle','font-weight':o.weight||650});
+  g.set=s2=>{t.textContent=s2;const bb=t.getBBox();r.setAttribute('x',bb.x-16);r.setAttribute('y',bb.y-7);r.setAttribute('width',bb.width+32);r.setAttribute('height',bb.height+14);if(o.bg===false)r.style.display='none'};
+  g.color=c=>t.setAttribute('fill',c);
+  g.set(s);return g;
+}
+
+/* ---------- the standard 4-GPU layout ---------- */
+function std4(init,opt={}){
+  const S={gpus:[],cells:[],lab:[]};
+  S.base=el('g',{},stage);S.mid=el('g',{},stage);S.top=el('g',{},stage);S.fx=el('g',{},stage);
+  for(let i=0;i<4;i++){
+    const [x,y]=POS[i],g=el('g',{},S.base);
+    const r=el('rect',{x,y,width:BW,height:BH,rx:18,fill:'#161b26',stroke:C[i],'stroke-width':3},g);
+    txt(g,x+PADX,y+44,opt.name?opt.name(i):'GPU '+(i+1),{fill:C[i],'font-size':32,'font-weight':800});
+    const tag=txt(g,x+BW-PADX,y+42,'',{fill:'#c9d1dd','font-size':24,'text-anchor':'end','font-weight':600});
+    S.gpus.push({g,r,tag,x,y});S.cells.push([]);S.lab.push([]);
+    for(let j=0;j<4;j++){
+      const cx=x+PADX+j*(CW+GAP),cy=y+CELLY,c=makeCell(g,cx,cy);S.cells[i].push(c);
+      const v=init?init[i][j]:null;setCell(c,v,v==null?[]:[i]);
+      S.lab[i].push(txt(g,cx+CW/2,cy+CH+20,'',{fill:'#8a94a6','font-size':17,'text-anchor':'middle'}));
+    }
+  }
+  S.tag=(i,s,c)=>{S.gpus[i].tag.textContent=s;S.gpus[i].tag.setAttribute('fill',c||'#c9d1dd')};
+  S.hi=(i,c,w)=>{S.gpus[i].r.setAttribute('stroke',c||C[i]);S.gpus[i].r.setAttribute('stroke-width',w||3)};
+  S.labels=f=>{for(let i=0;i<4;i++)for(let j=0;j<4;j++)S.lab[i][j].textContent=f(i,j)};
+  return S;
+}
+function arrow(parent,d,color){return el('path',{d,stroke:color||'#7d8aa3','stroke-width':5,fill:'none','marker-end':'url(#arr)','stroke-linecap':'round'},parent)}
+const empty4=()=>[[null,null,null,null],[null,null,null,null],[null,null,null,null],[null,null,null,null]];
+const all=a=>Promise.all(a);
+
+/* ================= SCENES ================= */
+const SCENES=[
+/* 1 ---------------------------------------------------------- */
+{title:'Why GPUs have to talk',analogy:'💡 Like four chefs each tasting a different pot, then agreeing on one recipe change',
+build(){
+  const S=std4(empty4());
+  S.data=el('g',{},S.mid);
+  el('rect',{x:660,y:325,width:280,height:90,rx:14,fill:'#1f2736',stroke:'#5b6a82','stroke-width':2},S.data);
+  txt(S.data,800,382,'📚 training data',{'text-anchor':'middle','font-size':30,'font-weight':700,fill:'#e6e9ef'});
+  return S;
+},
+beats:[
+{cap:'Training splits the data: each GPU reads a different batch, but all four share one copy of the model.',
+ async run(S){
+  await all([0,1,2,3].map(async i=>{
+    const g=S.gpus[i],tx=g.x+BW-PADX-150,ty=g.y+12;
+    if(!INSTANT){
+      const chip=el('g',{},S.fx);el('rect',{x:0,y:0,width:150,height:42,rx:10,fill:C[i]},chip);
+      txt(chip,75,30,'batch '+(i+1),{'text-anchor':'middle','font-size':24,'font-weight':800,fill:'#0c0f15'});
+      await tween(1100,p=>chip.setAttribute('transform',`translate(${725+(tx-725)*p},${349+(ty-349)*p})`));chip.remove();
+    }
+    S.tag(i,'📦 batch '+(i+1),C[i]);
+  }));
+ }},
+{cap:'From its own batch, each GPU works out how the model should change (its gradient). Four GPUs, four different answers.',
+ async run(S){
+  await tween(1600,p=>{for(let i=0;i<4;i++)for(let j=0;j<4;j++)setCell(S.cells[i][j],Math.round(V[i][j]*p),[i])},lin);
+ }},
+{cap:'To stay in sync, every GPU needs the SUM of all four. The numbers are small on purpose, so you can check the math.',
+ async run(S){
+  S.data.remove();
+  S.goal=note(S.mid,800,385,'Everyone needs:  1+10+100+1000 = 1111 · 2222 · 3333 · 4444',{size:30,color:'#ffd27a'});
+  await fadeIn(S.goal);
+ }},
+{cap:'Each GPU sends its numbers across the network. The step cannot finish until the last flow arrives.',
+ async run(S){
+  S.goal.remove();
+  const cx=800,cy=350,ends=[[660,250],[940,250],[940,505],[660,505]],D=[900,1100,3000,1000];
+  ends.forEach(([x,y],i)=>el('line',{x1:x,y1:y,x2:cx,y2:cy,stroke:C[i],'stroke-width':5,'stroke-opacity':.55,'stroke-dasharray':i===2?'10 9':''},S.mid));
+  S.sig=el('circle',{cx,cy,r:52,fill:'#1f2736',stroke:'#e6e9ef','stroke-width':3},S.mid);
+  txt(S.mid,cx,cy+17,'Σ',{'text-anchor':'middle','font-size':50,'font-weight':800,fill:'#fff'});
+  S.slow=note(S.mid,905,445,'🐢 slow link',{size:24,color:C[2],anchor:'start'});
+  S.clock=note(S.mid,400,392,'⏱ 0.0 s',{size:34});
+  const flows=ends.map(([x,y],i)=>(async()=>{
+    if(!INSTANT){
+      const d=el('circle',{r:15,fill:C[i],stroke:'#fff','stroke-width':3},S.fx);
+      await tween(D[i],p=>{d.setAttribute('cx',x+(cx-x)*p);d.setAttribute('cy',y+(cy-y)*p)},lin);d.remove();
+    }
+    S.tag(i,i===2?'✓ finally arrived':'✓ sent · ⏳ waiting',i===2?C[2]:'#ffd27a');
+  })());
+  await all([...flows,tween(3000,p=>S.clock.set('⏱ '+(3*p).toFixed(1)+' s'),lin)]);
+  S.sig.setAttribute('fill',fillFor([0,1,2,3]));
+  S.clock.set('⏱ step done: 3.0 s');
+ }},
+{cap:'One slow flow made the whole step slow, and three GPUs just sat there. Remember this for the end.',
+ async run(S){
+  const n=note(S.mid,1250,350,'3 GPUs ready at ~1 s',{size:26,color:'#ffd27a'});const n2=note(S.mid,1250,395,'step finished at 3.0 s',{size:26,color:'#ffd27a'});fadeIn(n2);
+  for(const i of [0,1,3])S.tag(i,'⏳ waited ~2 s','#ffd27a');
+  await fadeIn(n);
+ }},
+]},
+/* 2 ---------------------------------------------------------- */
+{title:'Broadcast',analogy:'💡 Like a multicast stream: one source, everyone gets an identical copy',
+build(){const init=empty4();init[0]=[5,6,7,8];const S=std4(init);S.tag(0,'starting weights');return S},
+beats:[
+{cap:'Broadcast: one GPU has the data. The other three have nothing yet.',async run(){}},
+{cap:'GPU 1 sends a copy to everyone. Nothing is added, it is just copied.',
+ async run(S){
+  await all([1,2,3].flatMap(k=>[0,1,2,3].map(j=>fly(S,S.cells[0][j],S.cells[k][j],{dur:1400}))));
+  for(const k of [1,2,3])S.tag(k,'copy of GPU 1 ✓');
+ }},
+{cap:'Training uses this at startup, so every GPU begins with exactly the same model.',
+ async run(S){for(let k=0;k<4;k++)S.tag(k,'same weights ✓','#9be15d')}},
+]},
+/* 3 ---------------------------------------------------------- */
+{title:'Reduce',analogy:'💡 Like election night: every precinct sends its count to HQ, and HQ adds them up',
+build(){return std4(V)},
+beats:[
+{cap:'Reduce: every GPU has its own numbers. We want their sum, delivered to just one GPU.',async run(S){S.tag(0,'← total goes here','#ffd27a')}},
+{cap:'GPU 2 sends its numbers to GPU 1, and they get added: 1 + 10 = 11.',
+ async run(S){await all([0,1,2,3].map(j=>fly(S,S.cells[1][j],S.cells[0][j],{mode:'add',dur:1200,hold:1300})))}},
+{cap:'Then GPU 3, then GPU 4. Each digit tells you who contributed: 1111 means all four.',
+ async run(S){
+  await all([0,1,2,3].map(j=>fly(S,S.cells[2][j],S.cells[0][j],{mode:'add',dur:1300,hold:1300,arc:.03})));
+  await all([0,1,2,3].map(j=>fly(S,S.cells[3][j],S.cells[0][j],{mode:'add',dur:1200,hold:1300})));
+ }},
+{cap:'Only GPU 1 has the total. The others still hold just their own numbers. That is reduce.',
+ async run(S){S.hi(0,'#fff',6);S.tag(0,'has the total ✓','#9be15d');for(const k of [1,2,3]){S.tag(k,'own numbers only');S.cells[k].forEach(c=>c.g.style.opacity=.45)}}},
+]},
+/* 4 ---------------------------------------------------------- */
+{title:'All-reduce ⭐',analogy:'💡 Like a bucket brigade: everyone passes to the next person, so nobody carries everything',
+build(){const S=std4(V);S.mid2=el('g',{},S.mid);return S},
+beats:[
+{cap:'All-reduce: the same sum, but EVERY GPU ends up with all of it. Training runs this after every single step.',
+ async run(S){S.goal=note(S.mid2,800,385,'Goal: all four GPUs hold  1111 · 2222 · 3333 · 4444',{size:30,color:'#ffd27a'});await fadeIn(S.goal)}},
+{cap:'The naive way, part 1: everybody sends everything to GPU 1, which adds it all up.',
+ async run(S){
+  S.goal.remove();
+  S.cnt=note(S.mid2,800,385,'Through GPU 1’s link:  0 arrays in',{size:28});
+  S.hi(0,'#ff5d5d',6);
+  for(const k of [1,2,3]){
+    await all([0,1,2,3].map(j=>fly(S,S.cells[k][j],S.cells[0][j],{mode:'add',dur:900,hold:600,arc:k===2?.03:.06})));
+    S.cnt.set(`Through GPU 1’s link:  ${k} array${k>1?'s':''} in`);
+  }
+ }},
+{cap:'Part 2: GPU 1 sends the total back out. Its link carried 6 whole arrays while the others mostly waited.',
+ async run(S){
+  await all([1,2,3].flatMap(k=>[0,1,2,3].map(j=>fly(S,S.cells[0][j],S.cells[k][j],{dur:1300,arc:k===2?.03:.06}))));
+  S.cnt.set('Through GPU 1’s link:  3 in + 3 out = 6 arrays  🔥 hot spot');S.cnt.color('#ff8a7a');
+ }},
+{cap:'The ring way: cut each array into 4 chunks, and only ever talk to your neighbor. Watch the step counter.',
+ async run(S){
+  S.mid2.innerHTML='';S.hi(0);
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++)setCell(S.cells[i][j],V[i][j],[i]);
+  S.labels((i,j)=>'chunk #'+(j+1));
+  S.ring=el('g',{},S.mid);
+  arrow(S.ring,'M672 160 L928 160');arrow(S.ring,'M1220 262 L1220 493');arrow(S.ring,'M928 595 L672 595');arrow(S.ring,'M380 493 L380 262');
+  S.step=note(S.mid,800,350,'Step 0 of 6',{size:42,weight:800});
+  S.phase=note(S.mid,800,412,'',{size:26,color:'#ffd27a',bg:false});
+  await fadeIn(S.ring,600);
+ }},
+...[0,1,2].map(s=>({
+ cap:['Phase 1, reduce-scatter. Step 1: every GPU passes one chunk to its neighbor, who adds it in. All four links busy at once.',
+      'Step 2: pass along the chunk you just added to. The sums grow: 11 + 100 = 111.',
+      'Step 3: now each GPU holds one chunk that is fully summed (all four digits). The faded ones are leftovers.'][s],
+ async run(S){
+  S.step.set(`Step ${s+1} of 6`);S.phase.set('Phase 1 · reduce-scatter · neighbors ADD');
+  await all([0,1,2,3].map(i=>{const j=(i-s+4)%4;return fly(S,S.cells[i][j],S.cells[(i+1)%4][j],{mode:'add',dur:1300,hold:1100})}));
+  if(s===2)for(let i=0;i<4;i++){S.cells[i].forEach((c,j)=>{if(j!==(i+1)%4)c.g.style.opacity=.28});S.tag(i,`owns chunk #${(i+1)%4+1} ✓`,'#9be15d')}
+ }})),
+...[0,1,2].map(s=>({
+ cap:['Phase 2, all-gather. Step 4: pass your finished chunk to your neighbor. No adding now, just copying.',
+      'Step 5: keep passing finished chunks around the ring.',
+      'Step 6: done! Every GPU has 1111 · 2222 · 3333 · 4444.'][s],
+ async run(S){
+  S.step.set(`Step ${s+4} of 6`);S.phase.set('Phase 2 · all-gather · neighbors COPY');
+  await all([0,1,2,3].map(i=>{const j=(i+1-s+4)%4;return fly(S,S.cells[i][j],S.cells[(i+1)%4][j],{dur:1300})}));
+  if(s===2){S.step.set('Step 6 of 6 ✓');for(let i=0;i<4;i++)S.tag(i,'has the total ✓','#9be15d')}
+ }})),
+{cap:'Ring all-reduce is just reduce-scatter followed by all-gather. No hot spot, but it needs every link working at every step.',
+ async run(S){
+  S.phase.set('');
+  const n=note(S.mid,800,420,'Naive: GPU 1 moves 6 arrays  ·  Ring: each GPU sends 6 quarter-chunks = 1.5 arrays',{size:24,color:'#ffd27a'});
+  await fadeIn(n);
+ }},
+]},
+/* 5 ---------------------------------------------------------- */
+{title:'Reduce-scatter',analogy:'💡 Like four friends with four receipts: each friend totals one category across all of them',
+build(){
+  const S=std4(V);S.labels((i,j)=>'chunk #'+(j+1));
+  for(let i=0;i<4;i++){const c=S.cells[i][i];el('rect',{x:c.x-6,y:c.y-6,width:CW+12,height:CH+12,rx:15,fill:'none',stroke:'#fff','stroke-width':3,'stroke-dasharray':'8 6'},S.mid);S.tag(i,`will own #${i+1}`)}
+  return S;
+},
+beats:[
+{cap:'Reduce-scatter: add everything up, but each GPU keeps only ONE piece of the total (the dashed box).',async run(){}},
+{cap:'Every chunk #1 goes to GPU 1, every #2 to GPU 2, and so on, adding up as they land.',
+ async run(S){
+  for(let s=0;s<4;s++)await all([0,1,2,3].filter(j=>j!==s).map(j=>fly(S,S.cells[s][j],S.cells[j][j],{mode:'add',empty:true,dur:1100,hold:900,arc:.04})));
+ }},
+{cap:'Each GPU now owns one finished quarter. Sharded training (FSDP, ZeRO) is built on this. The ring did it in 3 neighbor steps.',
+ async run(S){for(let i=0;i<4;i++)S.tag(i,`owns #${i+1} ✓`,'#9be15d')}},
+]},
+/* 6 ---------------------------------------------------------- */
+{title:'All-gather',analogy:'💡 Like a potluck: everyone brings one dish, and everyone leaves with a full plate',
+build(){
+  const S=std4(empty4());S.labels((i,j)=>'chunk #'+(j+1));
+  for(let i=0;i<4;i++){setCell(S.cells[i][i],1111*(i+1),[0,1,2,3]);S.tag(i,`has #${i+1}`)}
+  return S;
+},
+beats:[
+{cap:'All-gather: each GPU has one piece (here, the result of reduce-scatter). Afterward, every GPU has every piece.',async run(){}},
+{cap:'Each GPU sends a copy of its piece to all the others. Copying only, no adding.',
+ async run(S){
+  await all([0,1,2,3].flatMap(i=>[0,1,2,3].filter(k=>k!==i).map(k=>fly(S,S.cells[i][i],S.cells[k][i],{dur:1500,arc:.04}))));
+  for(let i=0;i<4;i++)S.tag(i,'full set ✓','#9be15d');
+ }},
+{cap:'Reduce-scatter + all-gather = all-reduce. Those were exactly the two phases of the ring.',async run(){}},
+]},
+/* 7 ---------------------------------------------------------- */
+{title:'All-to-all (mixture of experts)',analogy:'💡 Like a mail sorting center: every truck brings letters for every town',
+build(){
+  const S=std4(V,{name:i=>`GPU ${i+1} · expert ${i+1}`});
+  S.labels((i,j)=>'→ expert '+(j+1));return S;
+},
+beats:[
+{cap:'In a mixture-of-experts model, each GPU hosts a different expert. Every token is tagged with the expert it needs.',async run(){}},
+{cap:'All-to-all: every GPU sends a different piece to every other GPU, all at the same time.',
+ async run(S){
+  const m=[];for(let i=0;i<4;i++)for(let j=0;j<4;j++)if(i!==j)m.push([i,j]);
+  const vals=m.map(([i,j])=>[S.cells[i][j].val,S.cells[i][j].con.slice()]);
+  m.forEach(([i,j])=>setCell(S.cells[i][j],null,[]));
+  await all(m.map(([i,j],k)=>fly(S,S.cells[i][j],S.cells[j][i],{val:vals[k][0],con:vals[k][1],dur:1700,arc:.05})));
+  S.labels((i,j)=>'from GPU '+(j+1));
+  for(let i=0;i<4;i++)S.tag(i,'✓ sorted','#9be15d');
+ }},
+{cap:'After each expert does its work, a second all-to-all sends every token back home.',
+ async run(S){
+  const m=[];for(let i=0;i<4;i++)for(let j=0;j<4;j++)if(i!==j)m.push([i,j]);
+  const vals=m.map(([i,j])=>[S.cells[i][j].val,S.cells[i][j].con.slice()]);
+  m.forEach(([i,j])=>setCell(S.cells[i][j],null,[]));
+  await all(m.map(([i,j],k)=>fly(S,S.cells[i][j],S.cells[j][i],{val:vals[k][0],con:vals[k][1],dur:1700,arc:.05})));
+  S.labels((i,j)=>'→ expert '+(j+1));
+  for(let i=0;i<4;i++)S.tag(i,'✓ home');
+ }},
+{cap:'Every GPU talks to every other GPU at once. That makes all-to-all the most demanding pattern for the network.',
+ async run(S){
+  const g=el('g',{},S.mid),ctr=POS.map(([x,y])=>[x+BW/2,y+BH/2]);
+  for(let a=0;a<4;a++)for(let b=a+1;b<4;b++)el('line',{x1:ctr[a][0],y1:ctr[a][1],x2:ctr[b][0],y2:ctr[b][1],stroke:'#ffd27a','stroke-width':6,'stroke-opacity':.7},g);
+  S.base.parentNode.insertBefore(g,S.base);
+  const n=note(S.mid,800,385,'12 flows at once (every GPU ↔ every GPU)',{size:28,color:'#ffd27a'});
+  await all([fadeIn(g),fadeIn(n)]);
+ }},
+]},
+/* 8 ---------------------------------------------------------- */
+{title:'Barrier',analogy:'💡 Like a tour bus: it does not leave until everyone is back on board',
+build(){
+  const S={base:el('g',{},stage),fx:el('g',{},stage)};S.bars=[];S.lbl=[];
+  const X0=260,X1=1440;S.XB=1000;
+  for(let i=0;i<4;i++){
+    const y=150+i*135;
+    txt(S.base,90,y+36,'GPU '+(i+1),{fill:C[i],'font-size':34,'font-weight':800});
+    el('rect',{x:X0,y,width:X1-X0,height:54,rx:12,fill:'#161b26',stroke:'#2b3446','stroke-width':2},S.base);
+    S.bars.push(el('rect',{x:X0,y,width:0,height:54,rx:12,fill:C[i]},S.base));
+    S.lbl.push(txt(S.base,X1-18,y+37,'working…',{'text-anchor':'end','font-size':26,'font-weight':700,fill:'#c9d1dd'}));
+  }
+  S.line=el('line',{x1:S.XB,y1:115,x2:S.XB,y2:640,stroke:'#ff5d5d','stroke-width':8,'stroke-linecap':'round'},S.base);
+  S.bl=txt(S.base,S.XB,98,'🚧 barrier',{'text-anchor':'middle','font-size':30,'font-weight':800,fill:'#ff5d5d'});
+  S.X0=X0;S.X1=X1;return S;
+},
+beats:[
+{cap:'Barrier: no data at all, just a checkpoint. Nobody moves on until everybody arrives.',async run(){}},
+{cap:'Each GPU finishes its work at a different time. The early ones wait at the line for the last one.',
+ async run(S){
+  const D=[1300,1900,3600,1600];
+  await all([0,1,2,3].map(async i=>{await tween(D[i],p=>S.bars[i].setAttribute('width',(S.XB-S.X0)*p),lin);S.lbl[i].textContent=i===2?'arrived (last)':'⏳ waiting';S.lbl[i].setAttribute('fill',i===2?C[2]:'#ffd27a')}));
+ }},
+{cap:'The last one arrives, and everyone goes at once. All-reduce behaves the same way: nobody finishes before the slowest.',
+ async run(S){
+  S.line.setAttribute('stroke','#76b900');S.bl.textContent='✓ everyone here: go';S.bl.setAttribute('fill','#76b900');
+  for(const l of S.lbl){l.textContent='';}
+  await tween(900,p=>S.bars.forEach(b=>b.setAttribute('width',(S.XB-S.X0)+(S.X1-S.XB)*p)));
+  S.lbl.forEach(l=>{l.textContent='next step ▶';l.setAttribute('fill','#0c0f15')});
+ }},
+]},
+/* 9 ---------------------------------------------------------- */
+{title:'Back to our lab: a plane dies',analogy:'💡 Like a convoy on 8 lanes: close one lane and the whole convoy waits for the trucks stuck in it',
+build(){
+  const S={base:el('g',{},stage),mid:el('g',{},stage),fx:el('g',{},stage)};
+  S.lanesG=el('g',{},S.base);
+  const L=380,R=1220,boxes=[[40,120,'GPU 1'],[40,470,'GPU 2'],[1310,120,'GPU 3'],[1310,470,'GPU 4']];
+  S.lanes=[];S.dots=[];S.plab=[];
+  for(let p=0;p<8;p++){
+    const y=110+p*70;
+    for(const [bx,by] of boxes){const left=bx<800,ex=left?bx+250:bx;el('line',{x1:ex,y1:by+60,x2:left?L:R,y2:y,stroke:PLANE[p],'stroke-width':2,'stroke-opacity':.35},S.lanesG)}
+    S.lanes.push(el('line',{x1:L,y1:y,x2:R,y2:y,stroke:PLANE[p],'stroke-width':7,'stroke-linecap':'round'},S.lanesG));
+    S.plab.push(txt(S.lanesG,L+12,y-12,'plane '+(p+1),{'font-size':19,fill:PLANE[p],'font-weight':700}));
+    S.dots.push(el('circle',{cx:L,cy:y,r:14,fill:PLANE[p],stroke:'#fff','stroke-width':3},S.fx));
+  }
+  S.boxG=el('g',{},S.base);
+  boxes.forEach(([x,y,n],i)=>{el('rect',{x,y,width:250,height:120,rx:16,fill:'#161b26',stroke:C[i],'stroke-width':3},S.boxG);
+    txt(S.boxG,x+125,y+52,n,{'text-anchor':'middle','font-size':32,'font-weight':800,fill:C[i]});
+    txt(S.boxG,x+125,y+88,'8 NICs, 1 per plane',{'text-anchor':'middle','font-size':19,fill:'#9aa4b2'})});
+  S.status=note(S.mid,800,52,'All-reduce steps finished: 0',{size:28});
+  S.L=L;S.R=R;S.done=0;
+  S.cycle=async(dead)=>{
+    let got=0;
+    const D=[1000,1150,1080,1220,950,1120,1040,1180];
+    await all(S.dots.map(async(d,p)=>{
+      if(p===dead){await tween(D[p]*.5,q=>d.setAttribute('cx',L+(R-L)*.5*q),lin);d.setAttribute('fill','#ff3b3b');return}
+      await tween(D[p],q=>d.setAttribute('cx',L+(R-L)*q),lin);got++;
+      if(dead>=0)S.status.set(`Step ${S.done+1}: slices arrived ${got} / 8`);
+    }));
+    if(dead<0){S.done++;S.status.set('All-reduce steps finished: '+S.done);await wait(250);S.dots.forEach(d=>d.setAttribute('cx',L))}
+  };
+  return S;
+},
+beats:[
+{cap:'Our lab: 4 GPUs and 8 separate planes. Every all-reduce step is spread across all 8, a slice per plane.',
+ async run(S){for(let k=0;k<3;k++)await S.cycle(-1)}},
+{cap:'Plane 3 dies. The flows that were hashed onto it stop dead.',
+ async run(S){
+  S.lanes[2].setAttribute('stroke','#ff3b3b');S.lanes[2].setAttribute('stroke-dasharray','14 12');
+  S.plab[2].textContent='plane 3 ✗ dead';S.plab[2].setAttribute('fill','#ff3b3b');
+  await S.cycle(2);
+  S.status.set(`Step ${S.done+1}: slices arrived 7 / 8 · waiting…`);S.status.color('#ff8a7a');
+ }},
+{cap:'The other 7 planes are fine, but the all-reduce needs every slice. So the whole step waits.',
+ async run(S){
+  const n=note(S.mid,800,700,'⏳ step stalled for 0.0 s',{size:30,color:'#ff8a7a'});
+  await tween(3000,p=>n.set('⏳ step stalled for '+(3*p).toFixed(1)+' s'),lin);
+  n.set('⏳ step stalled for 3.0 s … and counting');
+ }},
+{cap:'How long it waits depends on how fast the dead plane is detected. This clock runs in real time at 1× speed.',
+ async run(S){
+  S.mid.innerHTML='';S.dots.forEach(d=>d.style.display='none');
+  await all([fadeTo(S.lanesG,0,500),fadeTo(S.boxG,0,500)]);S.lanesG.style.display=S.boxG.style.display='none';
+  const P=el('g',{},S.mid),x0=600,x1=1500,T=8,sx=t=>x0+(x1-x0)*Math.min(t,T)/T;
+  txt(P,60,80,'Same failure (plane 3), time until its stuck flows move again',{'font-size':30,'font-weight':750,fill:'#e6e9ef'});
+  const clock=note(P,1500,80,'t = 0.0 s',{size:30,anchor:'end',weight:800,color:'#ffd27a'});
+  for(let t=0;t<=T;t++){el('line',{x1:sx(t),y1:150,x2:sx(t),y2:610,stroke:'#273042','stroke-width':2},P);txt(P,sx(t),640,t+' s',{'text-anchor':'middle','font-size':20,fill:'#8a94a6'})}
+  const rows=[['NVIDIA · SuperNIC hardware','their number (per-packet, in hardware)',0.00268,'2.68 ms'],
+              ['NVIDIA · software LB','their number (software load balancing)',1.08,'1.08 s'],
+              ['Our lab · BFD','100 ms × 3',0.29,'0.29 s'],
+              ['Our lab · ping timeouts','1 s × 3, plus TCP backoff',6.69,'6.69 s'],
+              ['Our lab · no detection','static routes only',Infinity,'never']];
+  const R=rows.map(([a,b,tr,lab],k)=>{
+    const y=160+k*90;
+    txt(P,60,y+30,a,{'font-size':30,'font-weight':800,fill:'#e6e9ef'});txt(P,60,y+60,b,{'font-size':20,fill:'#9aa4b2'});
+    el('rect',{x:x0,y,width:x1-x0,height:56,rx:8,fill:'#141924'},P);
+    const red=el('rect',{x:x0,y,width:0,height:56,fill:'#d93b3b'},P),grn=el('rect',{x:x0,y,width:0,height:56,fill:'#4caf2a'},P);
+    const lbl=note(P,x0+10,y+38,'',{size:26,anchor:'start',weight:800,bg:false});
+    return {tr,lab,red,grn,lbl,y};
+  });
+  await tween(T*1000,p=>{
+    const t=T*p;clock.set('t = '+t.toFixed(1)+' s');
+    for(const r of R){
+      const tr=Math.min(t,r.tr);r.red.setAttribute('width',sx(tr)-x0);
+      if(t>=r.tr){r.grn.setAttribute('x',sx(r.tr));r.grn.setAttribute('width',sx(t)-sx(r.tr));r.lbl.set('✓ moving again at '+r.lab);r.lbl.color('#fff')}
+      else{r.lbl.set('stuck '+t.toFixed(1)+' s');r.lbl.color('#fff')}
+    }
+  },lin);
+  R[4].lbl.set('✗ never comes back');
+  clock.set('t = 8.0 s');
+ }},
+{cap:'Every case keeps 7 of 8 planes (87.5% of the bandwidth). What detection buys you is how long the whole all-reduce stands still.',
+ async run(S){const n=note(S.mid,800,712,'Lost bandwidth: the same 12.5% every time.  Lost time (our lab): 0.29 s → 6.69 s → forever.',{size:24,color:'#ffd27a'});await fadeIn(n)}},
+{cap:'Honest caveat: not a fair race. NVIDIA measured real hardware at real scale; ours is a tiny software lab. We did not beat NVIDIA.',async run(){}},
+]},
+];
+
+/* ================= narration ================= */
+const AUD=new Audio();AUD.preload='auto';
+let muted=false,clip={done:true,none:true};
+function stopClip(){AUD.pause();clip.done=true}
+function startClip(si,bi){
+  AUD.pause();
+  if(muted){clip={done:true,none:true};return}
+  const c={done:false,none:false};clip=c;
+  AUD.onended=()=>{if(clip===c)c.done=true};
+  AUD.onerror=()=>{if(clip===c){c.done=true;c.none=true}};
+  AUD.src=`/labs/multiplane/collectives/collectives-audio/s${si+1}b${bi+1}.mp3`;
+  AUD.playbackRate=Math.max(.5,Math.min(2,speed));
+  if(!paused)AUD.play().catch(()=>{if(clip===c){c.done=true;c.none=true}});
+}
+function waitClip(){
+  const c=clip;if(c.done||INSTANT)return Promise.resolve();
+  const g=gen;return new Promise((res,rej)=>{const w={at:Infinity,res,rej,g,step:()=>{if(c.done)w.at=-Infinity}};waiters.push(w)});
+}
+function setMuted(m){
+  muted=m;$('mute').textContent=m?'🔇 Muted':'🔊 Voice';$('mute').classList.toggle('off',m);
+  if(m){stopClip();clip.none=true}
+}
+
+/* ================= player ================= */
+let cur=0,beat=0,beatDone=false,loopOn=false,auto=true,stepOnce=false,S=null;
+const $=id=>document.getElementById(id);
+function buildScene(si){
+  stage.innerHTML='';gradMemo={};
+  defs=el('defs',{},stage);
+  const m=el('marker',{id:'arr',viewBox:'0 0 10 10',refX:6,refY:5,markerWidth:4,markerHeight:4,orient:'auto-start-reverse'},defs);
+  el('path',{d:'M0 0 L10 5 L0 10 z',fill:'#7d8aa3'},m);
+  S=SCENES[si].build();
+}
+function showCaption(){$('cap').textContent=SCENES[cur].beats[beat].cap;updateUI()}
+function hold(){return 1400+SCENES[cur].beats[beat].cap.length*38}
+function updateUI(){
+  const sc=SCENES[cur];
+  $('stitle').innerHTML=`<span class="num">${cur+1}/${SCENES.length}</span>${sc.title}`;
+  $('analogy').textContent=sc.analogy;
+  $('pips').innerHTML=sc.beats.map((b,k)=>`<span class="${k===beat?'on':k<beat||(k===beat&&beatDone)?'done':''}"></span>`).join('');
+  $('play').textContent=paused?'▶ Play':'❚❚ Pause';
+  [...$('scenes').children].forEach((b,k)=>b.classList.toggle('on',k===cur));
+  history.replaceState(null,'',`#scene=${cur+1}`);
+}
+async function jump(si,bi,done){
+  gen++;loopOn=false;const g=gen;stopClip();clip.none=true;
+  cur=Math.max(0,Math.min(SCENES.length-1,si));beat=Math.max(0,Math.min(SCENES[cur].beats.length-1,bi));
+  buildScene(cur);
+  INSTANT=true;
+  try{for(let b=0;b<beat+(done?1:0);b++)await SCENES[cur].beats[b].run(S)}finally{INSTANT=false}
+  if(g!==gen)return;
+  beatDone=!!done;showCaption();
+  if(!paused)startLoop();
+}
+async function startLoop(){
+  const g=gen;loopOn=true;updateUI();
+  try{
+    while(true){
+      if(!beatDone){
+        showCaption();
+        startClip(cur,beat);
+        await all([SCENES[cur].beats[beat].run(S),waitClip()]);
+        beatDone=true;updateUI();
+        if(stepOnce){stepOnce=false;paused=true;loopOn=false;updateUI();return}
+      }
+      await wait(clip.none?hold():700);
+      if(beat+1<SCENES[cur].beats.length){beat++;beatDone=false;continue}
+      if(auto&&cur+1<SCENES.length){cur++;beat=0;beatDone=false;buildScene(cur);continue}
+      paused=true;loopOn=false;updateUI();return;
+    }
+  }catch(e){if(e!==ABORT)console.error(e);if(g===gen)loopOn=false}
+}
+function togglePlay(){
+  hideStart();
+  if(!paused){paused=true;if(!clip.done)AUD.pause();updateUI();return}
+  paused=false;stepOnce=false;
+  if(!clip.done&&AUD.src)AUD.play().catch(()=>{clip.done=true;clip.none=true});
+  if(!loopOn){
+    const lastBeat=beat===SCENES[cur].beats.length-1;
+    if(beatDone&&lastBeat){jump(cur+1<SCENES.length?cur+1:0,0,false);return}
+    startLoop();
+  }
+  updateUI();
+}
+function beatFwd(){
+  if(paused&&loopOn&&!beatDone){stepOnce=true;paused=false;updateUI();return}
+  const t=(beatDone||!paused)?beat+1:beat;
+  stepOnce=paused;paused=false;
+  if(t>=SCENES[cur].beats.length){if(cur+1<SCENES.length)jump(cur+1,0,false);else{paused=true;stepOnce=false;updateUI()}}
+  else jump(cur,t,false);
+}
+function beatBack(){
+  if(beat>0)jump(cur,beat-1,false);
+  else if(cur>0)jump(cur-1,SCENES[cur-1].beats.length-1,false);
+  else jump(0,0,false);
+}
+$('play').onclick=togglePlay;
+$('next').onclick=()=>jump(cur+1,0,false);
+$('prev').onclick=()=>jump(cur-1,0,false);
+$('bfwd').onclick=beatFwd;$('bback').onclick=beatBack;
+$('speed').oninput=e=>{speed=+e.target.value;$('spv').textContent=speed+'×';AUD.playbackRate=Math.max(.5,Math.min(2,speed))};
+$('mute').onclick=()=>setMuted(!muted);
+function hideStart(){$('start').classList.add('hide')}
+$('startbtn').onclick=()=>{hideStart();setMuted(false);if(paused)togglePlay();else jump(cur,beat,false)};
+$('startsilent').onclick=()=>{hideStart();setMuted(true)};
+$('auto').onchange=e=>auto=e.target.checked;
+$('scenes').innerHTML=SCENES.map((s,k)=>`<button title="${s.title}">${k+1}</button>`).join('');
+[...$('scenes').children].forEach((b,k)=>b.onclick=()=>jump(k,0,false));
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'&&e.target.type!=='checkbox')return;
+  if(e.key===' '){e.preventDefault();togglePlay()}
+  else if(e.key==='ArrowRight')jump(cur+1,0,false);
+  else if(e.key==='ArrowLeft')jump(cur-1,0,false);
+  else if(e.key==='.')beatFwd();
+  else if(e.key===',')beatBack();
+  else if(e.key==='m'||e.key==='M')setMuted(!muted);
+});
+function fromHash(){
+  const h=new URLSearchParams(location.hash.slice(1));
+  const sc=(+h.get('scene')||1)-1,bt=h.get('beat');
+  if(h.get('speed')){speed=+h.get('speed');$('speed').value=speed;$('spv').textContent=speed+'×'}
+  if(h.get('play')==='1')paused=false;
+  if(h.get('overlay')==='0')hideStart();
+  if(h.get('mute')==='1')setMuted(true);
+  if(bt)jump(sc,+bt-1,true);else jump(sc,0,false);
+}
+window.addEventListener('hashchange',fromHash);
+fromHash();
+</script>
+</body>
+</html>

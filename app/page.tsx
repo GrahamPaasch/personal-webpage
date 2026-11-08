@@ -133,6 +133,22 @@ export default function HomePage() {
         <div className="card">
           <div className="prompt-header">
             <h2>
+              <span aria-hidden="true">&#x1F3AB;</span> Free Lab: NVIDIA Spectrum-X Multiplane (8 Planes, One Silent Failure)
+            </h2>
+            <span className="prompt-header-badge">FREE KIT</span>
+          </div>
+          <p className="muted">
+            Eight independent two-tier planes, 128 iperf3 flows, static routes only. Kill one plane silently and
+            bandwidth still reads 87.5% while 14 flows are dead: BFD finds it in 0.17 s, ping timeouts in 3.8 s, and with no
+            detection the flows never come back. Episode 4 of AI Agents Build the Lab, with a free one-command containerlab kit.
+          </p>
+          <a className="button primary" href="/labs/multiplane">
+            Open the lab &rarr;
+          </a>
+        </div>
+        <div className="card">
+          <div className="prompt-header">
+            <h2>
               <span aria-hidden="true">&#x1F3AC;</span> The Video Platform
             </h2>
             <span className="prompt-header-badge">THE BIG THING</span>
