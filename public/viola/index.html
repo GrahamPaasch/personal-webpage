@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Viola practice · Graham</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎻</text></svg>">
+<style>
+:root{--bg:#14110f;--card:#1f1a16;--ink:#f1e9df;--mute:#a99c8d;--acc:#d9a35b;--ok:#86c06c;--warn:#e07a5f}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);margin:0;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding:24px 18px 70px}
+h1{font-size:2rem;margin:0}.sub{color:var(--mute);margin:2px 0 20px}
+h2{font-size:1.3rem;margin:30px 0 10px;color:var(--acc)}
+.card{background:var(--card);border:1px solid #33291f;border-radius:14px;padding:16px 18px;margin-bottom:12px}
+.today{border:2px solid var(--acc)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+a.btn,button{display:inline-block;background:#2d251d;color:var(--ink);border:1px solid #4a3c2e;border-radius:10px;padding:8px 13px;text-decoration:none;font-size:.95rem;cursor:pointer}
+a.btn:hover,button:hover{border-color:var(--acc)}
+a.go{background:var(--acc);color:#1a130c;font-weight:700;border:0}
+.piece{display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:center;padding:10px 0;border-bottom:1px solid #2c241c}
+.piece:last-child{border:0}.piece b{font-size:1.05rem}.piece small{display:block;color:var(--mute)}
+.big{font-size:2.6rem;font-weight:800;font-variant-numeric:tabular-nums}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.tools{grid-template-columns:1fr}}
+input[type=range]{width:100%}
+.beat{display:inline-block;width:22px;height:22px;border-radius:50%;background:#3a2f24;margin-right:6px}.beat.on{background:var(--acc)}.beat.on.acc{background:var(--warn)}
+.count{color:var(--warn);font-weight:700}
+</style></head><body><div class="wrap">
+<h1>🎻 Viola practice</h1>
+<p class="sub">Everything in one place: today's gauntlet, the concert music, the Jams pieces, a metronome, and a timer that tells you when to stop.</p>
+
+<div class="card today" id="today"></div>
+
+<div class="tools">
+<div class="card"><h3 style="margin:0 0 6px">⏱️ Practice timer</h3>
+<div class="big" id="tleft">30:00</div>
+<div class="row"><button onclick="setT(20)">20 min</button><button onclick="setT(30)">30 min</button><button onclick="setT(45)">45 min</button><button id="tgo" onclick="toggleT()">▶ Start</button></div>
+<small style="color:var(--mute)">Chimes when time's up: that's your cue to stop and walk away.</small></div>
+<div class="card"><h3 style="margin:0 0 6px">🥁 Metronome / click track</h3>
+<div class="row"><span class="big" id="bpmv">80</span><span style="color:var(--mute)">BPM</span>
+<select id="meter"><option value="4">4/4</option><option value="3">3/4</option><option value="2">2/4</option><option value="5">5/4</option><option value="6">6/8</option><option value="1">no accent</option></select></div>
+<input type="range" id="bpm" min="30" max="220" value="80">
+<div class="row" style="margin:6px 0"><button onclick="nudge(-5)">−5</button><button onclick="nudge(-1)">−1</button><button onclick="nudge(1)">+1</button><button onclick="nudge(5)">+5</button><button id="mgo" onclick="toggleM()">▶ Start</button></div>
+<div id="beats"></div></div>
+</div>
+
+<h2>🎼 CTMO concert · Sat Nov 21, 4 pm <span class="count" id="cd"></span></h2>
+<div class="card">
+<div class="piece"><div><b>Dukas: The Sorcerer's Apprentice</b><small>You're principal viola. Hard spots have their own loops.</small></div>
+<div class="row"><a class="btn" href="https://videos.grahampaasch.com/dukas-apprenti-viola-slow">Slow</a><a class="btn" href="https://videos.grahampaasch.com/dukas-apprenti-viola-75">75%</a><a class="btn go" href="https://videos.grahampaasch.com/dukas-apprenti-viola-full">Full</a></div></div>
+<div class="piece"><div><b>Dukas: hard spots</b><small>Loop these until they're boring.</small></div>
+<div class="row"><a class="btn" href="https://videos.grahampaasch.com/dukas-apprenti-viola-hard-a">Hard A</a><a class="btn" href="https://videos.grahampaasch.com/dukas-apprenti-viola-hard-b">Hard B</a><a class="btn" href="https://videos.grahampaasch.com/dukas-apprenti-viola-hard-c">Hard C</a></div></div>
+<div class="piece"><div><b>Offenbach: Can-can</b><small>Allegro.</small></div>
+<div class="row"><a class="btn" href="https://videos.grahampaasch.com/offenbach-cancan-viola-slow">Slow</a><a class="btn" href="https://videos.grahampaasch.com/offenbach-cancan-viola-75">75%</a><a class="btn go" href="https://videos.grahampaasch.com/offenbach-cancan-viola-full">Full</a></div></div>
+<div class="piece"><div><b>Prokofiev: Peter and the Wolf</b></div>
+<div class="row"><a class="btn" href="https://videos.grahampaasch.com/prokofiev-peter-viola-slow">Slow</a><a class="btn" href="https://videos.grahampaasch.com/prokofiev-peter-viola-75">75%</a><a class="btn go" href="https://videos.grahampaasch.com/prokofiev-peter-viola-full">Full</a></div></div>
+</div>
+
+<h2>🔥 The weekly gauntlet</h2>
+<div class="card" id="gauntlet"></div>
+
+<h2>🎶 Classical Jams</h2>
+<div class="card">
+<div class="piece"><div><b>Same Air</b><small>Duet with Doug.</small></div><div class="row"><a class="btn go" href="https://videos.grahampaasch.com/same-air-27">Play-along</a></div></div>
+<div class="piece"><div><b>Rameau Suite</b></div><div class="row"><a class="btn go" href="https://videos.grahampaasch.com/rameau-suite-18">Play-along</a></div></div>
+</div>
+
+<h2>📚 Etudes and solo pieces</h2>
+<div class="card">
+<div class="piece"><div><b>Kreutzer No. 13 (Consolini, viola)</b><small>Running sixteenths, D major.</small></div>
+<div class="row"><a class="btn" href="https://videos.grahampaasch.com/kreutzer-13-viola-slow">Slow</a><a class="btn" href="https://videos.grahampaasch.com/kreutzer-13-viola-75">75%</a><a class="btn go" href="https://videos.grahampaasch.com/kreutzer-13-viola-full">Full</a></div></div>
+<div class="piece"><div><b>Bruch: Romanze</b></div>
+<div class="row"><a class="btn" href="https://videos.grahampaasch.com/bruch-romanze-slow">Slow</a><a class="btn" href="https://videos.grahampaasch.com/bruch-romanze-75">75%</a><a class="btn go" href="https://videos.grahampaasch.com/bruch-romanze-full">Full</a></div></div>
+</div>
+</div>
+
+<script>
+const G=[["Scales and arpeggios","C"],["Shifting","D"],["Double stops","G"],["Bowing","F"],["Vibrato and tone","E♭"],["Kreutzer-style etude","A"],["Lyrical and lighter","B♭"]];
+const V="https://videos.grahampaasch.com";
+function gRow(i,hi){const d=i+1;return `<div class="piece"${hi?' style="background:#2a2119;border-radius:10px;padding:10px"':''}><div><b>Day ${d} · ${["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}: ${G[i][0]}</b><small>Key of ${G[i][1]} · about 20–23 min</small></div>
+<div class="row"><a class="btn go" href="${V}/viola-gauntlet-day${d}">Video</a><a class="btn" href="${V}/f/viola-gauntlet-day${d}.pdf">PDF</a><a class="btn" href="${V}/f/viola-gauntlet-day${d}-backing.mp3">Backing</a></div></div>`}
+const now=new Date(),wd=(now.getDay()+6)%7;
+document.getElementById('gauntlet').innerHTML=G.map((_,i)=>gRow(i,i===wd)).join('');
+const concert=new Date('2026-11-21T16:00:00-06:00');const days=Math.ceil((concert-now)/864e5);
+document.getElementById('cd').textContent=days>0?`· ${days} day${days==1?'':'s'} to go`:'';
+document.getElementById('today').innerHTML=`<div style="color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:.85rem">Today's practice</div>
+<ol style="margin:8px 0 0;padding-left:22px;font-size:1.05rem"><li>Gauntlet <b>day ${wd+1}</b>: ${G[wd][0]} (~20 min) <a class="btn go" href="${V}/viola-gauntlet-day${wd+1}">Start</a></li>
+<li>Concert: one Dukas hard spot, then a full play-through ${days>0?`(<span class="count">${days} days</span> to the concert)`:''} <a class="btn" href="${V}/dukas-apprenti-viola-hard-a">Hard A</a> <a class="btn" href="${V}/dukas-apprenti-viola-full">Full</a></li>
+<li>Set the timer, and stop when it chimes.</li></ol>`;
+
+let AC;function ac(){return AC||(AC=new (window.AudioContext||window.webkitAudioContext)())}
+function blip(t,f,len=0.05,g=0.5){const a=ac(),o=a.createOscillator(),v=a.createGain();o.frequency.value=f;v.gain.setValueAtTime(g,t);v.gain.exponentialRampToValueAtTime(0.001,t+len);o.connect(v);v.connect(a.destination);o.start(t);o.stop(t+len+0.02)}
+// metronome (lookahead scheduler)
+const bpmEl=document.getElementById('bpm'),bv=document.getElementById('bpmv'),mEl=document.getElementById('meter');let mOn=false,next=0,beat=0,timer;
+function drawBeats(){const n=+mEl.value;document.getElementById('beats').innerHTML=Array.from({length:Math.max(n,1)},(_,i)=>`<span class="beat" id="b${i}"></span>`).join('')}
+bpmEl.oninput=()=>bv.textContent=bpmEl.value;mEl.onchange=()=>{beat=0;drawBeats()};drawBeats();
+function nudge(d){bpmEl.value=Math.min(220,Math.max(30,+bpmEl.value+d));bv.textContent=bpmEl.value}
+function sched(){const a=ac(),n=+mEl.value;while(next<a.currentTime+0.12){const b=beat%Math.max(n,1),acc=n>1&&b===0;blip(next,acc?1500:1000,0.04,acc?0.7:0.45);
+const ms=(next-a.currentTime)*1000;setTimeout(()=>{document.querySelectorAll('.beat').forEach(e=>e.classList.remove('on','acc'));const e=document.getElementById('b'+b);if(e){e.classList.add('on');if(acc)e.classList.add('acc')}},Math.max(0,ms));
+next+=60/+bpmEl.value;beat++}}
+function toggleM(){mOn=!mOn;document.getElementById('mgo').textContent=mOn?'■ Stop':'▶ Start';if(mOn){ac().resume();next=ac().currentTime+0.05;beat=0;timer=setInterval(sched,25)}else clearInterval(timer)}
+// practice timer with exit chime
+let tLen=30*60,tLeft=tLen,tRun=false,tInt,tEnd;
+function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function setT(m){tLen=tLeft=m*60;document.getElementById('tleft').textContent=fmt(tLeft)}
+function toggleT(){tRun=!tRun;document.getElementById('tgo').textContent=tRun?'❚❚ Pause':'▶ Start';if(tRun){ac().resume();tEnd=Date.now()+tLeft*1000;tInt=setInterval(()=>{tLeft=Math.max(0,Math.round((tEnd-Date.now())/1000));document.getElementById('tleft').textContent=fmt(tLeft);
+if(tLeft<=0){clearInterval(tInt);tRun=false;document.getElementById('tgo').textContent='▶ Start';document.getElementById('tleft').textContent='Done. Stop! 🎉';const t=ac().currentTime;[0,0.35,0.7].forEach((d,i)=>blip(t+d,[660,880,1320][i],0.5,0.6))}},250)}else{clearInterval(tInt)}}
+</script>
+</body></html>

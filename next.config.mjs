@@ -27,6 +27,7 @@ const STATIC_APP_DIRS = [
   'panelclash',
   'sidewalks-of-rage',
   'stitch',
+  'viola',
   'viola-gauntlet',
   'wrap-chess',
   'wellness',
