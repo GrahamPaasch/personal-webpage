@@ -60,6 +60,7 @@ const STATIC_APP_ROUTES = [
   '/cascade',
   '/cascade/play',
   '/create-now',
+  '/juggling',
   '/labs/ai-fabric',
   '/labs/ai-fabric/bom',
   '/labs/bgp-vs-ospf',
