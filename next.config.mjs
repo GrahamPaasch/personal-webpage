@@ -22,6 +22,7 @@ const STATIC_APP_DIRS = [
   'labs/srv6-no-routing',
   'labs/multiplane',
   'labs/multiplane/collectives',
+  'juggling',
   'juggling/13-club-feed',
   'juggling/extra-club-patterns',
   'panelclash',
