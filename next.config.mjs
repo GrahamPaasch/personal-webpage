@@ -16,6 +16,7 @@ const STATIC_APP_DIRS = [
   'exercise',
   'cascade',
   'cascade/play',
+  'ttl',
   'create-now',
   'labs/ai-fabric',
   'labs/bgp-vs-ospf',
