@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>See the ideal juggling pattern in VR | Graham Paasch</title>
+<meta name="description" content="A WebXR juggling visualizer: cascades and fountains juggled the optimal way with Jack Kalvan's math, and any other vanilla siteswap with exact timing and heights. Real gravity, ghost hands and practice sounds. Works in a VR headset, on a laptop and on a phone.">
+<meta property="og:title" content="See the ideal juggling pattern in VR">
+<meta property="og:description" content="Cascades and fountains juggled the optimal way (Kalvan's math); any other vanilla siteswap with exact timing and heights. Real gravity, ghost hands, practice sounds. VR headset, laptop or phone.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.grahampaasch.com/juggling/vr">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#0d1017">
+<link rel="canonical" href="https://www.grahampaasch.com/juggling/vr">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='7' r='6' fill='%23ff9f43'/%3E%3Ccircle cx='7' cy='24' r='6' fill='%232fd6c3'/%3E%3Ccircle cx='25' cy='24' r='6' fill='%23ff5c8a'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0d1017;--card:#151a24;--card2:#1b2130;--ink:#ecebe6;--mute:#9aa3b2;--line:#252c3b;--a:#ff9f43;--b:#2fd6c3;--c:#ff5c8a;--link:#7cc7ff;--panel-w:360px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden;overscroll-behavior:none}
+a{color:var(--link)}
+button,input{font:inherit;color:inherit}
+#stage{position:fixed;top:0;left:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+
+/* Always-visible status over the 3D view */
+#status{position:fixed;top:12px;right:12px;left:calc(var(--panel-w) + 24px);display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none;z-index:3}
+body.panel-closed #status{left:12px}
+#speedBadge{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;padding:8px 14px;border-radius:12px;background:var(--a);color:#14100a;box-shadow:0 4px 18px rgba(0,0,0,.4)}
+#speedBadge small{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-top:3px}
+#collisionBanner{max-width:460px;padding:9px 13px;border-radius:12px;background:#3a1420;border:1px solid var(--c);color:#ffd9e2;font-size:14px;line-height:1.35;text-align:left}
+#collisionBanner b{color:#fff}
+#patternBadge{font-size:13px;color:var(--mute);background:rgba(13,16,23,.72);border:1px solid var(--line);border-radius:10px;padding:5px 10px}
+#patternBadge b{color:var(--ink);font-size:15px}
+#soundChip{font-size:12.5px;color:var(--a);background:rgba(13,16,23,.72);border:1px solid var(--line);border-radius:10px;padding:4px 9px}
+[hidden]{display:none!important}
+/* Shown where the 3D view would be when the browser cannot draw it */
+#stageMessage{position:fixed;top:0;bottom:0;right:0;left:var(--panel-w);display:grid;place-items:center;padding:28px;text-align:center;font-size:17px;line-height:1.5;color:var(--ink);z-index:2}
+body.no-3d #stage,body.no-3d #viewButtons,body.no-3d #status,body.no-3d #panel section,body.no-3d #panelClose{display:none}
+
+#viewButtons{position:fixed;right:12px;bottom:12px;display:flex;gap:8px;z-index:3}
+#viewButtons button,#panelOpen{background:rgba(21,26,36,.9);border:1px solid var(--line);border-radius:999px;padding:9px 14px;cursor:pointer}
+#viewButtons button[aria-pressed="true"]{background:var(--b);border-color:var(--b);color:#06221f;font-weight:700}
+#panelOpen{position:fixed;left:12px;top:12px;z-index:4}
+
+/* Control panel */
+#panel{position:fixed;left:0;top:0;bottom:0;width:var(--panel-w);background:rgba(17,21,30,.96);border-right:1px solid var(--line);overflow-y:auto;z-index:5;padding:14px 16px 28px;-webkit-overflow-scrolling:touch}
+body.panel-closed #panel{display:none}
+#panel header{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+#panel h1{font-size:20px;line-height:1.15;margin:0 0 2px;letter-spacing:-.01em}
+#panel .sub{margin:0;color:var(--mute);font-size:13px}
+#panelClose{margin-left:auto;background:none;border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;white-space:nowrap;font-size:13px;color:var(--mute)}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin:10px 0}
+section h2{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--a);margin:0 0 8px;font-weight:700}
+.note{color:var(--mute);font-size:12.5px;margin:8px 0 0;line-height:1.4}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip,.btn{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer;min-width:42px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.chip:hover,.btn:hover{border-color:#3a455c}
+.chip[aria-pressed="true"],.btn[aria-pressed="true"]{background:var(--b);border-color:var(--b);color:#06221f}
+#enterVR{width:100%;padding:12px;border-radius:12px;border:0;background:linear-gradient(90deg,var(--a),var(--c));color:#160d0a;font-weight:800;font-size:17px;cursor:pointer}
+#enterVR:disabled{background:var(--card2);color:var(--mute);cursor:not-allowed;font-weight:600;font-size:15px}
+#siteswapForm{display:flex;gap:8px;margin-bottom:8px}
+#siteswap{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:20px;font-weight:700;letter-spacing:.14em;color:var(--a);font-variant-numeric:tabular-nums}
+#siteswap:focus{outline:2px solid var(--b);outline-offset:1px}
+#siteswapForm button{background:var(--a);border:0;border-radius:10px;padding:0 14px;color:#160d0a;font-weight:700;cursor:pointer}
+#siteswapError{color:#ffb3c4;font-size:13.5px;margin:0 0 8px;line-height:1.4}
+#infoTitle{font-size:17px;margin:0;color:var(--ink);letter-spacing:0;text-transform:none}
+#infoTag{display:inline-block;margin:4px 0 6px;font-size:11.5px;font-weight:700;letter-spacing:.06em;line-height:1.35;text-transform:uppercase;padding:3px 9px;border-radius:10px;background:#12352f;color:var(--b)}
+#infoTag.mixed{background:#352a12;color:var(--a)}
+#infoBody p{margin:6px 0;font-size:13.5px;color:#c9ccd3;line-height:1.45}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}
+th,td{text-align:left;padding:3px 0;border-bottom:1px solid var(--line);font-weight:400}
+td:last-child,th:last-child{text-align:right;font-variant-numeric:tabular-nums}
+th{color:var(--mute);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+td small{color:var(--mute)}
+/* Computed here | printed by the source, side by side */
+table.compare td:nth-child(2),table.compare th:nth-child(2){text-align:right;font-variant-numeric:tabular-nums;padding-right:10px;white-space:nowrap}
+table.compare td:nth-child(3){color:var(--mute);white-space:nowrap}
+table.compare td:first-child{padding-right:6px}
+.ok{color:var(--b)}
+.bad{color:#ff9db3}
+input[type=range]{flex:1;min-width:90px;accent-color:var(--b);height:26px}
+.val{min-width:58px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-size:13.5px}
+label.line{display:flex;align-items:center;gap:8px;margin:5px 0}
+label.line span.name{width:92px;color:#c9ccd3;font-size:13.5px}
+label.check{display:flex;align-items:center;gap:8px;margin:4px 0;cursor:pointer;font-size:13.5px}
+label.check input{accent-color:var(--b);width:17px;height:17px}
+.sound{display:grid;grid-template-columns:66px minmax(50px,1fr) 42px auto auto;gap:6px;align-items:center;margin:6px 0}
+.sound .name{font-size:13.5px}
+.sound input[type=range]{min-width:0;width:100%}
+.sound .val{min-width:0}
+.sound .btn{padding:4px 9px;min-width:0;font-size:12.5px}
+.sound .btn.solo[aria-pressed="true"]{background:var(--a);border-color:var(--a);color:#160d0a}
+#soundHint{color:var(--a)}
+footer{color:var(--mute);font-size:12px;line-height:1.5;margin-top:12px}
+kbd{background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:0 5px;font:inherit;font-size:12px}
+
+@media (max-width:760px){
+  :root{--panel-w:0px}
+  #panel{top:auto;right:0;width:100%;max-height:56vh;border-right:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  #status{left:12px}
+  #viewButtons{bottom:auto;top:12px;right:auto;left:12px;flex-direction:column}
+  #panelOpen{top:auto;bottom:calc(12px + env(safe-area-inset-bottom));left:12px}
+  #speedBadge{font-size:22px}
+}
+</style>
+</head>
+<body>
+<canvas id="stage" tabindex="0" aria-label="3D view of the juggling pattern. Drag to look around."></canvas>
+
+<div id="status" aria-live="polite">
+  <div id="speedBadge" hidden></div>
+  <div id="patternBadge"></div>
+  <div id="soundChip">Sound is off: tap or click anywhere</div>
+  <div id="collisionBanner" role="status" hidden></div>
+</div>
+
+<div id="stageMessage" role="alert" hidden></div>
+
+<button id="panelOpen" type="button" hidden>Controls</button>
+
+<div id="viewButtons" role="group" aria-label="View">
+  <button type="button" data-view="eye" aria-pressed="true">Juggler's eye</button>
+  <button type="button" data-view="orbit" aria-pressed="false">Step out</button>
+</div>
+
+<aside id="panel" aria-label="Controls">
+  <header>
+    <div>
+      <h1>See the ideal pattern</h1>
+      <p class="sub">Cascades and fountains the optimal way; any other siteswap with exact timing and heights. Real gravity, always.</p>
+    </div>
+    <button id="panelClose" type="button">Hide</button>
+  </header>
+
+  <button id="enterVR" type="button" disabled>Checking for a VR headset</button>
+  <p class="note" id="vrNote"></p>
+
+  <section aria-labelledby="h-pattern">
+    <h2 id="h-pattern">Pattern</h2>
+    <form id="siteswapForm" autocomplete="off">
+      <input id="siteswap" name="siteswap" aria-label="Siteswap" aria-describedby="siteswapError" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="60" placeholder="531">
+      <button type="submit">Juggle it</button>
+    </form>
+    <p id="siteswapError" role="alert" hidden></p>
+    <div id="presets">
+      <div class="chips" role="group" aria-label="Cascades and fountains">
+        <button type="button" class="chip" data-pattern="3">3</button>
+        <button type="button" class="chip" data-pattern="4">4</button>
+        <button type="button" class="chip" data-pattern="5">5</button>
+        <button type="button" class="chip" data-pattern="6">6</button>
+        <button type="button" class="chip" data-pattern="7">7</button>
+      </div>
+      <div class="chips" role="group" aria-label="Mixed siteswap examples" style="margin-top:6px">
+        <button type="button" class="chip" data-pattern="531">531</button>
+        <button type="button" class="chip" data-pattern="441">441</button>
+        <button type="button" class="chip" data-pattern="456">456</button>
+      </div>
+    </div>
+    <p class="note">One character per throw. Ten and up are letters: a is 10, b is 11.</p>
+  </section>
+
+  <section aria-labelledby="infoTitle">
+    <h2 id="infoTitle"></h2>
+    <span id="infoTag"></span>
+    <div id="infoBody"></div>
+  </section>
+
+  <section aria-labelledby="h-speed">
+    <h2 id="h-speed">Speed</h2>
+    <div class="row">
+      <input id="speed" type="range" min="10" max="100" step="5" value="100" aria-label="Speed, percent of real time">
+      <span class="val" id="speedVal">1x</span>
+    </div>
+    <div class="chips" id="speedChips" role="group" aria-label="Speed presets" style="margin-top:6px">
+      <button type="button" class="chip" data-speed="1">real</button>
+      <button type="button" class="chip" data-speed="0.75">0.75x</button>
+      <button type="button" class="chip" data-speed="0.5">0.5x</button>
+      <button type="button" class="chip" data-speed="0.25">0.25x</button>
+    </div>
+    <p class="note">Slow motion slows the clock. Gravity, heights and arc shapes stay true.</p>
+  </section>
+
+  <section aria-labelledby="h-show">
+    <h2 id="h-show">Show</h2>
+    <label class="check"><input type="checkbox" id="showGhost" checked> Ghost hands (the correct scoop)</label>
+    <label class="check"><input type="checkbox" id="showArcs" checked> Flight paths and hand loops</label>
+    <label class="check"><input type="checkbox" id="showMine" checked> My own hands (in VR)</label>
+  </section>
+
+  <section aria-labelledby="h-sound">
+    <h2 id="h-sound">Sound</h2>
+    <p class="note" id="soundHint" style="margin-top:0">Tap or click anywhere to switch sound on.</p>
+    <div class="sound" data-sound="catch">
+      <span class="name">Catch</span>
+      <input type="range" min="0" max="100" step="5" aria-label="Catch volume">
+      <span class="val"></span>
+      <button type="button" class="btn mute" aria-pressed="true">on</button>
+      <button type="button" class="btn solo" aria-pressed="false">solo</button>
+    </div>
+    <div class="sound" data-sound="release">
+      <span class="name">Release</span>
+      <input type="range" min="0" max="100" step="5" aria-label="Release volume">
+      <span class="val"></span>
+      <button type="button" class="btn mute" aria-pressed="true">on</button>
+      <button type="button" class="btn solo" aria-pressed="false">solo</button>
+    </div>
+    <div class="sound" data-sound="peak">
+      <span class="name">Peak tone</span>
+      <input type="range" min="0" max="100" step="5" aria-label="Peak tone volume">
+      <span class="val"></span>
+      <button type="button" class="btn mute" aria-pressed="true">on</button>
+      <button type="button" class="btn solo" aria-pressed="false">solo</button>
+    </div>
+    <p class="note">Catch: a ball landing in a palm. Release: the ball leaving the hand. Peak: a tone at the top of each arc, higher for higher throws.</p>
+  </section>
+
+  <section aria-labelledby="h-calib">
+    <h2 id="h-calib">Calibration</h2>
+    <p class="note" style="margin-top:0">In VR: hold both controllers where you naturally catch and pull a trigger. Fine-tune here. It is remembered for the posture you were in (standing or sitting).</p>
+    <label class="line"><span class="name">Hand height</span><input type="range" id="handHeight" min="10" max="190" step="1"><span class="val" id="handHeightVal"></span></label>
+    <label class="line"><span class="name">From body</span><input type="range" id="distance" min="15" max="80" step="1"><span class="val" id="distanceVal"></span></label>
+    <p class="note">Palm nudge (VR): move the landing point until a ball resting in your hand feels like it is in your palm. The pattern moves with it.</p>
+    <label class="line"><span class="name">To palm</span><input type="range" id="nudgePalm" min="-60" max="60" step="5"><span class="val" id="nudgePalmVal"></span></label>
+    <label class="line"><span class="name">To wrist</span><input type="range" id="nudgeWrist" min="-60" max="60" step="5"><span class="val" id="nudgeWristVal"></span></label>
+    <label class="line"><span class="name">To thumb</span><input type="range" id="nudgeThumb" min="-60" max="60" step="5"><span class="val" id="nudgeThumbVal"></span></label>
+    <label class="check"><input type="checkbox" id="handTracking"> Hand tracking instead of controllers (shaky on Quest 1)</label>
+    <div class="row" style="margin-top:8px"><button type="button" class="btn" id="resetCalib">Reset calibration</button></div>
+  </section>
+
+  <footer>
+    Math: Shannon's juggling theorem and Jack Kalvan's <a href="http://www.juggling.org/papers/OJ/" rel="noopener">Optimal Juggling</a>.
+    What is exact and what is assumed: <a href="https://github.com/GrahamPaasch/vr-juggling-tools#readme" rel="noopener">read the notes</a>.
+    Version 1: no scoring, balls only, vanilla siteswaps.
+  </footer>
+</aside>
+
+<noscript><p style="position:fixed;top:0;left:0;right:0;bottom:0;display:grid;place-items:center;margin:0;padding:24px;text-align:center">This page needs JavaScript to draw the juggling pattern.</p></noscript>
+
+<script>
+// The site serves this folder at /juggling/vr (no trailing slash), where relative URLs would
+// resolve one level too high. Build the module URL from the page's own address instead, so the
+// page works at /juggling/vr, /juggling/vr/ and /juggling/vr/index.html alike.
+(function () {
+  var p = location.pathname;
+  var dir = p.charAt(p.length - 1) === '/' ? p : /\.html?$/i.test(p) ? p.slice(0, p.lastIndexOf('/') + 1) : p + '/';
+  var s = document.createElement('script');
+  s.type = 'module';
+  s.src = dir + 'src/main.js';
+  s.onerror = function () {
+    document.getElementById('vrNote').textContent = 'The page could not load its code (' + s.src + ').';
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

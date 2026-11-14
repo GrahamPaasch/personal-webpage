@@ -26,6 +26,7 @@ const STATIC_APP_DIRS = [
   'juggling',
   'juggling/13-club-feed',
   'juggling/extra-club-patterns',
+  'juggling/vr',
   'panelclash',
   'sidewalks-of-rage',
   'stitch',
