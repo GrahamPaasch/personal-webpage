@@ -6,13 +6,27 @@
  * the water.
  */
 
-import { THREE, dragonMaterial } from './shaders.js';
-import { buildDragon, DRAGONS } from './dragonGeometry.js';
-import { BONE_COUNT, restPose, poseSkeleton, heave } from './rig.js';
+import { THREE, dragonMaterial, flameMaterial } from './shaders.js';
+import { buildDragon, buildFlame, DRAGONS } from './dragonGeometry.js';
+import { BONE, BONE_COUNT, restPose, poseSkeleton, heave } from './rig.js';
+import { ROAR_SECONDS } from './flight.js';
 import * as W from './world.js';
 
 const tmpEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const tmpUp = new THREE.Vector3();
+const tmpBone = new THREE.Matrix4();
+
+/**
+ * How hard a dragon is breathing fire, 0..1, from how much of its roar is left (seconds): the
+ * mouth opens first, the fire comes a moment later and stops before the mouth shuts.
+ */
+export function firePower(roarLeft) {
+  if (!(roarLeft > 0)) return 0;
+  const t = ROAR_SECONDS - roarLeft;
+  const rise = Math.min(Math.max((t - 0.22) / 0.3, 0), 1);
+  const fall = Math.min(Math.max((ROAR_SECONDS - 0.12 - t) / 0.4, 0), 1);
+  return rise * rise * (3 - 2 * rise) * fall;
+}
 
 export class DragonView {
   constructor(stage, index) {
@@ -52,6 +66,21 @@ export class DragonView {
     this.mirrorOn = true;
     this.flip = new THREE.Matrix4().set(1, 0, 0, 0, 0, -1, 0, 2 * W.LAKE_LEVEL, 0, 0, 1, 0, 0, 0, 0, 1);
     this.sunlit = 1;
+
+    // Its fire: one more draw call, and only while it is breathing.
+    const fire = buildFlame(spec.build);
+    const fg = new THREE.BufferGeometry();
+    fg.setAttribute('position', new THREE.BufferAttribute(fire.position, 3));
+    fg.setAttribute('dir', new THREE.BufferAttribute(fire.dir, 3));
+    fg.setAttribute('flame', new THREE.BufferAttribute(fire.flame, 3));
+    fg.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 4 * this.scale), 16 * this.scale);
+    this.flameMaterial = flameMaterial(stage.shared, fire.length);
+    this.flame = new THREE.Mesh(fg, this.flameMaterial);
+    this.flame.matrixAutoUpdate = false;
+    this.flame.renderOrder = 70; // after everything solid and the lake
+    this.flame.visible = false;
+    stage.scene.add(this.flame);
+    this.fire = 0;
   }
 
   /**
@@ -96,6 +125,18 @@ export class DragonView {
       this.mirror.matrixWorldNeedsUpdate = true;
       // Fainter the higher it flies.
       this.mirrorMaterial.uniforms.uAlpha.value = 0.62 * (1 - Math.min(height / 42, 1) * 0.7);
+    }
+
+    // Fire, while it roars: carried by the head.
+    this.fire = firePower(f.roar);
+    this.flame.visible = this.fire > 0.01;
+    if (this.flame.visible) {
+      const s = this.skin;
+      const o = BONE.head * 12;
+      tmpBone.set(s[o], s[o + 1], s[o + 2], s[o + 3], s[o + 4], s[o + 5], s[o + 6], s[o + 7], s[o + 8], s[o + 9], s[o + 10], s[o + 11], 0, 0, 0, 1);
+      this.flame.matrix.multiplyMatrices(mesh.matrix, tmpBone);
+      this.flame.matrixWorldNeedsUpdate = true;
+      this.flameMaterial.uniforms.uPower.value = this.fire;
     }
   }
 }

@@ -40,6 +40,7 @@ const state = {
   begun: false, // the card is gone: the piece has started
   paused: false,
   sound: true,
+  wind: 0.5, // how hard the wind is blowing, 0..1, as the trees show it
   calls: 0,
   answered: 0,
   quality: 0,
@@ -201,6 +202,10 @@ function frame(dt) {
     if (state.begun && governor.frame(dt, 1 / 45)) applyQuality();
   }
   hear(dt);
+  // The trees sway with the wind that is heard. Without sound the gusts come and go by the clock.
+  const blowing = audio.running && !soundFailed ? audio.gust : 0.5 + 0.3 * Math.sin(state.time * 0.23) + 0.2 * Math.sin(state.time * 0.61 + 1.3);
+  state.wind += (blowing - state.wind) * (1 - Math.exp(-dt / 1.6));
+  stage.setWind(state.wind);
   stage.update(state.time);
   stage.render();
 }

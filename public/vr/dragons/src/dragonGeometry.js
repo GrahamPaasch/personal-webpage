@@ -249,6 +249,64 @@ export function buildDragon(build, colors) {
   return { arrays: m.arrays(), skeleton };
 }
 
+/**
+ * The fire a dragon breathes: a spray of thin tongues from the mouth, in the same rest-pose
+ * frame as the body (so the head's bone carries it). Nothing here moves; the vertex shader
+ * shoots each tongue out again and again (shaders.js, flameMaterial).
+ *
+ * Per vertex: position (where it sits at the mouth), dir (the way its tongue points, unit), and
+ * flame = [how far along the tongue (0 at the mouth, up to 1 at the tip), phase, speed].
+ * Returns { position, dir, flame, vertices, triangles, length (metres, for the big dragon 9.5) }.
+ */
+export function buildFlame(build) {
+  const b = Object.assign({ scale: 1, neck: 1 }, build || {});
+  const s = b.scale;
+  const mouth = [0, (0.25 + 0.33 * b.neck) * s, (1.7 + 3.9 * b.neck) * s];
+  const tongues = 22;
+  const position = [];
+  const dir = [];
+  const flame = [];
+  for (let i = 0; i < tongues; i++) {
+    // Spread on a sunflower spiral inside a cone of about 12 degrees, aimed a little below
+    // the line of the snout (the lower jaw is what opens).
+    const r = 0.03 + 0.22 * Math.sqrt((i + 0.5) / tongues);
+    const a = i * 2.39996;
+    let dx = r * Math.cos(a);
+    let dy = r * Math.sin(a) - 0.1;
+    let dz = 1;
+    const len = Math.hypot(dx, dy, dz);
+    dx /= len;
+    dy /= len;
+    dz /= len;
+    const phase = hash2(i, 71);
+    const speed = hash2(i, 72);
+    const reach = 0.55 + 0.45 * hash2(i, 73); // not all the same length
+    const w = (0.16 + 0.2 * hash2(i, 74)) * s;
+    // Three points round the mouth, and the tip, which starts there too.
+    const ring = [];
+    for (let k = 0; k < 3; k++) {
+      const t = a + (k / 3) * Math.PI * 2;
+      ring.push([mouth[0] + Math.cos(t) * w + dx * 0.2 * s, mouth[1] + Math.sin(t) * w + dy * 0.2 * s, mouth[2]]);
+    }
+    const tip = [mouth[0] + dx * 0.2 * s, mouth[1] + dy * 0.2 * s, mouth[2]];
+    for (let k = 0; k < 3; k++) {
+      for (const [p, along] of [[ring[k], 0], [ring[(k + 1) % 3], 0], [tip, reach]]) {
+        position.push(p[0], p[1], p[2]);
+        dir.push(dx, dy, dz);
+        flame.push(along, phase, speed);
+      }
+    }
+  }
+  return {
+    position: new Float32Array(position),
+    dir: new Float32Array(dir),
+    flame: new Float32Array(flame),
+    vertices: position.length / 3,
+    triangles: position.length / 9,
+    length: 9.5 * s,
+  };
+}
+
 /** The two dragons of this piece. Colours are sRGB here and converted by the caller. */
 export const DRAGONS = [
   {

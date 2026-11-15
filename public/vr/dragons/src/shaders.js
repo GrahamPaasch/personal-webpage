@@ -20,6 +20,13 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { SUN_DIR, LIGHT, FOG } from './world.js';
 
+/**
+ * Which way the wind blows and how far it moves a crown at a moderate strength (main.js makes
+ * it swell and die with the gusts that are heard): out over the valley from behind the viewer's
+ * left shoulder, so that the big maple's leaves cross in front of the ledge.
+ */
+export const WIND = [0.8, -0.38];
+
 /** Uniforms every material shares. One object, so a change reaches all of them. */
 export function makeShared() {
   return {
@@ -32,10 +39,8 @@ export function makeShared() {
     uFog: { value: new THREE.Vector4(FOG.haze, FOG.mist, FOG.falloff, FOG.base) },
     uExposure: { value: LIGHT.exposure },
     uTime: { value: 0 },
-    // Direction and strength of the sway. The wind comes over the plateau from behind the
-    // viewer's left shoulder and blows out across the valley, so the big maple's leaves cross
-    // in front of the ledge.
-    uWind: { value: new THREE.Vector2(0.8, -0.38) },
+    // Direction and strength of the sway.
+    uWind: { value: new THREE.Vector2(WIND[0], WIND[1]) },
   };
 }
 
@@ -280,6 +285,9 @@ export function leafMaterial(shared, box) {
       {
         uBoxMin: { value: new THREE.Vector3(box.min[0], box.min[1], box.min[2]) },
         uBoxSize: { value: new THREE.Vector3(box.size[0], box.size[1], box.size[2]) },
+        // Steady, whatever the gusts do: a leaf's place is worked out from the time alone, and
+        // a wind that changed strength would move every leaf at once.
+        uDrift: { value: new THREE.Vector2(WIND[0], WIND[1]) },
       },
       shared
     ),
@@ -288,7 +296,7 @@ export function leafMaterial(shared, box) {
       ${COMMON}
       uniform vec3 uBoxMin;
       uniform vec3 uBoxSize;
-      uniform vec2 uWind;
+      uniform vec2 uDrift;
       attribute vec4 aSeed;
       attribute vec4 aLeaf;
       varying vec3 vColor;
@@ -306,7 +314,7 @@ export function leafMaterial(shared, box) {
         float swing = uTime * (1.5 + 1.3 * r2) + r1 * 6.2832;
         vec3 q = aSeed.xyz * uBoxSize;
         q.y -= uTime * (0.55 + 0.5 * r3);
-        q.xz += uWind * (uTime * (0.9 + 0.7 * r4));
+        q.xz += uDrift * (uTime * (0.9 + 0.7 * r4));
         q.x += sin(swing) * 0.32;
         q.z += cos(swing * 0.83 + 1.7) * 0.26;
         q.y += 0.07 * cos(2.0 * swing);
@@ -404,6 +412,65 @@ export function dragonMaterial(shared, bones, options) {
         }
       `
       : FLAT_FRAGMENT,
+  });
+}
+
+/**
+ * Fire. Added on top of the picture (it is light, not a thing), drawn from both sides. Each
+ * tongue shoots out from the mouth, thins, lifts a little and fades, over and over, each on its
+ * own clock. uPower (0..1) is how hard the dragon is breathing: it sets length and brightness.
+ */
+export function flameMaterial(shared, length) {
+  return new THREE.ShaderMaterial({
+    uniforms: Object.assign({ uPower: { value: 0 }, uLength: { value: length } }, shared),
+    transparent: true,
+    depthWrite: false,
+    // Mostly added to the picture, but hiding some of what is behind it too: against a bright
+    // hazy sky, light that is only added washes out to white, and fire should stay orange.
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+    side: THREE.DoubleSide,
+    vertexShader: /* glsl */ `
+      ${COMMON}
+      uniform float uPower;
+      uniform float uLength;
+      attribute vec3 dir;
+      attribute vec3 flame;
+      varying vec4 vFlame;
+      void main() {
+        float along = flame.x;
+        // 0 as the tongue leaves the mouth .. 1 as it dies.
+        float cycle = fract(uTime * (1.5 + 1.7 * flame.z) + flame.y);
+        float reach = uLength * uPower * (0.3 + 0.7 * cycle);
+        // The tip runs ahead; late in its life the whole tongue lets go of the mouth.
+        vec3 p = position + dir * (reach * (along + 0.3 * cycle * cycle * (1.0 - along)));
+        float far = along * cycle;
+        float lick = sin(uTime * 19.0 + flame.y * 40.0) * 0.05 * reach * far;
+        p.x += lick;
+        p.y += 0.6 * lick + 0.13 * reach * far * far; // fire rises
+        vec4 wp = modelMatrix * vec4(p, 1.0);
+        // Yellow-white at the mouth, orange in the middle, red where it dies.
+        float t = clamp(along * 1.3, 0.0, 1.0) * (0.45 + 0.55 * cycle);
+        vec3 c = mix(vec3(1.0, 0.86, 0.42), vec3(1.0, 0.36, 0.03), smoothstep(0.0, 0.4, t));
+        c = mix(c, vec3(0.72, 0.07, 0.02), smoothstep(0.4, 1.0, t));
+        float fade = uPower * (1.0 - 0.9 * cycle * cycle);
+        // Haze dims a light without tinting it.
+        vec3 toP = wp.xyz - cameraPosition;
+        float dist = length(toP);
+        float haze = dvFogAmount(cameraPosition.y, toP.y / max(dist, 1.0e-4), dist);
+        float a = fade * (1.0 - 0.5 * haze);
+        vFlame = vec4(c * (a * 1.15), a * 0.8);
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying vec4 vFlame;
+      void main() {
+        gl_FragColor = vFlame;
+      }
+    `,
   });
 }
 

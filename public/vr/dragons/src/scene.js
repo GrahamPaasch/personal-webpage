@@ -10,7 +10,7 @@
  */
 
 import {
-  THREE, makeShared, worldMaterial, skyMaterial, sunMaterial, waterMaterial, leafMaterial,
+  THREE, WIND, makeShared, worldMaterial, skyMaterial, sunMaterial, waterMaterial, leafMaterial,
 } from './shaders.js';
 import * as W from './world.js';
 import { buildTerrain } from './terrain.js';
@@ -571,6 +571,12 @@ export class Stage {
   update(time) {
     this.time = time;
     this.shared.uTime.value = time;
+  }
+
+  /** How hard the wind is blowing just now, 0 (still) .. 1 (a gust): the trees sway by it. */
+  setWind(strength) {
+    const k = 0.45 + 1.05 * strength;
+    this.shared.uWind.value.set(WIND[0] * k, WIND[1] * k);
   }
 
   render() {

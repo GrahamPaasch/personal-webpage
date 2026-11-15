@@ -8,7 +8,8 @@
  *                woodpecker drumming. They fall silent when a dragon is near, and for a while
  *                after a roar.
  *   the dragons  each wingbeat (a rush of air, and under it a thump that is only heard close),
- *                the hiss of a glide, and now and then a roar that comes back off the hills.
+ *                the hiss of a glide, and now and then a roar, with the rush of the fire that
+ *                goes with it, that comes back off the hills.
  *                Each dragon is a point in space: louder as it comes, duller with distance,
  *                late by the time sound takes to arrive, and a little higher in pitch coming
  *                than going.
@@ -37,6 +38,7 @@ export const LEVEL = {
   thump: 2.2,
   rush: 0.25,
   roar: 1.15,
+  fire: 0.6, // the rush of flame inside a roar, relative to the voice
   whistle: 0.07,
   reverb: 0.55,
   echo: 0.4,
@@ -443,6 +445,25 @@ class DragonVoice {
       grit.connect(band).connect(g).connect(shake);
     }
     shake.connect(out);
+    // And the fire that comes with it: a steady rush, starting a moment after the voice.
+    const fire = ctx.createBufferSource();
+    fire.buffer = this.board.noise;
+    fire.loop = true;
+    fire.playbackRate.value = 0.7;
+    const fireHigh = ctx.createBiquadFilter();
+    fireHigh.type = 'highpass';
+    fireHigh.frequency.value = 150;
+    const fireLow = ctx.createBiquadFilter();
+    fireLow.type = 'lowpass';
+    fireLow.frequency.value = 1300;
+    fireLow.Q.value = 0.4;
+    const fireGain = ctx.createGain();
+    fireGain.gain.setValueAtTime(0, t);
+    fireGain.gain.setValueAtTime(0, t + 0.22);
+    fireGain.gain.linearRampToValueAtTime(LEVEL.fire, t + 0.55);
+    fireGain.gain.setTargetAtTime(0, t + len - 0.5, 0.14);
+    fire.connect(fireHigh).connect(fireLow).connect(fireGain).connect(out);
+    sources.push(fire);
     const stop = t + len + 0.6;
     for (const s of sources) {
       s.start(t);

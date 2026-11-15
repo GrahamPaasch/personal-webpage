@@ -730,6 +730,11 @@ export class Flyer {
         pitchWant = clamp(Math.atan2(ly, Math.hypot(lx, lz)) - this.pitch, -40 * DEG, 45 * DEG);
       }
     }
+    // A roar (and the fire that comes with it) goes straight out ahead, head up, whoever is watching.
+    if (this.roar > 0) {
+      yawWant = 0;
+      pitchWant = 0.12;
+    }
     const turnHead = 1 - Math.exp(-dt / 0.3);
     this.lookYaw += (yawWant - this.lookYaw) * turnHead;
     this.lookPitch += (pitchWant - this.lookPitch) * turnHead;
