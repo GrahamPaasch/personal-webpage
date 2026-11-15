@@ -69,7 +69,8 @@ let lastWhistle = -10;
 async function build() {
   const canvas = $('stage');
   const t0 = performance.now();
-  const say = (text) => {
+  // What is being made, on the card.
+  const note = (text) => {
     dom.note.textContent = text;
   };
   try {
@@ -78,10 +79,10 @@ async function build() {
     showNo3D(err);
     return;
   }
-  await stage.build(say);
+  await stage.build(note);
   view = new FlatView(stage);
   dragons = [new DragonView(stage, 0), new DragonView(stage, 1)];
-  say('Waking the dragons\u2026');
+  note('Waking the dragons\u2026');
   await new Promise((resolve) => setTimeout(resolve, 0));
   // The map of how low a dragon may fly: worked out now, not in the first frame.
   floorGrid();
@@ -328,10 +329,12 @@ function begin(fresh) {
 
 /** "Watch here": close the curtain, start, open it. */
 function watchHere() {
-  if (state.begun) return;
+  if (state.begun || state.starting) return; // a second press while the curtain closes changes nothing
+  state.starting = true;
   unlockSound();
   dom.veil.classList.add('curtain');
   setTimeout(() => {
+    state.starting = false;
     begin(true);
     showControls();
     say('Drag to look around. Tap, or press Space, to call a dragon.', 9);

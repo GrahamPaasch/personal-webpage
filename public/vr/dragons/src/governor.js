@@ -18,6 +18,8 @@ export const QUALITY = [
 
 /** Frames per judgement: two seconds at 72 a second. */
 const WINDOW = 144;
+/** Frames at least this long (seconds) are pauses, and are not judged. */
+const PAUSE = 0.095;
 
 export class Governor {
   constructor(steps) {
@@ -42,6 +44,9 @@ export class Governor {
    */
   frame(dt, nominal) {
     if (!(dt > 0) || !(nominal > 0)) return false;
+    // A tenth of a second or more is not a slow frame, it is a pause: the page was in the
+    // background, a menu was up, something was compiling. It says nothing about the picture.
+    if (dt >= PAUSE) return false;
     this.frames++;
     this.seconds += dt;
     if (dt > nominal * 1.5) this.late++;
