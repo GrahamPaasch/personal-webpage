@@ -371,9 +371,22 @@ class DragonVoice {
     mix.gain.value = 0.5;
     mix.connect(grit);
     const sources = [];
+    // A throat is not a steady reed: slow noise shakes the pitch, a few percent either way.
+    const wander = ctx.createBufferSource();
+    wander.buffer = this.board.noise;
+    wander.loop = true;
+    wander.playbackRate.value = 0.5;
+    const wanderLow = ctx.createBiquadFilter();
+    wanderLow.type = 'lowpass';
+    wanderLow.frequency.value = 22;
+    const wanderDepth = ctx.createGain();
+    wanderDepth.gain.value = base * 1.1;
+    wander.connect(wanderLow).connect(wanderDepth);
+    sources.push(wander);
     for (const [type, ratio, level] of [['sawtooth', 1, 0.5], ['sawtooth', 1.012, 0.5], ['square', 0.5, 0.24], ['sawtooth', 1.5, 0.2]]) {
       const osc = ctx.createOscillator();
       osc.type = type;
+      wanderDepth.connect(osc.frequency);
       const f = osc.frequency;
       f.setValueAtTime(base * ratio * 0.86, t);
       f.linearRampToValueAtTime(base * ratio * 1.3, t + len * 0.16);
@@ -489,23 +502,25 @@ export class Soundscape {
   }
 
   get running() {
-    return !!this.ctx && this.ctx.state === 'running';
+    // An offline context (the tools) counts as running while it is being driven.
+    return !!this.ctx && (this.offline || this.ctx.state === 'running');
   }
 
   /** Build the graph on a context (a live one, or an OfflineAudioContext in the tools). */
   attach(ctx, sizes) {
     this.ctx = ctx;
+    this.offline = typeof OfflineAudioContext !== 'undefined' && ctx instanceof OfflineAudioContext;
     this.noise = makeNoise(ctx, 5, 12345);
 
     const master = ctx.createGain();
     master.gain.value = this.muted ? 0 : LEVEL.master;
     // A gentle limiter: a roar close by must not hurt.
     const limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = -15;
-    limiter.knee.value = 9;
-    limiter.ratio.value = 6;
-    limiter.attack.value = 0.004;
-    limiter.release.value = 0.22;
+    limiter.threshold.value = -17;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 12;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
     master.connect(limiter).connect(ctx.destination);
     this.master = master;
     this.limiter = limiter;
@@ -769,7 +784,7 @@ export class Soundscape {
    */
   update(dt, listener, dragons) {
     const ctx = this.ctx;
-    if (!ctx || ctx.state !== 'running') return;
+    if (!this.running) return;
     const now = ctx.currentTime;
     const until = now + Math.max(dt, 0.005);
     const l = ctx.listener;

@@ -99,6 +99,7 @@ export class Stage {
     this.sunHeight = await step('shadows', '', () => W.buildSunHeight(this.heights, 600, 192));
     this.farHeights = await step('farHeights', '', () => new W.HeightGrid(W.ground, 2000, 128));
     await step('sky', '', () => this.buildSky());
+    await step('clouds', '', () => this.buildClouds());
     this.terrain = await step('terrain', '', () => this.buildTerrain());
     await step('water', 'Filling the lake\u2026', () => this.buildWater(o.reflectionSize || 256));
     await step('forest', 'Turning the maples\u2026', () => this.buildForest(o.forestDensity || 1));
@@ -192,6 +193,65 @@ export class Stage {
     sun.renderOrder = 200;
     this.scene.add(sun);
     this.sun = sun;
+  }
+
+  /**
+   * A few long, flat clouds far off, low in the sky, lit warm from the sun's side and mauve
+   * underneath. One mesh, a few hundred triangles, light worked out here once.
+   */
+  buildClouds() {
+    const rng = makeRng(WORLD_SEED + 404);
+    const m = new MeshBuilder();
+    const light = [0, 0, 0];
+    const sunAz = Math.atan2(-W.SUN_DIR[0], -W.SUN_DIR[2]); // left of straight ahead
+    // [degrees left of straight ahead, degrees up, how wide (degrees), how many lumps]
+    const bank = [
+      [58, 12, 17, 6], [34, 19, 12, 5], [-22, 13, 16, 6], [-48, 9, 13, 5], [-76, 16, 15, 5], [96, 10, 14, 5],
+      [128, 15, 13, 4], [-116, 11, 16, 5], [-158, 14, 14, 4], [170, 9, 12, 4], [-4, 27, 11, 4], [76, 26, 10, 4],
+    ];
+    for (const [azDeg, elDeg, wideDeg, lumps] of bank) {
+      const az = (azDeg * Math.PI) / 180;
+      // Not across the sun: the glare is drawn over everything, and would shine through a cloud.
+      if (Math.abs(Math.atan2(Math.sin(az - sunAz), Math.cos(az - sunAz))) < 0.3 && elDeg < 24) continue;
+      const dist = 2300;
+      const cx = -Math.sin(az) * dist;
+      const cz = -Math.cos(az) * dist;
+      const cy = Math.tan((elDeg * Math.PI) / 180) * dist;
+      const wide = Math.tan((wideDeg * Math.PI) / 180) * dist;
+      // The cloud lies across the line of sight.
+      const ax = Math.cos(az);
+      const azz = -Math.sin(az);
+      // How nearly the cloud is in line with the sun: those ones glow.
+      const toward = Math.max(Math.cos(az - sunAz), 0);
+      const n = lumps * 2;
+      for (let i = 0; i < n; i++) {
+        const f = i / (n - 1) - 0.5;
+        const size = (1 - 1.6 * f * f) * rng.range(0.7, 1.15);
+        const rx = (wide / n) * 1.9 * size;
+        const centre = [cx + ax * f * wide + rng.range(-30, 30), cy + rng.range(-9, 9) + 10 * size, cz + azz * f * wide + rng.range(-30, 30)];
+        const seed = Math.floor(rng() * 1000);
+        m.blob(
+          centre,
+          [Math.abs(ax) * rx + Math.abs(azz) * rx * 0.5 + 24, 24 * size + 9, Math.abs(azz) * rx + Math.abs(ax) * rx * 0.5 + 24],
+          0, 0.14, seed,
+          (dir, face) => {
+            // Lit from the sun's side and from above; the flat base is in shade, and warm
+            // where the low sun gets under it.
+            W.lightOn(dir[0], Math.max(dir[1], -0.15), dir[2], 1, light);
+            const under = dir[1] < -0.1 ? 0.62 : 1;
+            const v = (0.94 + 0.1 * hash2(face, seed)) * under;
+            const glow = 0.5 * toward * toward;
+            return [(0.62 * light[0] + glow * 1.3) * v, (0.6 * light[1] + glow * 0.85) * v, (0.68 * light[2] + glow * 0.5) * v];
+          },
+          [0, 0, 0, 0]
+        );
+      }
+    }
+    const mesh = new THREE.Mesh(toGeometry(m.arrays(), { normal: false }), worldMaterial(this.shared, { haze: 0.38 }));
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 90; // after the land, which hides most of them; before the sky
+    this.scene.add(mesh);
+    this.clouds = mesh;
   }
 
   buildTerrain() {

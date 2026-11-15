@@ -30,7 +30,7 @@ async function setSessionPlain(manager, session) {
 
 export class XRControl {
   /**
-   * handlers: { onSessionStart(), onSessionEnd(), onTrigger(hand) }
+   * handlers: { onSessionStart(), onSessionEnd(), onTrigger(hand), onVisibility(visible) }
    * options: { plainLayer: draw through a plain XRWebGLLayer, scale: framebuffer scale,
    *            foveation: 0..1 }
    */
@@ -111,6 +111,10 @@ export class XRControl {
       if (!this.plainLayer) optionalFeatures.push('layers');
       const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures });
       this.session = session;
+      // 'hidden' is the headset off the head (or the system in front): nobody is looking.
+      session.addEventListener('visibilitychange', () => {
+        if (this.handlers.onVisibility) this.handlers.onVisibility(session.visibilityState !== 'hidden');
+      });
       // A floor-level origin, so that the ledge is underfoot. Fall back to 'local' if refused.
       let type = 'local-floor';
       try {

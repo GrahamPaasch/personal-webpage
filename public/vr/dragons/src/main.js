@@ -9,6 +9,8 @@
  *   ?trees=0.6       draw only this fraction of the forest
  *   ?hrtf=0          place the dragons' sound with plain left/right panning (cheaper)
  *   ?reverb=0        no echo off the hills (cheaper)
+ *   ?governor=off    never thin the picture, whatever the frame rate (the tools use this: a
+ *                    software renderer is slow, and they must count the whole picture)
  *   ?shots=1         for the tools: no card, no controls
  */
 import { Stage, THREE, WORLD_SEED } from './scene.js';
@@ -105,6 +107,7 @@ async function build() {
       },
       onSessionEnd: () => {
         state.vr.presenting = false;
+        if (audio.ctx && !document.hidden) sound(() => audio.ctx.resume());
         state.vr.last = describeSession(xr.sessionReport());
         stage.hideHint();
         layout();
@@ -112,6 +115,14 @@ async function build() {
         if (state.vr.last) say(state.vr.last, 30);
       },
       onTrigger: () => call(),
+      // The headset has been taken off (or put back on): quiet while nobody is in it.
+      onVisibility: (visible) => {
+        if (!audio.ctx) return;
+        sound(() => {
+          if (visible) audio.ctx.resume();
+          else audio.ctx.suspend();
+        });
+      },
     },
     { plainLayer: params.get('layers') === 'off', scale: number('scale'), foveation: number('foveation') }
   );
@@ -146,7 +157,7 @@ async function build() {
 
   // For the tools and tests, and for poking at it from a console.
   window.__dragons = {
-    stage, view, state, THREE, dragons, director, audio, xr, governor, seek, fly, call, begin,
+    stage, view, state, THREE, dragons, director, audio, xr, governor, seek, fly, call, begin, applyQuality,
     ready: true,
     buildMs: state.buildMs,
     setFlatShot: () => {
@@ -199,15 +210,23 @@ function advance(dt) {
   const n = Math.max(1, Math.ceil(dt / (1 / 45)));
   for (let i = 0; i < n; i++) director.step(dt / n);
   state.time += dt;
-  for (const e of director.drain()) {
-    if (e.type === 'beat') sound(() => audio.beat(e.dragon, e.strength));
-    else if (e.type === 'roar') sound(() => audio.roar(e.dragon, e.kind, ROAR_SECONDS));
+  const events = director.drain();
+  if (events.length && audio.running && !soundFailed) {
+    try {
+      for (let i = 0; i < events.length; i++) {
+        const e = events[i];
+        if (e.type === 'beat') audio.beat(e.dragon, e.strength);
+        else if (e.type === 'roar') audio.roar(e.dragon, e.kind, ROAR_SECONDS);
+      }
+    } catch (err) {
+      soundBroke(err);
+    }
   }
 }
 
 function pose(dt) {
   const f = director.flyers;
-  dragons.forEach((d, i) => d.update(f[i], state.time, dt));
+  for (let i = 0; i < dragons.length; i++) dragons[i].update(f[i], state.time, dt);
   // The flat view looks at the nearer dragon, mostly.
   const d0 = Math.hypot(f[0].x, f[0].y, f[0].z);
   const d1 = Math.hypot(f[1].x, f[1].y, f[1].z);
@@ -217,10 +236,10 @@ function pose(dt) {
   target.z = f[0].z * w + f[1].z * (1 - w);
 }
 
-/** Tell the sound where the viewer's head and the dragons are. */
+/** Tell the sound where the viewer's head and the dragons are. (Every frame: it makes no garbage.) */
 function hear(dt) {
   if (!audio.running || soundFailed) return;
-  sound(() => {
+  try {
     const cam = xr.presenting ? stage.renderer.xr.getCamera() : stage.camera;
     const e = cam.matrixWorld.elements;
     tmpHead.setFromMatrixPosition(cam.matrixWorld);
@@ -233,7 +252,9 @@ function hear(dt) {
     listener.up[0] = e[4];
     listener.up[1] = e[5];
     listener.up[2] = e[6];
-    director.flyers.forEach((f, i) => {
+    const flyers = director.flyers;
+    for (let i = 0; i < flyers.length; i++) {
+      const f = flyers[i];
       const m = movers[i];
       const flat = Math.cos(f.gamma) * f.speed;
       m.x = f.x;
@@ -243,9 +264,11 @@ function hear(dt) {
       m.vy = Math.sin(f.gamma) * f.speed;
       m.vz = flat * Math.cos(f.heading);
       m.speed = f.speed;
-    });
+    }
     audio.update(dt, listener, movers);
-  });
+  } catch (err) {
+    soundBroke(err);
+  }
 }
 
 /** Sound must never stop the picture: whatever it throws is reported once and then left alone. */
@@ -254,9 +277,13 @@ function sound(fn) {
   try {
     fn();
   } catch (err) {
-    soundFailed = true;
-    console.warn('Sound stopped after an error; the picture goes on.', err);
+    soundBroke(err);
   }
+}
+
+function soundBroke(err) {
+  soundFailed = true;
+  console.warn('Sound stopped after an error; the picture goes on.', err);
 }
 
 function unlockSound() {
@@ -266,6 +293,7 @@ function unlockSound() {
 }
 
 function applyQuality() {
+  if (params.get('governor') === 'off') governor.reset();
   const q = QUALITY[governor.level];
   state.quality = governor.level;
   const trees = number('trees');
@@ -414,9 +442,10 @@ function wireControls(canvas) {
       dom.sound.click();
     }
   });
-  // No sound from a tab nobody is looking at.
+  // No sound from a tab nobody is looking at. (In the headset it is the VR session that says
+  // whether anybody is looking: see onVisibility.)
   document.addEventListener('visibilitychange', () => {
-    if (!audio.ctx) return;
+    if (!audio.ctx || xr.presenting) return;
     sound(() => {
       if (document.hidden) audio.ctx.suspend();
       else if (state.begun) audio.ctx.resume();

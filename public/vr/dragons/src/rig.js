@@ -171,6 +171,10 @@ export function restPose() {
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
+/** The joints of the neck from the chest to the head, and the share of a look each one takes. */
+const NECK = [BONE.neck1, BONE.neck2, BONE.neck3, BONE.head];
+const NECK_SHARE = [0.2, 0.2, 0.2, 0.4];
+
 /**
  * Work out every bone for a pose.
  *   world: Float32Array(BONE_COUNT * 12), each joint's frame in model space
@@ -216,13 +220,11 @@ export function poseSkeleton(skeleton, pose, world, skin) {
 
   // --- Neck and head. The neck undoes the chest's rocking and the heave of the body, and
   // carries most of a look to the side; the head finishes it.
-  const share = [0.2, 0.2, 0.2, 0.4];
-  const necks = [BONE.neck1, BONE.neck2, BONE.neck3, BONE.head];
   for (let i = 0; i < 4; i++) {
-    o = place(necks[i]);
+    o = place(NECK[i]);
     const settle = i < 3 ? (0.9 * sin * power + 2.4 * brake - 1.0 * tuck) * DEG : 0;
-    turnY(world, o, pose.lookYaw * share[i] + 6 * pose.turn * DEG * (i < 3 ? 1 : 0.6));
-    turnX(world, o, -pose.lookPitch * share[i] + settle - 5 * pose.arch * DEG * (i < 3 ? 1 : 0.5) + 1.2 * Math.sin(t * 0.7 + i) * DEG);
+    turnY(world, o, pose.lookYaw * NECK_SHARE[i] + 6 * pose.turn * DEG * (i < 3 ? 1 : 0.6));
+    turnX(world, o, -pose.lookPitch * NECK_SHARE[i] + settle - 5 * pose.arch * DEG * (i < 3 ? 1 : 0.5) + 1.2 * Math.sin(t * 0.7 + i) * DEG);
   }
   o = place(BONE.jaw);
   turnX(world, o, clamp(pose.jaw, 0, 1) * 30 * DEG);
@@ -242,8 +244,9 @@ export function poseSkeleton(skeleton, pose, world, skin) {
   const close = clamp(0.75 * up + 0.85 * tuck, 0, 1); // the fingers of the fan close
   const flutter2 = 6 * Math.sin(th - 0.5) * amp;
   const flutter3 = 9 * Math.sin(th - 0.9) * amp;
-  for (const side of [1, -1]) {
-    const k = side === 1 ? 0 : 5;
+  for (let w = 0; w < 2; w++) {
+    const side = w === 0 ? 1 : -1;
+    const k = w === 0 ? 0 : 5;
     o = place(BONE.humerusL + k);
     turnZ(world, o, side * lift * DEG);
     turnY(world, o, side * sweep * DEG);
@@ -264,8 +267,8 @@ export function poseSkeleton(skeleton, pose, world, skin) {
   }
 
   // --- Legs: tucked, swinging a little.
-  for (const i of [BONE.legL, BONE.legR]) {
-    o = place(i);
+  for (let leg = 0; leg < 2; leg++) {
+    o = place(leg === 0 ? BONE.legL : BONE.legR);
     turnX(world, o, (4 * Math.cos(th - 1.5) * power + 14 * brake) * DEG);
   }
 

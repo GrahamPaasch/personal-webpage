@@ -236,12 +236,24 @@ export class Lane {
     this.length = length;
   }
 
-  /** Index of the sample at or before distance s, and how far toward the next one. */
+  /**
+   * Find distance s on the lane: leaves the index of the sample at or before it in this.at and
+   * how far toward the next one in this.frac. (Kept in fields, not returned: this is asked a
+   * couple of hundred times a frame, and a headset should not be given garbage to collect.)
+   */
   locate(s) {
     const ss = this.ss;
     const n = ss.length;
-    if (s <= 0) return [0, 0];
-    if (s >= this.length) return [n - 2, 1];
+    if (s <= 0) {
+      this.at = 0;
+      this.frac = 0;
+      return;
+    }
+    if (s >= this.length) {
+      this.at = n - 2;
+      this.frac = 1;
+      return;
+    }
     let lo = 0;
     let hi = n - 1;
     while (hi - lo > 1) {
@@ -249,11 +261,14 @@ export class Lane {
       if (ss[mid] <= s) lo = mid;
       else hi = mid;
     }
-    return [lo, (s - ss[lo]) / Math.max(ss[lo + 1] - ss[lo], 1e-9)];
+    this.at = lo;
+    this.frac = (s - ss[lo]) / Math.max(ss[lo + 1] - ss[lo], 1e-9);
   }
 
   pointAt(s, out) {
-    const [i, f] = this.locate(s);
+    this.locate(s);
+    const i = this.at;
+    const f = this.frac;
     out[0] = lerp(this.xs[i], this.xs[i + 1], f);
     out[1] = lerp(this.ys[i], this.ys[i + 1], f);
     out[2] = lerp(this.zs[i], this.zs[i + 1], f);
@@ -261,13 +276,13 @@ export class Lane {
   }
 
   speedAt(s) {
-    const [i, f] = this.locate(s);
-    return lerp(this.vs[i], this.vs[i + 1], f);
+    this.locate(s);
+    return lerp(this.vs[this.at], this.vs[this.at + 1], this.frac);
   }
 
   tightAt(s) {
-    const [i, f] = this.locate(s);
-    return lerp(this.ts[i], this.ts[i + 1], f);
+    this.locate(s);
+    return lerp(this.ts[this.at], this.ts[this.at + 1], this.frac);
   }
 }
 
@@ -846,6 +861,8 @@ export class Director {
     this.callAt = -100;
     this.nextRoar = 9 + rng() * 6;
     this.events = [];
+    this.spare = [];
+    this.wants = [0, 0, 0, 0, 0, null];
     this.carrots = [[0, 0, 0], [0, 0, 0]];
     this.wantSpeed = [20, 20];
     this.along = [this.center + this.gap * 0.5, this.center - this.gap * 0.5]; // each one's place on the path
@@ -961,24 +978,34 @@ export class Director {
     const m = this.mode;
     const t = m.t;
     const firstLeads = this.lead === 1;
+    const w = this.wants;
+    const set = (gap, leaderSide, leaderUp, chaserSide, chaserUp, axis) => {
+      w[0] = gap;
+      w[1] = leaderSide;
+      w[2] = leaderUp;
+      w[3] = chaserSide;
+      w[4] = chaserUp;
+      w[5] = axis;
+      return w;
+    };
     switch (m.name) {
       case 'weave':
-        return [24, 3 * Math.sin(1.05 * t + 1.6), 0, 9 * Math.sin(1.05 * t), 3 * Math.sin(0.7 * t), null];
+        return set(24, 3 * Math.sin(1.05 * t + 1.6), 0, 9 * Math.sin(1.05 * t), 3 * Math.sin(0.7 * t), null);
       case 'wing':
         // Wingtip to wingtip.
-        return [3, 0, 0, 0, 1.2, m.side > 0 ? 0 : Math.PI];
+        return set(3, 0, 0, 0, 1.2, m.side > 0 ? 0 : Math.PI);
       case 'stack':
         // The leader below, the other riding above and just behind.
-        return [8, 0, 0, 0, 0, firstLeads ? -Math.PI / 2 : Math.PI / 2];
+        return set(8, 0, 0, 0, 0, firstLeads ? -Math.PI / 2 : Math.PI / 2);
       case 'helix':
         // Round each other: the axis itself turns (in step()).
-        return [0, 0, 0, 0, 0, null];
+        return set(0, 0, 0, 0, 0, null);
       case 'swap':
         // The new leader goes over the top.
-        return [26, 0, 0, 0, 0, firstLeads ? Math.PI / 2 : -Math.PI / 2];
+        return set(26, 0, 0, 0, 0, firstLeads ? Math.PI / 2 : -Math.PI / 2);
       case 'trail':
       default:
-        return [26, 0, 0, 4 * Math.sin(0.8 * t), 2.5 + 1.5 * Math.sin(0.5 * t), null];
+        return set(26, 0, 0, 4 * Math.sin(0.8 * t), 2.5 + 1.5 * Math.sin(0.5 * t), null);
     }
   }
 
@@ -1301,10 +1328,15 @@ export class Director {
     this.events.push({ type: 'roar', dragon: i, kind });
   }
 
-  /** Hand back what has happened since the last time, and forget it. */
+  /**
+   * Hand back what has happened since the last time, and forget it. The list handed back is
+   * used again by the call after next: read it before draining again.
+   */
   drain() {
     const e = this.events;
-    this.events = [];
+    this.events = this.spare;
+    this.events.length = 0;
+    this.spare = e;
     return e;
   }
 }
