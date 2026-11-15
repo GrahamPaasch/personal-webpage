@@ -6,6 +6,7 @@
  *   ?scale=0.8       VR picture size relative to the headset's own (smaller is faster)
  *   ?foveation=0.5   how much the edges of the VR picture are coarsened, 0..1
  *   ?layers=off      draw VR through a plain XRWebGLLayer
+ *   ?aa=0            no anti-aliasing (cheaper; edges are rougher)
  *   ?trees=0.6       draw only this fraction of the forest
  *   ?hrtf=0          place the dragons' sound with plain left/right panning (cheaper)
  *   ?reverb=0        no echo off the hills (cheaper)
@@ -74,7 +75,7 @@ async function build() {
     dom.note.textContent = text;
   };
   try {
-    stage = new Stage(canvas, {});
+    stage = new Stage(canvas, { antialias: params.get('aa') !== '0' });
   } catch (err) {
     showNo3D(err);
     return;
@@ -86,6 +87,13 @@ async function build() {
   await new Promise((resolve) => setTimeout(resolve, 0));
   // The map of how low a dragon may fly: worked out now, not in the first frame.
   floorGrid();
+  // Every shader is compiled now, the ones for things not yet in sight too (a mirror image in
+  // the lake, fire): otherwise the first roar would cost a dropped frame or ten on a headset.
+  try {
+    stage.renderer.compile(stage.scene, stage.camera);
+  } catch (err) {
+    console.warn('Shaders will be compiled as they are first needed.', err);
+  }
   const seed = number('seed');
   director = new Director(DRAGONS.map((d) => ({ beat: d.beat, size: d.build.scale })), seed === undefined ? WORLD_SEED : seed);
   audio = new Soundscape({ hrtf: params.get('hrtf') !== '0', reverb: params.get('reverb') !== '0', seed: director.seed });
