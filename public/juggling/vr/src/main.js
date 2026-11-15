@@ -6,6 +6,7 @@
  *   scene.js     three.js drawing                view.js        flat-screen camera
  *   xr.js        WebXR, controllers              vrpanel.js     the control board inside VR
  *   audio.js     the three sounds                ui.js          the on-page controls
+ *   accuracy.js  the colour of a thrown ball (pure)
  *
  * There is exactly one clock: simulation time advances by (real time x speed). Slow motion is
  * that and nothing else, so arcs, heights and gravity are identical at every speed.
@@ -14,6 +15,7 @@
 import { buildPattern, findCollisions } from './physics.js';
 import { buildHandTimeline } from './hands.js';
 import { advanceClock, clampSpeed, SoundSchedule } from './schedule.js';
+import { ThrowScorer } from './accuracy.js';
 import {
   DEFAULT_PLACEMENT,
   clampHandHeight,
@@ -77,14 +79,22 @@ let audio;
 let xr;
 let ui;
 const schedule = new SoundSchedule(AUDIO_LOOKAHEAD);
+const scorer = new ThrowScorer();
+// The person's palm points in the pattern frame, [right, left], filled in again each frame.
+const palms = [
+  { tracked: false, x: 0, y: 0, z: 0 },
+  { tracked: false, x: 0, y: 0, z: 0 },
+];
 
 let audioWasRunning = false;
 let soundFailed = false;
 let vrFailed = false;
+let accuracyFailed = false;
 
 const tmpWorld = new THREE.Vector3();
 const tmpCam = new THREE.Vector3();
 const tmpRight = new THREE.Vector3();
+const tmpPalm = new THREE.Vector3();
 
 function start() {
   const canvas = document.getElementById('stage');
@@ -245,7 +255,7 @@ function start() {
   });
 
   // For the smoke test and for poking at the app from a console.
-  window.__vrj = { state, stage, view, audio, xr, ui, schedule, setPattern, setSpeed, setView, calibrate, panelAction, THREE };
+  window.__vrj = { state, stage, view, audio, xr, ui, schedule, scorer, setPattern, setSpeed, setView, calibrate, panelAction, THREE };
 }
 
 /** The browser cannot draw 3D at all: say so where the picture would be, and offer nothing dead. */
@@ -288,7 +298,16 @@ function frame(dt, now, lead, xrFrame) {
   } else {
     view.apply();
   }
-  stage.update(state.simTime + lead * state.speed);
+  const shown = state.simTime + lead * state.speed;
+  const drawn = stage.update(shown);
+  try {
+    colourBalls(drawn, shown);
+  } catch (err) {
+    // Nor may the colours: without them the balls are white, as on the flat page.
+    if (!accuracyFailed) console.warn('Throw colours failed; the balls stay white.', err);
+    accuracyFailed = true;
+    stage.setBallGrades(null);
+  }
   try {
     scheduleSounds(now);
   } catch (err) {
@@ -301,6 +320,36 @@ function frame(dt, now, lead, xrFrame) {
     audioWasRunning = audio.running;
     ui.setSound(audio.settings, audio.running); // hides the "tap to switch sound on" hint
   }
+}
+
+/**
+ * Throw colours (accuracy.js). Each ball is white; a thrown ball is green, yellow or red through
+ * its flight by how well the person's palm followed the ghost hand up to that release. Only in
+ * VR with the pattern placed, and not while calibrating (the hands are held still on purpose
+ * then). A hand that is not tracked colours nothing, so on the flat page every ball is white.
+ */
+function colourBalls(drawn, t) {
+  if (!drawn || accuracyFailed) return;
+  if (!(xr.presenting && xr.placed) || state.vr.calibrating || state.vr.palmStep) {
+    if (scorer.coloured || !Number.isNaN(scorer.lastT)) {
+      scorer.clear();
+      stage.setBallGrades(null);
+    }
+    return;
+  }
+  for (let side = 0; side < 2; side++) {
+    const palm = palms[side];
+    const at = xr.palmPosition(side, tmpPalm);
+    palm.tracked = !!at;
+    if (at) {
+      stage.anchor.worldToLocal(at);
+      palm.x = at.x;
+      palm.y = at.y;
+      palm.z = at.z;
+    }
+  }
+  scorer.step(drawn, t, palms);
+  stage.setBallGrades(scorer.grades);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -322,6 +371,7 @@ function setPattern(text, options) {
   state.collisions = findCollisions(pattern);
   state.vrMessage = '';
   stage.setPattern(pattern, state.timeline, state.collisions);
+  scorer.setPattern(pattern, state.timeline);
   state.description = ui.setPattern(pattern, state.collisions);
   view.setTarget(state.anchor, patternHeight(), false);
   view.retarget();
@@ -398,6 +448,7 @@ function setSound(type, patch) {
 
 function applyAnchor(resetLook) {
   stage.setAnchor(state.anchor);
+  scorer.forget(); // the pattern moved: a scoop half recorded against the old place is dropped
   view.setTarget(state.anchor, patternHeight(), false);
   if (resetLook) view.resetLook();
   else view.retarget();

@@ -16,11 +16,12 @@ import { sceneAt, handPath } from './hands.js';
 
 export { THREE };
 
-/** Ball colours: distinct hues so one ball can be followed through the pattern. */
-export const BALL_COLORS = [
-  0xff9f43, 0x2fd6c3, 0xff5c8a, 0x7cc7ff, 0xf7e04b, 0xb48cff, 0x7be36f, 0xff7a59, 0x5ce0ff, 0xf49ad8,
-  0xd5dbe6, 0xffc48a, 0x8ff0d2,
-];
+/**
+ * Ball colours, indexed by GRADE in accuracy.js. Every ball is white; a thrown ball is green,
+ * yellow or red for its flight, by how well the person's hand followed the ghost hand through
+ * that throw. Four materials in all, shared by every ball.
+ */
+export const BALL_COLORS = [0xffffff, 0x35d45f, 0xffd21f, 0xff3b3b];
 
 /** Ghost hands are cool and see-through; the person's own hands are warm and solid. */
 export const GHOST_HAND_COLOR = 0xcfe4ff;
@@ -65,7 +66,7 @@ export class Stage {
     this.ballRadius = 0.03;
     this.ballGeometry = new THREE.SphereGeometry(1, BALL_SEGMENTS[0], BALL_SEGMENTS[1]);
     this.ballMaterials = BALL_COLORS.map(
-      (c) => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.22 })
+      (c, grade) => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: grade === 0 ? 0.22 : 0.45 })
     );
     this.balls = [];
 
@@ -174,13 +175,14 @@ export class Stage {
     this.ballRadius = pattern.ballDiameter / 2;
 
     while (this.balls.length < pattern.balls) {
-      const mesh = new THREE.Mesh(this.ballGeometry, this.ballMaterials[this.balls.length % this.ballMaterials.length]);
+      const mesh = new THREE.Mesh(this.ballGeometry, this.ballMaterials[0]);
       this.anchor.add(mesh);
       this.balls.push(mesh);
     }
     this.balls.forEach((mesh, i) => {
       mesh.visible = i < pattern.balls;
       mesh.scale.setScalar(this.ballRadius);
+      mesh.material = this.ballMaterials[0];
     });
 
     this.rebuildArcs();
@@ -238,6 +240,18 @@ export class Stage {
       ring.position.set(hit.x, hit.y, 0);
       this.collisionMarks.add(ring);
       if (placed.length >= 12) break;
+    }
+  }
+
+  /**
+   * Colour the balls: grades[ball] is a GRADE from accuracy.js (0 = white). Without `grades`
+   * every ball is white. Only swaps one of the four shared materials, and only on a change.
+   */
+  setBallGrades(grades) {
+    const n = this.pattern ? this.pattern.balls : 0;
+    for (let i = 0; i < n; i++) {
+      const material = this.ballMaterials[grades ? grades[i] : 0] || this.ballMaterials[0];
+      if (this.balls[i].material !== material) this.balls[i].material = material;
     }
   }
 

@@ -117,6 +117,38 @@ export function handState(timeline, hand, t, out) {
   return o;
 }
 
+/**
+ * The scoop this hand is in at time t, if any: the stretch from the start of its carry motion to
+ * the release ({ active, start, release }, in the same running time as t). A hand that waits at
+ * the catch point before a hold (a 2) is not in a scoop until its motion starts. Used to judge
+ * the person's own hand against the ghost over exactly the motion that makes the throw.
+ * Pass an object as `out` to have it filled in (the draw loop does).
+ */
+export function scoopWindow(timeline, hand, t, out) {
+  const o = out || { active: false, start: 0, release: 0 };
+  o.active = false;
+  const knots = timeline.knots[hand];
+  if (knots.length === 0) return o;
+  const tt = mod(t, timeline.cycleTime);
+  let lo = 0;
+  let hi = knots.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (knots[mid].t <= tt + EPS) lo = mid;
+    else hi = mid - 1;
+  }
+  const a = knots[lo];
+  const b = knots[Math.min(lo + 1, knots.length - 1)];
+  const span = b.t - a.t;
+  if (a.type !== 'catch' || b.type !== 'throw' || span <= EPS) return o;
+  const scoop = Math.min(span, timeline.dwell);
+  if (tt < b.t - scoop) return o;
+  o.active = true;
+  o.release = t + (b.t - tt);
+  o.start = o.release - scoop;
+  return o;
+}
+
 function put(o, x, y, vx, vy, carrying) {
   o.x = x;
   o.y = y;
