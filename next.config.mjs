@@ -32,6 +32,7 @@ const STATIC_APP_DIRS = [
   'stitch',
   'viola',
   'viola-gauntlet',
+  'vr/dragons',
   'wrap-chess',
   'wellness',
 ];
