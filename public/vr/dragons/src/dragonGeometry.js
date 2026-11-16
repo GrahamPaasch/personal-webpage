@@ -70,17 +70,21 @@ export function buildDragon(build, colors) {
     [1, 0], [0.74, 0.62], [0, 1.12], [-0.74, 0.62], [-1, 0], [-0.8, -0.72], [0, -1], [0.8, -0.72],
   ];
   const rings = stations.map((st) => shape.map(([cx, cy]) => P(cx * st[2], st[1] + cy * (cy > 0 ? st[3] : st[4]), st[0])));
-  const bodyColor = (i) => {
-    // Faces between outline points i and i+1: 1, 2 are the back; 5, 6 the belly; the rest flanks.
-    if (i === 1 || i === 2) return colors.back;
-    if (i === 5 || i === 6) return colors.belly;
-    return colors.side;
-  };
+  // The hide: dark along the back, the flank's colour down the sides, pale under the belly,
+  // running into one another round the body, with a band a little darker at every other
+  // station (the plates of its back and belly) and a mottle over all of it. It is lit as a
+  // round body: a creature seen from 12 m should not look folded out of card.
+  const mix = (a, c, t) => [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t, a[2] + (c[2] - a[2]) * t];
+  const AROUND = [
+    colors.side, mix(colors.back, colors.side, 0.45), colors.back, mix(colors.back, colors.side, 0.45),
+    colors.side, mix(colors.side, colors.belly, 0.7), colors.belly, mix(colors.side, colors.belly, 0.7),
+  ];
   m.loft(rings, {
-    faceColor: (k, i) => scaleColor(bodyColor(i), 0.88 + 0.24 * hash2(k * 8 + i, 5)),
+    colorAt: (k, i) => scaleColor(AROUND[i], (k % 2 ? 0.86 : 1.02) * (0.93 + 0.14 * hash2(k * 8 + i, 5))),
     auxAt: (k) => two(stations[k][5], stations[k][6], stations[k][7]),
     capEnd: colors.side,
     capEndAux: one(BONE.head),
+    round: true,
   });
 
   // -------------------------------------------------------------------------------------------
@@ -256,7 +260,17 @@ export function buildDragon(build, colors) {
  *
  * Per vertex: position (where it sits at the mouth), dir (the way its tongue points, unit), and
  * flame = [how far along the tongue (0 at the mouth, up to 1 at the tip), phase, speed].
- * Returns { position, dir, flame, vertices, triangles, length (metres, for the big dragon 9.5) }.
+ *
+ * And the glow of it: fire is far brighter than a screen can show, and what the eye (or a lens)
+ * makes of that is light spilling round it. So three soft discs of added light ride on the
+ * jet, each turned to face the eye by the shader: a small hot one at the mouth, a wider one
+ * part of the way along, and a wide dim one round all of it, which is the haze lit up. A disc
+ * is a fan: bright in the middle, a ring a little way out, and nothing at the rim. Its
+ * vertices carry glow = [x, y (across the disc, the rim at 1), radius in metres, brightness],
+ * and flame.x says how far along the jet its middle rides. For the tongues glow is all zero.
+ *
+ * Returns { position, dir, flame, glow, vertices, triangles, tongues (how many of the triangles
+ * are tongues: they come first), length (metres: 9.5 for a dragon of size 1), mouth }.
  */
 export function buildFlame(build) {
   const b = Object.assign({ scale: 1, neck: 1 }, build || {});
@@ -297,28 +311,78 @@ export function buildFlame(build) {
       }
     }
   }
+  const tongueTriangles = position.length / 9;
+  const glow = new Array((position.length / 3) * 4).fill(0);
+  // The glow. [how far along the jet, radius (metres at size 1), brightness]
+  const axis = [0, -0.1 / Math.hypot(0.1, 1), 1 / Math.hypot(0.1, 1)]; // the middle of the cone of tongues
+  const SPOKES = 12;
+  const RING = 0.42; // where the inner ring sits, and how bright it is there (the middle is 1)
+  const RING_LEVEL = 0.34;
+  for (const [along, radius, bright] of FLAME_GLOW) {
+    const corner = (x, y, level) => {
+      position.push(mouth[0], mouth[1], mouth[2]);
+      dir.push(axis[0], axis[1], axis[2]);
+      flame.push(along, 0, 0);
+      glow.push(x, y, radius * s, bright * level);
+    };
+    for (let k = 0; k < SPOKES; k++) {
+      const a0 = (k / SPOKES) * Math.PI * 2;
+      const a1 = ((k + 1) / SPOKES) * Math.PI * 2;
+      const c0 = Math.cos(a0);
+      const s0 = Math.sin(a0);
+      const c1 = Math.cos(a1);
+      const s1 = Math.sin(a1);
+      // Middle to ring, then ring to rim.
+      corner(0, 0, 1);
+      corner(c0 * RING, s0 * RING, RING_LEVEL);
+      corner(c1 * RING, s1 * RING, RING_LEVEL);
+      corner(c0 * RING, s0 * RING, RING_LEVEL);
+      corner(c0, s0, 0);
+      corner(c1, s1, 0);
+      corner(c0 * RING, s0 * RING, RING_LEVEL);
+      corner(c1, s1, 0);
+      corner(c1 * RING, s1 * RING, RING_LEVEL);
+    }
+  }
   return {
     position: new Float32Array(position),
     dir: new Float32Array(dir),
     flame: new Float32Array(flame),
+    glow: new Float32Array(glow),
     vertices: position.length / 3,
     triangles: position.length / 9,
+    tongues: tongueTriangles,
     length: 9.5 * s,
+    mouth,
   };
 }
+
+/**
+ * The three discs of the fire's glow: [how far along the jet its middle rides (0 the mouth, 1
+ * the far end), radius in metres for a dragon of size 1, how bright its middle is (added to
+ * the picture, 0..1)].
+ */
+export const FLAME_GLOW = [
+  [0.06, 1.5, 0.62],
+  [0.42, 3.2, 0.36],
+  [0.3, 6.6, 0.19],
+];
 
 /** The two dragons of this piece. Colours are sRGB here and converted by the caller. */
 export const DRAGONS = [
   {
     name: 'Ember',
-    build: { scale: 1, neck: 1, tail: 1, wing: 1, bulk: 1, horn: 1 },
-    beat: 1.0, // wingbeats a second at an easy pace
+    // 19.7 m from wingtip to wingtip: the span of a small airliner. (It was 13.6 m; seen in a
+    // headset from 25 m that was a big bird, and this is a dragon.)
+    build: { scale: 1.45, neck: 1, tail: 1, wing: 1, bulk: 1, horn: 1 },
+    beat: 0.72, // wingbeats a second at an easy pace: wings this long are not beaten fast
+    voice: 1.16, // how big it sounds (the sound was balanced for 1 and 0.78)
     colors: {
       back: [0.56, 0.1, 0.06],
       side: [0.74, 0.18, 0.07],
-      belly: [0.93, 0.66, 0.26],
-      wingTop: [0.64, 0.15, 0.07],
-      wingUnder: [0.9, 0.4, 0.12],
+      belly: [0.86, 0.56, 0.2],
+      wingTop: [0.62, 0.13, 0.07],
+      wingUnder: [0.8, 0.22, 0.09],
       bone: [0.3, 0.07, 0.05],
       horn: [0.14, 0.1, 0.09],
       eye: [1.0, 0.85, 0.2],
@@ -326,14 +390,17 @@ export const DRAGONS = [
   },
   {
     name: 'Tarn',
-    build: { scale: 0.78, neck: 1.08, tail: 1.12, wing: 1.06, bulk: 0.9, horn: 1.25 },
-    beat: 1.28,
+    build: { scale: 1.1, neck: 1.08, tail: 1.12, wing: 1.06, bulk: 0.9, horn: 1.25 },
+    beat: 0.94,
+    voice: 0.88,
+    // Its upper side is a light teal on purpose: a dark one sat at the value of shaded forest,
+    // and beyond a hundred metres it was lost against the hillsides.
     colors: {
-      back: [0.06, 0.3, 0.38],
-      side: [0.09, 0.44, 0.49],
-      belly: [0.82, 0.88, 0.78],
-      wingTop: [0.1, 0.38, 0.44],
-      wingUnder: [0.5, 0.8, 0.76],
+      back: [0.1, 0.42, 0.48],
+      side: [0.12, 0.5, 0.54],
+      belly: [0.56, 0.68, 0.62],
+      wingTop: [0.13, 0.5, 0.56],
+      wingUnder: [0.22, 0.64, 0.7],
       bone: [0.05, 0.16, 0.22],
       horn: [0.86, 0.84, 0.74],
       eye: [1.0, 0.6, 0.1],

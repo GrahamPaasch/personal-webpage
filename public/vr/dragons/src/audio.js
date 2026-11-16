@@ -17,6 +17,15 @@
  * Browsers only start sound after a tap, click or key press: unlock() must be called from one.
  * Nothing here may stop the picture: main.js calls every method inside a try.
  *
+ * What it costs. A headset's processor has four fast cores and the picture wants most of them,
+ * so the graph is driven the cheap way: a panner or a filter whose settings are being ramped is
+ * worked out sample by sample by the browser, and one that is merely SET is worked out once per
+ * block of 128 samples. So positions are set, 36 times a second; filters are stepped a few
+ * times a second and only when they have moved; and nothing is left ramping between events.
+ * (The browser already smooths a panner's gain from block to block, so stepping does not click.)
+ * With sound switched off the whole context is suspended: a silent graph costs as much as a
+ * loud one.
+ *
  * The graph is built by attach(), which also takes an OfflineAudioContext, so the tools can
  * render each sound to numbers and check it (tools/sound-check.mjs): nobody can listen to a
  * headless test.
@@ -36,9 +45,10 @@ export const LEVEL = {
   birds: 0.5,
   wing: 1.25,
   thump: 2.2,
-  rush: 0.25,
+  rush: 0.3,
   roar: 1.15,
   fire: 0.6, // the rush of flame inside a roar, relative to the voice
+  cry: 0.5, // a short call: the answer to being called
   whistle: 0.07,
   reverb: 0.55,
   echo: 0.4,
@@ -52,6 +62,38 @@ export const LEVEL = {
 export function roarReach(distance) {
   return clamp(distance / 60, 0.45, 2.4);
 }
+
+/**
+ * How loud the rush of air round a flying dragon is at the dragon, for a size of 1: more with
+ * speed, and much more close to the listener. Beyond 56 m it is only its speed that counts;
+ * from there in, the wake itself is heard, up to five times as strong at 16 m (which is where
+ * the close passes go by). That is on top of what distance does to every sound: the nearer a
+ * dragon comes, the more it is heard, even gliding with its wings set, when there is no
+ * wingbeat to hear. `beating`: how hard it is beating its wings, 0..1. `cupped`: how far its
+ * wings are held against the air to slow it, 0..1: that is a great deal of air being shoved
+ * aside, and it is heard (the long swoop over the ledge is flown that way, and is all rush).
+ */
+export function rushLevel(speed, distance, beating, cupped) {
+  const rush = clamp((speed - 5) / 16, 0, 1);
+  const close = clamp((56 - distance) / 40, 0, 1);
+  // While it is beating its wings the beats are what is heard, and the rush stands back.
+  return LEVEL.rush * rush * (1 + 4 * close * close) * (1 - 0.55 * clamp((beating || 0) / 0.6, 0, 1)) * (1 + 0.9 * clamp(cupped || 0, 0, 1));
+}
+
+/** The slide of a wingbeat's pitch from its start to its end, as steps: 520 Hz down to 190 Hz for the big dragon. */
+const BEAT_SLIDE = [1, 0.82, 0.67, 0.55, 0.45, 0.365];
+/** How often a dragon's filters and gains are brought up to date, and the wind's filters (seconds). */
+const VOICE_STEP = 0.12;
+const WIND_STEP = 0.1;
+/**
+ * How often the listener and the dragons are put where they are (seconds): a little under two
+ * frames of a 72 Hz headset. At 15 m/s and 12 m off that is steps of two degrees, which the
+ * browser's panner smooths over.
+ */
+const PLACE_STEP = 0.024;
+
+/** Has a setting moved by more than `part` of itself (so that it is worth telling the audio graph)? */
+const moved = (now, was, part) => Math.abs(now - was) > Math.abs(was) * part + 1e-6;
 
 /** How a dragon's sounds fall off with distance: full at `ref` metres, then roughly 1/distance. */
 const DRAGON_FALLOFF = { ref: 14, rolloff: 1.1 };
@@ -224,16 +266,7 @@ function makeGrit(amount) {
   return curve;
 }
 
-function setPosition(node, x, y, z, until) {
-  if (node.positionX) {
-    node.positionX.linearRampToValueAtTime(x, until);
-    node.positionY.linearRampToValueAtTime(y, until);
-    node.positionZ.linearRampToValueAtTime(z, until);
-  } else if (node.setPosition) {
-    node.setPosition(x, y, z);
-  }
-}
-
+/** Put a panner (or the listener) somewhere. Set, not ramped: see the note on cost at the top. */
 function placeNow(node, x, y, z) {
   if (node.positionX) {
     node.positionX.value = x;
@@ -253,7 +286,12 @@ class DragonVoice {
     this.size = size;
     this.distance = 200;
     this.doppler = 1;
-    this.placed = false;
+    // What the graph was last told, and when it is next worth telling it again.
+    this.nextStep = -1;
+    this.cutoff = 6000;
+    this.send = 1;
+    this.rush = 0;
+    this.rushHz = 400;
     // Lower and longer for the big one.
     this.pitch = 1 / Math.pow(size, 1.4);
 
@@ -285,6 +323,15 @@ class DragonVoice {
     this.wingGain = ctx.createGain();
     this.wingGain.gain.value = 0;
     noise.connect(this.wingBand).connect(this.wingGain).connect(this.air);
+    // And the same beat higher up, quieter: the leathery edge of it. (A headset's small
+    // speakers give little below 300 Hz, where most of a wingbeat is.)
+    const wingEdge = ctx.createBiquadFilter();
+    wingEdge.type = 'bandpass';
+    wingEdge.frequency.value = 1250 * this.pitch;
+    wingEdge.Q.value = 0.8;
+    const wingEdgeGain = ctx.createGain();
+    wingEdgeGain.gain.value = 0.34;
+    noise.connect(wingEdge).connect(wingEdgeGain).connect(this.wingGain);
     // The thump of air under it.
     this.thumpLow = ctx.createBiquadFilter();
     this.thumpLow.type = 'lowpass';
@@ -301,6 +348,13 @@ class DragonVoice {
     this.rushGain = ctx.createGain();
     this.rushGain.gain.value = 0;
     noise.connect(this.rushBand).connect(this.rushGain).connect(this.air);
+    const rushEdge = ctx.createBiquadFilter();
+    rushEdge.type = 'bandpass';
+    rushEdge.frequency.value = 1150 * this.pitch;
+    rushEdge.Q.value = 0.6;
+    const rushEdgeGain = ctx.createGain();
+    rushEdgeGain.gain.value = 0.32;
+    noise.connect(rushEdge).connect(rushEdgeGain).connect(this.rushGain);
     noise.start();
 
     // Roars arrive here; part of each goes to the hills and comes back.
@@ -313,20 +367,40 @@ class DragonVoice {
     this.roarSend.connect(board.echoIn);
   }
 
-  /** Where it is and how it is moving; called every frame. */
-  move(x, y, z, speed, radial, distance, now, dt) {
-    const until = now + Math.max(dt, 0.005);
-    if (this.placed) setPosition(this.panner, x, y, z, until);
-    else placeNow(this.panner, x, y, z);
-    this.placed = true;
+  /**
+   * Where it is and how it is moving; called every frame. `now`: the audio clock; `beating`:
+   * how hard it is beating its wings, 0..1; `place`: false to leave the panner where it is
+   * this time (see PLACE_STEP); `cupped`: how far its wings are cupped against the air, 0..1.
+   * What depends on distance and speed is brought up to date every VOICE_STEP, and only what
+   * has moved.
+   */
+  move(x, y, z, speed, radial, distance, now, beating, place, cupped) {
+    if (place !== false) placeNow(this.panner, x, y, z);
     this.distance = distance;
     this.doppler = dopplerRatio(radial);
-    this.air.frequency.setTargetAtTime(airCutoff(distance), now, 0.1);
+    if (now < this.nextStep) return;
+    this.nextStep = now + VOICE_STEP;
+    const cutoff = airCutoff(distance);
+    if (moved(cutoff, this.cutoff, 0.02)) {
+      this.cutoff = cutoff;
+      this.air.frequency.value = cutoff;
+    }
     // What comes back off the hills fades with distance too, but more slowly than what comes straight.
-    this.roarSend.gain.setTargetAtTime(Math.pow(falloffGain(distance, DRAGON_FALLOFF), 0.75), now, 0.1);
-    const rush = clamp((speed - 9) / 19, 0, 1);
-    this.rushGain.gain.setTargetAtTime(LEVEL.rush * rush * rush * this.size, now, 0.15);
-    this.rushBand.frequency.setTargetAtTime((160 + 14 * speed) * this.pitch * this.doppler, now, 0.1);
+    const send = Math.pow(falloffGain(distance, DRAGON_FALLOFF), 0.75);
+    if (moved(send, this.send, 0.03)) {
+      this.send = send;
+      this.roarSend.gain.setTargetAtTime(send, now, 0.08);
+    }
+    const rush = rushLevel(speed, distance, beating, cupped) * this.size;
+    if (moved(rush, this.rush, 0.03)) {
+      this.rush = rush;
+      this.rushGain.gain.setTargetAtTime(rush, now, 0.1);
+    }
+    const hz = (160 + 14 * speed) * this.pitch * this.doppler;
+    if (moved(hz, this.rushHz, 0.02)) {
+      this.rushHz = hz;
+      this.rushBand.frequency.value = hz;
+    }
   }
 
   /** One downstroke. strength 0..1. `when`: audio-clock time at which it happens (not heard). */
@@ -338,9 +412,10 @@ class DragonVoice {
     const g = this.wingGain.gain;
     g.setTargetAtTime(LEVEL.wing * s * this.size, t, 0.035 * long);
     g.setTargetAtTime(0, t + 0.11 * long, 0.12 * long);
+    // The band slides down as the wing slows: in six steps, not as a ramp (a filter that is
+    // being ramped is worked out sample by sample, and on noise the steps cannot be heard).
     const f = this.wingBand.frequency;
-    f.setValueAtTime(520 * k, t);
-    f.exponentialRampToValueAtTime(190 * k, t + 0.42 * long);
+    for (let n = 0; n < BEAT_SLIDE.length; n++) f.setValueAtTime(520 * BEAT_SLIDE[n] * k, t + (0.42 * long * n) / (BEAT_SLIDE.length - 1));
     const b = this.thumpGain.gain;
     b.setTargetAtTime(LEVEL.thump * s * this.size, t + 0.02, 0.02);
     b.setTargetAtTime(0, t + 0.09 * long, 0.07 * long);
@@ -479,20 +554,89 @@ class DragonVoice {
     this.board.stats.roars++;
     this.board.hushUntil = Math.max(this.board.hushUntil, when + len + (kind === 'far' ? 7 : 10));
   }
+
+  /**
+   * A short call, with no fire in it. kind: 'answer' (it has heard the whistle and is coming:
+   * one bark that rises) or 'busy' (it is on its way already: two short grunts, falling).
+   * Like a roar it carries: the valley gives a little of it back.
+   */
+  cry(kind, when) {
+    const ctx = this.board.ctx;
+    const t0 = when + soundDelay(this.distance);
+    const peak = LEVEL.cry * roarReach(this.distance);
+    const base = 150 * this.pitch * this.doppler;
+    // [start, length, pitch at the start and at the end (times the base), strength]
+    const barks = kind === 'answer' ? [[0, 0.46, 0.8, 1.55, 1]] : [[0, 0.17, 1.05, 0.8, 0.8], [0.24, 0.2, 0.95, 0.66, 0.8]];
+    const grit = ctx.createWaveShaper();
+    grit.curve = makeGrit(2.2);
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    out.connect(this.roarIn);
+    // The throat: one low resonance and one that opens with the mouth.
+    for (const [hz, q, level] of [[430, 1.6, 1.5], [1250, 2.2, 1.3], [2500, 2.6, 0.5]]) {
+      const band = ctx.createBiquadFilter();
+      band.type = 'bandpass';
+      band.frequency.value = hz * this.pitch;
+      band.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.value = level;
+      grit.connect(band).connect(g).connect(out);
+    }
+    const sources = [];
+    let end = 0;
+    for (const [at, len, f0, f1, strength] of barks) {
+      const t = t0 + at;
+      end = Math.max(end, at + len);
+      out.gain.setValueAtTime(0, t);
+      out.gain.linearRampToValueAtTime(peak * strength, t + 0.04);
+      out.gain.setTargetAtTime(0, t + len * 0.6, len * 0.14);
+      for (const [type, ratio, level] of [['sawtooth', 1, 0.55], ['sawtooth', 1.007, 0.45], ['square', 0.5, 0.2]]) {
+        const osc = ctx.createOscillator();
+        osc.type = type;
+        osc.frequency.setValueAtTime(base * ratio * f0, t);
+        osc.frequency.linearRampToValueAtTime(base * ratio * f1, t + len);
+        const g = ctx.createGain();
+        g.gain.value = level * 0.5;
+        osc.connect(g).connect(grit);
+        osc.start(t);
+        osc.stop(t + len + 0.25);
+        sources.push(osc);
+      }
+    }
+    sources[sources.length - 1].onended = () => {
+      try {
+        out.disconnect();
+      } catch (err) {
+        /* already gone */
+      }
+    };
+    this.board.stats.cries = (this.board.stats.cries || 0) + 1;
+    this.board.hushUntil = Math.max(this.board.hushUntil, when + end + 3);
+  }
 }
 
 export class Soundscape {
-  /** options: { hrtf: place the dragons with head-related filters (default true), reverb: true, seed } */
+  /** options: { hrtf: place the dragons with head-related filters (default true), reverb: true, lite: start the cheap way (see setLite), seed } */
   constructor(options) {
     const o = options || {};
     this.options = { hrtf: o.hrtf !== false, reverb: o.reverb !== false, seed: o.seed || 1 };
     this.ctx = null;
     this.master = null;
     this.muted = false;
+    this.lite = !!o.lite;
+    this.reverbOff = false;
+    this.asleep = { muted: false, hidden: false };
+    this.sleeping = false; // what the context was last told
+    this.sleepTimer = 0;
     this.dragons = [];
     this.stats = { beats: 0, roars: 0, birds: 0, gusts: 0 };
     this.rng = makeRng(this.options.seed * 31 + 5);
     this.gust = 0.4; // how hard the wind is blowing, 0..1 (what was last asked for)
+    this.gusts = []; // gusts that have been asked for and have not begun: { when, level, tau }
+    this.wind = { now: 0.4, level: 0.4, tau: 1, next: 0, told: -1 }; // where the wind's filters are on their way to that
+    this.nextPlace = 0; // when the listener and the dragons are next put where they are
+    this.wash = 0; // how hard a dragon's wake is shaking the maple, 0..1
+    this.washTold = 1; // what the maple's gain was last told: times what the wind alone gives it
     this.nextGust = 0;
     this.nextBird = 4;
     this.hushUntil = 0;
@@ -514,7 +658,15 @@ export class Soundscape {
         if (!Ctor) return false;
         this.attach(new Ctor({ latencyHint: 'playback' }), sizes || [1, 0.78]);
       }
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      // (Asleep for a reason, switched off or nobody looking, it stays asleep: see sleep().)
+      const should = this.asleep.muted || this.asleep.hidden;
+      if (should && !this.sleeping) {
+        // Made while switched off: straight to sleep.
+        this.sleeping = true;
+        this.ctx.suspend().catch(() => {});
+      } else if (!should && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
       return true;
     } catch (err) {
       console.warn('Sound is not available:', err);
@@ -550,10 +702,12 @@ export class Soundscape {
     // one clear echo from the far side of the lake, a second and a bit later.
     this.reverbIn = ctx.createGain();
     this.reverbIn.gain.value = this.options.reverb ? LEVEL.reverb : 0;
+    this.reverb = null;
     if (this.options.reverb) {
       const reverb = ctx.createConvolver();
       reverb.buffer = makeImpulse(ctx, 2.4, 777);
       this.reverbIn.connect(reverb).connect(master);
+      this.reverb = reverb;
     }
     this.echoIn = ctx.createGain();
     this.echoIn.gain.value = LEVEL.echo;
@@ -586,6 +740,29 @@ export class Soundscape {
     this.dragons = sizes.map((size, i) => new DragonVoice(this, i, size));
     this.nextGust = ctx.currentTime;
     this.nextBird = ctx.currentTime + 3 + 3 * this.rng();
+    if (this.lite) this.setLite(true);
+  }
+
+  /**
+   * The cheap way of placing sound, on or off: plain left and right instead of filters shaped
+   * like a head, and no echo off the hills. It takes about a fifth off what the sound costs
+   * the processor (measured: see the README). The page turns it on when a headset is not
+   * holding its frame rate; `?sound=lite` in the address starts with it.
+   */
+  setLite(on) {
+    this.lite = !!on;
+    if (!this.ctx) return;
+    const model = this.lite || !this.options.hrtf ? 'equalpower' : 'HRTF';
+    for (const d of this.dragons) if (d.panner.panningModel !== model) d.panner.panningModel = model;
+    if (!this.reverb || this.reverbOff === this.lite) return;
+    this.reverbOff = this.lite;
+    try {
+      // A convolver that is fed nothing falls silent and stops costing anything.
+      if (this.lite) this.reverbIn.disconnect(this.reverb);
+      else this.reverbIn.connect(this.reverb);
+    } catch (err) {
+      /* it was already as wanted */
+    }
   }
 
   /** Wind and the far forest: not placed in space, but different in each ear. */
@@ -680,15 +857,47 @@ export class Soundscape {
     panner.refDistance = 7;
     panner.rolloffFactor = 1;
     placeNow(panner, tree.x + 1.5, tree.height - 5, tree.z - 1.5);
-    src.connect(high).connect(band).connect(flutter).connect(this.mapleGain).connect(panner).connect(this.master);
+    // The wind is not all that shakes it: a dragon going by close does too (see setWash).
+    this.mapleWash = ctx.createGain();
+    this.mapleWash.gain.value = 1;
+    src.connect(high).connect(band).connect(flutter).connect(this.mapleGain).connect(this.mapleWash).connect(panner).connect(this.master);
     src.start(0, 0.4);
     jitter.start(0, 3.1);
     this.maplePanner = panner;
   }
 
+  /**
+   * Sound off or on. Off is not a gain of nothing: the whole context is put to sleep, because
+   * a graph that is rendering silence costs as much as one that is heard.
+   */
   setMuted(muted) {
     this.muted = !!muted;
-    if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : LEVEL.master, this.ctx.currentTime, 0.05);
+    this.sleep('muted', this.muted);
+  }
+
+  /**
+   * Put the sound to sleep for a reason, or lift that reason: 'muted' (switched off), 'hidden'
+   * (nobody is looking: the tab is in the background, or the headset is off the head). It runs
+   * only while there is no reason left.
+   */
+  sleep(reason, on) {
+    this.asleep[reason] = !!on;
+    if (!this.ctx || this.offline) return;
+    const ctx = this.ctx;
+    const should = this.asleep.muted || this.asleep.hidden;
+    if (should === this.sleeping) return;
+    this.sleeping = should;
+    clearTimeout(this.sleepTimer);
+    if (should) {
+      // Fade first (a fifth of a second), so that it does not stop with a click.
+      if (ctx.state === 'running') this.master.gain.setTargetAtTime(0, ctx.currentTime, 0.03);
+      this.sleepTimer = setTimeout(() => {
+        if (this.asleep.muted || this.asleep.hidden) ctx.suspend().catch(() => {});
+      }, 200);
+    } else {
+      ctx.resume().catch(() => {});
+      this.master.gain.setTargetAtTime(LEVEL.master, ctx.currentTime, 0.05);
+    }
   }
 
   /** A new gust: everything that the wind moves swells or dies down over a few seconds. */
@@ -696,13 +905,39 @@ export class Soundscape {
     const tau = seconds / 3;
     this.gust = level;
     for (const g of this.windGains) g.gain.setTargetAtTime(LEVEL.wind * (0.3 + 0.9 * level), when, tau);
-    this.windFilters[0].frequency.setTargetAtTime(300 + 420 * level, when, tau);
-    this.windFilters[2].frequency.setTargetAtTime(300 + 380 * level, when + 0.4, tau);
-    this.windFilters[1].frequency.setTargetAtTime(480 + 520 * level, when, tau);
-    this.windFilters[3].frequency.setTargetAtTime(440 + 560 * level, when + 0.4, tau);
     this.forestGain.gain.setTargetAtTime(LEVEL.forest * (0.25 + level * level), when + 0.5, tau);
     this.mapleGain.gain.setTargetAtTime(LEVEL.maple * (0.12 + 0.88 * level * level), when + 0.2, tau * 0.8);
+    // The wind's four filters follow in steps, from update(): a slow sweep left to the audio
+    // clock would have each of them worked out sample by sample for seconds on end.
+    this.gusts.push({ when, level, tau });
     this.stats.gusts++;
+  }
+
+  /** Move the wind's filters toward where the last gust that has begun wants them. */
+  stepWind(now, dt) {
+    const w = this.wind;
+    while (this.gusts.length && this.gusts[0].when <= now) {
+      const g = this.gusts.shift();
+      w.level = g.level;
+      w.tau = Math.max(g.tau, 0.01);
+    }
+    w.now += (w.level - w.now) * (1 - Math.exp(-dt / w.tau));
+    if (now < w.next) return;
+    w.next = now + WIND_STEP;
+    if (Math.abs(w.now - w.told) < 0.004) return;
+    w.told = w.now;
+    this.windFilters[0].frequency.value = 300 + 420 * w.now;
+    this.windFilters[2].frequency.value = 300 + 380 * w.now;
+    this.windFilters[1].frequency.value = 480 + 520 * w.now;
+    this.windFilters[3].frequency.value = 440 + 560 * w.now;
+  }
+
+  /**
+   * How hard a dragon's wake is shaking the maple by the ledge, 0..1 (main.js works it out from
+   * how close the dragons are): its leaves rattle as they do in a gust.
+   */
+  setWash(amount) {
+    this.wash = clamp(amount, 0, 1);
   }
 
   /**
@@ -801,27 +1036,33 @@ export class Soundscape {
 
   /**
    * Once a frame. listener: { position: [x, y, z], forward: [x, y, z], up: [x, y, z] } (the
-   * viewer's head). dragons: [{ x, y, z, vx, vy, vz, speed }] in the same order as attach().
+   * viewer's head). dragons: [{ x, y, z, vx, vy, vz, speed, beating, cupped }] in the same order as attach().
    */
   update(dt, listener, dragons) {
     const ctx = this.ctx;
     if (!this.running) return;
     const now = ctx.currentTime;
-    const until = now + Math.max(dt, 0.005);
     const l = ctx.listener;
     const p = listener.position;
     const f = listener.forward;
     const u = listener.up;
-    if (l.positionX) {
-      l.positionX.linearRampToValueAtTime(p[0], until);
-      l.positionY.linearRampToValueAtTime(p[1], until);
-      l.positionZ.linearRampToValueAtTime(p[2], until);
-      l.forwardX.linearRampToValueAtTime(f[0], until);
-      l.forwardY.linearRampToValueAtTime(f[1], until);
-      l.forwardZ.linearRampToValueAtTime(f[2], until);
-      l.upX.linearRampToValueAtTime(u[0], until);
-      l.upY.linearRampToValueAtTime(u[1], until);
-      l.upZ.linearRampToValueAtTime(u[2], until);
+    // Set, not ramped: see the note on cost at the top. And not on every frame: each setting
+    // makes the browser work one block out sample by sample, so the ears and the dragons are
+    // moved 36 times a second, which is every other frame of a headset.
+    const place = now >= this.nextPlace;
+    if (place) this.nextPlace = now + PLACE_STEP;
+    if (!place) {
+      /* the ears stay where they were for this frame */
+    } else if (l.positionX) {
+      l.positionX.value = p[0];
+      l.positionY.value = p[1];
+      l.positionZ.value = p[2];
+      l.forwardX.value = f[0];
+      l.forwardY.value = f[1];
+      l.forwardZ.value = f[2];
+      l.upX.value = u[0];
+      l.upY.value = u[1];
+      l.upZ.value = u[2];
     } else {
       l.setPosition(p[0], p[1], p[2]);
       l.setOrientation(f[0], f[1], f[2], u[0], u[1], u[2]);
@@ -835,10 +1076,21 @@ export class Soundscape {
       const rz = d.z - p[2];
       const distance = Math.hypot(rx, ry, rz) || 1;
       const radial = (rx * d.vx + ry * d.vy + rz * d.vz) / distance;
-      this.dragons[i].move(d.x, d.y, d.z, d.speed, radial, distance, now, dt);
+      this.dragons[i].move(d.x, d.y, d.z, d.speed, radial, distance, now, d.beating, place, d.cupped);
       if (distance < nearest) nearest = distance;
     }
     this.nearest = nearest;
+
+    this.stepWind(now, dt);
+    // The maple rattles for a wake as it does for a gust, whichever of the two is shaking it
+    // harder: a full wake brings it up to what a full gust does, and no further (one on top
+    // of the other, it was louder than the dragon going by).
+    const windRattle = 0.12 + 0.88 * this.wind.now * this.wind.now;
+    const wash = Math.max(1, (0.12 + 0.88 * this.wash) / windRattle);
+    if (Math.abs(wash - this.washTold) > 0.04 * this.washTold) {
+      this.washTold = wash;
+      this.mapleWash.gain.setTargetAtTime(wash, now, 0.25);
+    }
 
     // The wind comes and goes.
     if (now >= this.nextGust) {
@@ -942,5 +1194,12 @@ export class Soundscape {
   roar(i, kind, seconds) {
     if (!this.running || !this.dragons[i]) return;
     this.dragons[i].roar(kind, this.ctx.currentTime, seconds);
+  }
+
+  /** Dragon i calls back: 'answer' (it is coming) or 'busy' (it is on its way already). */
+  cry(i, kind) {
+    if (!this.running || !this.dragons[i]) return;
+    // A moment after the whistle that it answers.
+    this.dragons[i].cry(kind, this.ctx.currentTime + 0.45);
   }
 }

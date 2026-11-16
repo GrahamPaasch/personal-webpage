@@ -31,9 +31,10 @@ export class MeshBuilder {
 
   /**
    * One triangle, counter-clockwise seen from outside. `color` and `aux` are either one value
-   * for the whole face or an array of three (one per corner).
+   * for the whole face or an array of three (one per corner). `normals`, if given, is three
+   * unit normals (one per corner) to use instead of the face's own: a rounded surface.
    */
-  tri(a, b, c, color, aux) {
+  tri(a, b, c, color, aux, normals) {
     const ux = b[0] - a[0];
     const uy = b[1] - a[1];
     const uz = b[2] - a[2];
@@ -56,20 +57,22 @@ export class MeshBuilder {
       const col = perCornerColor ? color[i] : color;
       const x = perCornerAux ? aux[i] : aux || ZERO4;
       this.position.push(p[0], p[1], p[2]);
-      this.normal.push(nx, ny, nz);
+      if (normals) this.normal.push(normals[i][0], normals[i][1], normals[i][2]);
+      else this.normal.push(nx, ny, nz);
       this.color.push(col[0], col[1], col[2]);
       this.aux.push(x[0], x[1], x[2], x[3]);
     }
     return this;
   }
 
-  /** A four-sided face a-b-c-d (counter-clockwise), as two triangles. */
-  quad(a, b, c, d, color, aux) {
-    if (Array.isArray(color[0]) || (aux && Array.isArray(aux[0]))) {
+  /** A four-sided face a-b-c-d (counter-clockwise), as two triangles. `normals`: four, or none. */
+  quad(a, b, c, d, color, aux, normals) {
+    if (Array.isArray(color[0]) || (aux && Array.isArray(aux[0])) || normals) {
       const col = Array.isArray(color[0]) ? color : [color, color, color, color];
       const x = aux && Array.isArray(aux[0]) ? aux : [aux || ZERO4, aux || ZERO4, aux || ZERO4, aux || ZERO4];
-      this.tri(a, b, c, [col[0], col[1], col[2]], [x[0], x[1], x[2]]);
-      this.tri(a, c, d, [col[0], col[2], col[3]], [x[0], x[2], x[3]]);
+      const n = normals;
+      this.tri(a, b, c, [col[0], col[1], col[2]], [x[0], x[1], x[2]], n ? [n[0], n[1], n[2]] : undefined);
+      this.tri(a, c, d, [col[0], col[2], col[3]], [x[0], x[2], x[3]], n ? [n[0], n[2], n[3]] : undefined);
     } else {
       this.tri(a, b, c, color, aux);
       this.tri(a, c, d, color, aux);
@@ -83,10 +86,42 @@ export class MeshBuilder {
    * faces point outward when the rings advance along +z and wind x -> y).
    * colorAt(k, i) and auxAt(k, i) give the value for ring k, point i (corner values), or for a
    * face when `faceColor` is set: faceColor(k, i) colours the whole quad between rings k, k+1.
+   * `round`: light it as a round body and not as a faceted one: every point of a ring gets a
+   * normal that points out from the middle of its ring (leaning along the loft where the
+   * loft narrows or widens), shared by the faces that meet there.
    */
   loft(rings, options) {
     const o = options || {};
     const n = rings[0].length;
+    let normals = null;
+    if (o.round) {
+      const mids = rings.map((ring) => {
+        const m = [0, 0, 0];
+        for (const p of ring) {
+          m[0] += p[0] / n;
+          m[1] += p[1] / n;
+          m[2] += p[2] / n;
+        }
+        return m;
+      });
+      normals = rings.map((ring, k) => {
+        const a = mids[Math.max(k - 1, 0)];
+        const b = mids[Math.min(k + 1, rings.length - 1)];
+        const axis = normalize([b[0] - a[0], b[1] - a[1], b[2] - a[2]]);
+        const before = rings[Math.max(k - 1, 0)];
+        const after = rings[Math.min(k + 1, rings.length - 1)];
+        return ring.map((p, i) => {
+          const out = [p[0] - mids[k][0], p[1] - mids[k][1], p[2] - mids[k][2]];
+          const reach = Math.hypot(out[0], out[1], out[2]) || 1;
+          // How fast the body widens along its length here: the normal leans back by that.
+          const r0 = Math.hypot(before[i][0] - a[0], before[i][1] - a[1], before[i][2] - a[2]);
+          const r1 = Math.hypot(after[i][0] - b[0], after[i][1] - b[1], after[i][2] - b[2]);
+          const run = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) || 1;
+          const lean = (r1 - r0) / run;
+          return normalize([out[0] / reach - axis[0] * lean, out[1] / reach - axis[1] * lean, out[2] / reach - axis[2] * lean]);
+        });
+      });
+    }
     for (let k = 0; k + 1 < rings.length; k++) {
       const r0 = rings[k];
       const r1 = rings[k + 1];
@@ -95,7 +130,7 @@ export class MeshBuilder {
         const flat = o.faceColor ? o.faceColor(k, i) : null;
         const col = flat || [o.colorAt(k, i), o.colorAt(k, j), o.colorAt(k + 1, j), o.colorAt(k + 1, i)];
         const aux = o.auxAt ? [o.auxAt(k, i), o.auxAt(k, j), o.auxAt(k + 1, j), o.auxAt(k + 1, i)] : o.aux;
-        this.quad(r0[i], r0[j], r1[j], r1[i], col, aux);
+        this.quad(r0[i], r0[j], r1[j], r1[i], col, aux, normals ? [normals[k][i], normals[k][j], normals[k + 1][j], normals[k + 1][i]] : undefined);
       }
     }
     if (o.capStart) this.cap(rings[0], true, o.capStart, o.capStartAux || o.aux);
@@ -156,9 +191,18 @@ export class MeshBuilder {
   /**
    * A lumpy ball: an icosahedron (detail 0: 20 faces, 1: 80, 2: 320) stretched to `radius`
    * [rx, ry, rz] around `center` and pushed in and out by `bumps` (0 = smooth).
-   * color: one colour, or (unitDirection, faceIndex) => colour. aux likewise.
+   * color: one colour, or (unitDirection of the face, faceIndex) => colour.
+   * aux: one set of four numbers, or (unitDirection of a corner) => four numbers. It is worked
+   * out per corner, not per face, so that the faces which meet at a corner agree there: aux
+   * carries how far a vertex sways in the wind, and faces that swayed by different amounts
+   * came apart along their edges, with the background showing through as hairlines.
+   * options: { corner: the colour function is asked per corner, (unitDirection, cornerIndex),
+   * so that colour runs smoothly over the lump instead of changing from face to face;
+   * round: 0..1, how far each corner's normal is turned from its face's toward the lump's own
+   * roundness, so that light falls on it as on one soft mass and not on a cut stone }.
    */
-  blob(center, radius, detail, bumps, seed, color, aux) {
+  blob(center, radius, detail, bumps, seed, color, aux, options) {
+    const o = options || {};
     const sphere = icosphere(detail);
     const verts = sphere.vertices;
     const moved = new Array(verts.length);
@@ -168,16 +212,29 @@ export class MeshBuilder {
       moved[i] = [center[0] + d[0] * radius[0] * k, center[1] + d[1] * radius[1] * k, center[2] + d[2] * radius[2] * k];
     }
     const colorFn = typeof color === 'function' ? color : null;
-    const auxFn = typeof aux === 'function' ? aux : null;
+    const auxAt = typeof aux === 'function' ? verts.map((d) => aux(d)) : null;
+    const cornerColor = colorFn && o.corner ? verts.map((d, i) => colorFn(d, i)) : null;
+    // The way the lump's own surface faces at each corner (an ellipsoid's normal).
+    const round = o.round ? verts.map((d) => normalize([d[0] / radius[0], d[1] / radius[1], d[2] / radius[2]])) : null;
     const dir = [0, 0, 0];
     for (let f = 0; f < sphere.faces.length; f++) {
       const [a, b, c] = sphere.faces[f];
-      if (colorFn || auxFn) {
+      if (colorFn && !cornerColor) {
         dir[0] = (verts[a][0] + verts[b][0] + verts[c][0]) / 3;
         dir[1] = (verts[a][1] + verts[b][1] + verts[c][1]) / 3;
         dir[2] = (verts[a][2] + verts[b][2] + verts[c][2]) / 3;
       }
-      this.tri(moved[a], moved[b], moved[c], colorFn ? colorFn(dir, f) : color, auxFn ? auxFn(dir, f) : aux);
+      let normals = null;
+      if (round) {
+        const pa = moved[a];
+        const pb = moved[b];
+        const pc = moved[c];
+        const face = normalize(cross([pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]], [pc[0] - pa[0], pc[1] - pa[1], pc[2] - pa[2]]));
+        const k = o.round;
+        normals = [a, b, c].map((v) => normalize([face[0] * (1 - k) + round[v][0] * k, face[1] * (1 - k) + round[v][1] * k, face[2] * (1 - k) + round[v][2] * k]));
+      }
+      const col = cornerColor ? [cornerColor[a], cornerColor[b], cornerColor[c]] : colorFn ? colorFn(dir, f) : color;
+      this.tri(moved[a], moved[b], moved[c], col, auxAt ? [auxAt[a], auxAt[b], auxAt[c]] : aux, normals);
     }
     return this;
   }

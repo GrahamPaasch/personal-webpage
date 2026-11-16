@@ -8,7 +8,7 @@
 
 import { THREE, dragonMaterial, flameMaterial } from './shaders.js';
 import { buildDragon, buildFlame, DRAGONS } from './dragonGeometry.js';
-import { BONE, BONE_COUNT, restPose, poseSkeleton, heave } from './rig.js';
+import { BONE, BONE_COUNT, restPose, poseSkeleton, poseFromFlyer, heave } from './rig.js';
 import { ROAR_SECONDS } from './flight.js';
 import * as W from './world.js';
 
@@ -67,12 +67,15 @@ export class DragonView {
     this.flip = new THREE.Matrix4().set(1, 0, 0, 0, 0, -1, 0, 2 * W.LAKE_LEVEL, 0, 0, 1, 0, 0, 0, 0, 1);
     this.sunlit = 1;
 
-    // Its fire: one more draw call, and only while it is breathing.
+    // Its fire, and the glow round the fire: one more draw call, and only while it is breathing.
     const fire = buildFlame(spec.build);
+    // (The fire lights the dragon's own face: the materials are told where the mouth is.)
+    for (const material of [this.material, this.mirrorMaterial]) material.uniforms.uMouth.value.set(fire.mouth[0], fire.mouth[1], fire.mouth[2], this.scale);
     const fg = new THREE.BufferGeometry();
     fg.setAttribute('position', new THREE.BufferAttribute(fire.position, 3));
     fg.setAttribute('dir', new THREE.BufferAttribute(fire.dir, 3));
     fg.setAttribute('flame', new THREE.BufferAttribute(fire.flame, 3));
+    fg.setAttribute('glow', new THREE.BufferAttribute(fire.glow, 4));
     fg.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 4 * this.scale), 16 * this.scale);
     this.flameMaterial = flameMaterial(stage.shared, fire.length);
     this.flame = new THREE.Mesh(fg, this.flameMaterial);
@@ -88,17 +91,8 @@ export class DragonView {
    * turn, arch, lookYaw, lookPitch, jaw }. time: seconds.
    */
   update(f, time, dt) {
-    const pose = this.pose;
-    pose.flap = f.flap;
-    pose.power = f.power;
-    pose.tuck = f.tuck;
-    pose.brake = f.brake;
-    pose.turn = f.turn;
-    pose.arch = f.arch;
-    pose.lookYaw = f.lookYaw;
-    pose.lookPitch = f.lookPitch;
-    pose.jaw = f.jaw;
-    pose.time = time + this.scale * 10;
+    // (The small idle movements, tail and neck, run a little more slowly on the bigger animal.)
+    const pose = poseFromFlyer(this.pose, f, (time + this.scale * 10) / Math.sqrt(this.scale));
     poseSkeleton(this.skeleton, pose, this.world, this.skin);
 
     const mesh = this.mesh;
@@ -129,6 +123,8 @@ export class DragonView {
 
     // Fire, while it roars: carried by the head.
     this.fire = firePower(f.roar);
+    this.material.uniforms.uFire.value = this.fire;
+    this.mirrorMaterial.uniforms.uFire.value = this.fire;
     this.flame.visible = this.fire > 0.01;
     if (this.flame.visible) {
       const s = this.skin;

@@ -291,6 +291,27 @@ export function poseSkeleton(skeleton, pose, world, skin) {
   return skin;
 }
 
+/**
+ * Fill a pose from the state of a flyer (flight.js): what the picture shows of how it is
+ * flying. `time` is the clock for the small idle movements. Returns the pose.
+ */
+export function poseFromFlyer(pose, f, time) {
+  pose.flap = f.flap;
+  pose.power = f.power;
+  pose.tuck = f.tuck;
+  // With the wings set for a glide past something (f.set) they are spread wide and nearly
+  // flat, cupped only a little: the brake is on, but what is seen is a great still wing,
+  // not one held high like a goose's coming down on water.
+  pose.brake = f.brake * (1 - 0.6 * (f.set || 0));
+  pose.turn = f.turn;
+  pose.arch = f.arch;
+  pose.lookYaw = f.lookYaw;
+  pose.lookPitch = f.lookPitch;
+  pose.jaw = f.jaw;
+  pose.time = time;
+  return pose;
+}
+
 /** How far the whole body rides up (metres, at scale 1) at this point of the beat. */
 export function heave(pose) {
   return -0.3 * Math.cos(pose.flap - 0.45) * clamp(pose.power, 0, 1);
@@ -304,3 +325,49 @@ export function skinPoint(skin, bone, p, out) {
   out[2] = skin[o + 8] * p[0] + skin[o + 9] * p[1] + skin[o + 10] * p[2] + skin[o + 11];
   return out;
 }
+
+/**
+ * How near a flying dragon's wings come to a point (the viewer's head): the least distance, in
+ * metres, from `point` to any of its six finger tips, with the dragon posed and placed as the
+ * picture has it (dragons.js). The tests and tools/flysim.mjs fly hours with this, to know
+ * how close a wing really comes; the page itself never asks.
+ *
+ *   skeleton       from makeSkeleton
+ *   pose           as poseSkeleton takes it (flap, power, tuck, brake, ...)
+ *   f              { x, y, z, heading, pitch, bank } from the flight
+ *   world, skin    Float32Array(BONE_COUNT * 12) each, to work in
+ */
+export function wingReach(skeleton, pose, f, point, world, skin) {
+  poseSkeleton(skeleton, pose, world, skin);
+  const s = skeleton.build.scale;
+  const rise = heave(pose) * s;
+  // Heading turns about y, pitch lifts the nose, a bank to the left drops the left wing: the
+  // same turns, in the same order, as the picture makes (three.js 'YXZ' of -pitch, heading, -bank).
+  const cy = Math.cos(f.heading);
+  const sy = Math.sin(f.heading);
+  const cx = Math.cos(-f.pitch);
+  const sx = Math.sin(-f.pitch);
+  const cz = Math.cos(-f.bank);
+  const sz = Math.sin(-f.bank);
+  let least = Infinity;
+  for (let w = 0; w < 2; w++) {
+    const wing = w === 0 ? skeleton.wingL : skeleton.wingR;
+    const k = w === 0 ? 0 : 5;
+    const tips = [[wing.tip1, BONE.handL + k], [wing.tip2, BONE.finger2L + k], [wing.tip3, BONE.finger3L + k]];
+    for (let t = 0; t < 3; t++) {
+      skinPoint(skin, tips[t][1], tips[t][0], TIP);
+      // About z, then x, then y; the body rides up along its own "up" on each downstroke.
+      const x1 = TIP[0] * cz - (TIP[1] + rise) * sz;
+      const y1 = TIP[0] * sz + (TIP[1] + rise) * cz;
+      const y2 = y1 * cx - TIP[2] * sx;
+      const z2 = y1 * sx + TIP[2] * cx;
+      const x3 = x1 * cy + z2 * sy;
+      const z3 = -x1 * sy + z2 * cy;
+      const d = Math.hypot(f.x + x3 - point[0], f.y + y2 - point[1], f.z + z3 - point[2]);
+      if (d < least) least = d;
+    }
+  }
+  return least;
+}
+const TIP = [0, 0, 0];
+

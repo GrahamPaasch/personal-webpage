@@ -24,8 +24,21 @@ export function reflectionBounds() {
   return { x0: LAKE.cx - ex, x1: LAKE.cx + ex, z0: LAKE.cz - ez, z1: LAKE.cz + ez };
 }
 
-const DEEP = [0.012, 0.04, 0.055]; // looking down into the water
-const SHALLOW = [0.17, 0.16, 0.1];
+const DEEP = [0.014, 0.018, 0.05]; // looking down into the water: ink, at this hour
+const SHALLOW = [0.1, 0.08, 0.065];
+/**
+ * How much of a mirror the lake is: this much looking straight down into it, and all of one
+ * at a glancing angle. (Water under a midday sky is a fifth of that, and one sees into it.
+ * Under a sky that is on fire, with the land gone dark, the lake is the sky lying on the
+ * ground: that is what is drawn.)
+ */
+const MIRROR_LEAST = 0.4;
+/** A mirrored ray that clears the land by less than this (radians) still sees some of it: the soft outline of the hills. */
+const EDGE = 0.045;
+/** How much of the sky's glow the haze in front of a far hill takes on, toward the sun. */
+const HAZE_GLOW = 0.6;
+/** Far from the viewer the mirror image is smeared along the line of sight, by up to this many texels each way. */
+const SMEAR = 9;
 
 /**
  * heights: HeightGrid of the land with its treetops (fine, near). far: HeightGrid of the bare
@@ -53,25 +66,42 @@ export function bakeReflection(size, heights, far, sunHeight, eye) {
       dy /= len;
       dz /= len;
       const ry = -dy;
-      // Walk the mirrored ray until it meets land.
+      // Walk the mirrored ray until it meets land. Where it only just clears a hill the answer
+      // is not "sky": the outline of a hill 800 m off, mirrored in water that is never still,
+      // is not a line. So the nearest miss is kept too (how far above the land the ray was, as
+      // an angle), and over the last couple of degrees land fades into sky.
       let hit = false;
       let s = 3;
       let hx = 0;
       let hy = 0;
       let hz = 0;
+      let clear = Infinity;
+      let cs = 0;
       for (let k = 0; k < 110 && s < 2600; k++) {
-        hx = x + dx * s;
-        hz = z + dz * s;
-        hy = LAKE_LEVEL + ry * s;
-        const inside = Math.abs(hx) < heights.half && Math.abs(hz) < heights.half;
-        const land = inside ? heights.at(hx, hz) : far.at(hx, hz) + 9;
-        if (hy < land) {
+        const px = x + dx * s;
+        const pz = z + dz * s;
+        const py = LAKE_LEVEL + ry * s;
+        const inside = Math.abs(px) < heights.half && Math.abs(pz) < heights.half;
+        const land = inside ? heights.at(px, pz) : far.at(px, pz) + 9;
+        const over = (py - land) / s;
+        if (over < clear) {
+          clear = over;
+          cs = s;
+          hx = px;
+          hy = Math.min(py, land);
+          hz = pz;
+        }
+        if (over < 0) {
           hit = true;
           break;
         }
         s *= 1.065;
       }
-      if (hit) {
+      // 0: land; 1: sky; between: the ray passed within EDGE of the land.
+      const open = hit ? 0 : smoothstep(0, EDGE, clear);
+      skyColor(dx, ry, dz, sky);
+      if (open < 1) {
+        s = cs;
         const forest = forestDensity(hx, hz) > 0.4;
         // Seen from the ledge these slopes face the viewer and the sky.
         let nx = -dx * 0.6;
@@ -86,37 +116,47 @@ export function bakeReflection(size, heights, far, sunHeight, eye) {
         lightOn(nx, ny, nz, lit, light);
         if (forest) {
           canopyColor(hx, hz, hash2(Math.floor(hx / 11), Math.floor(hz / 11)), albedo);
-          const through = Math.max(-(nx * SUN_DIR[0] + ny * SUN_DIR[1] + nz * SUN_DIR[2]), 0) * 0.55 * lit;
+          const through = Math.max(-(nx * SUN_DIR[0] + ny * SUN_DIR[1] + nz * SUN_DIR[2]), 0) * 0.45 * lit;
           for (let q = 0; q < 3; q++) c[q] = albedo[q] * (light[q] + LIGHT.sun[q] * through) * 0.8;
         } else {
           groundColor(hx, hz, hy, 0.4, albedo);
           for (let q = 0; q < 3; q++) c[q] = albedo[q] * light[q];
         }
-        const f = fogAmount(LAKE_LEVEL, ry, s);
+        // Haze: all the way from the eye down to the water and on to the hill, which is at
+        // least what lies between the eye and the same hill seen straight. And haze toward a
+        // low sun is not only tinted, it glows as the sky behind it does: a far hill under
+        // the sun is nearly the colour of that sky, not a dark shape cut out of it.
+        const f = Math.max(fogAmount(LAKE_LEVEL, ry, s), fogAmount(eye[1], (hy - eye[1]) / Math.max(len + s, 1), len + s));
         fogColor(dx, ry, dz, fog);
-        for (let q = 0; q < 3; q++) c[q] = lerp(c[q], fog[q], f);
+        for (let q = 0; q < 3; q++) {
+          const hazed = lerp(fog[q], sky[q], HAZE_GLOW);
+          c[q] = lerp(lerp(c[q], hazed, f), sky[q], open);
+        }
       } else {
-        skyColor(dx, ry, dz, sky);
         c[0] = sky[0];
         c[1] = sky[1];
         c[2] = sky[2];
       }
       // Water mirrors more at a glancing angle; looking down you see into it.
       const cosI = Math.abs(dy);
-      const mirror = 0.1 + 0.9 * Math.pow(1 - cosI, 2.6);
+      const mirror = MIRROR_LEAST + (1 - MIRROR_LEAST) * Math.pow(1 - cosI, 2);
       const dl = lakeDistance(x, z);
-      const shore = smoothstep(-4, 0, dl) * 0.55;
+      const shore = smoothstep(-4, 0, dl) * 0.42;
       for (let q = 0; q < 3; q++) {
         c[q] = lerp(DEEP[q], c[q] * 0.92, mirror);
         c[q] = lerp(c[q], SHALLOW[q], shore);
       }
       toDisplay(c);
-      // The sun's path on the water: narrow sideways, long toward the viewer.
+      // The sun's path on the water: a road of light from under the sun toward the viewer,
+      // narrow far off and wider as it comes (the nearer the water, the steeper it is seen,
+      // and the more of its ripples are tilted the right way to throw the sun at the eye),
+      // fading as it nears the foot of the bluff.
       const flat = Math.hypot(dx, dz) || 1;
       const cosAz = (dx * SUN_DIR[0] + dz * SUN_DIR[2]) / (flat * sunFlat);
       const az = Math.acos(Math.min(Math.max(cosAz, -1), 1));
       const el = Math.asin(ry) - SUN_ELEVATION;
-      let glitter = Math.exp(-(az * az) / (0.075 * 0.075)) * Math.exp(-(el * el) / (0.2 * 0.2));
+      const wide = 0.05 + 0.11 * ry;
+      let glitter = Math.exp(-(az * az) / (wide * wide)) * Math.exp(-(el * el) / (0.5 * 0.5));
       glitter *= sunlitAt(sunHeight, x, LAKE_LEVEL + 0.5, z, 2) * (1 - shore);
       const o = (j * size + i) * 4;
       data[o] = Math.round(c[0] * 255);
@@ -142,7 +182,42 @@ export function bakeReflection(size, heights, far, sunHeight, eye) {
       }
     }
   }
-  return { data: soft, size, bounds: b };
+  // And they smear it most along the line of sight, more the further off and the flatter the
+  // water is seen: the far half of the lake mirrors streaks, not outlines. Each texel becomes
+  // the mean of those before and behind it on the line from the viewer, over a length that
+  // grows from nothing 120 m out to SMEAR texels each way at the far shore.
+  const smeared = new Uint8Array(data.length);
+  const texel = (b.z1 - b.z0) / size;
+  for (let j = 0; j < size; j++) {
+    const z = lerp(b.z0, b.z1, (j + 0.5) / size);
+    for (let i = 0; i < size; i++) {
+      const x = lerp(b.x0, b.x1, (i + 0.5) / size);
+      const o = (j * size + i) * 4;
+      const range = Math.hypot(x - eye[0], z - eye[2]);
+      const reach = SMEAR * smoothstep(120, 300, range);
+      if (reach < 0.5) {
+        for (let q = 0; q < 4; q++) smeared[o + q] = soft[o + q];
+        continue;
+      }
+      // One texel's step along the line of sight, in texels across and along the texture.
+      const ui = (((x - eye[0]) / range) * texel) / ((b.x1 - b.x0) / size);
+      const uj = ((z - eye[2]) / range) * texel / texel;
+      const n = Math.ceil(reach);
+      const sum = [0, 0, 0, 0];
+      let weight = 0;
+      for (let k = -n; k <= n; k++) {
+        const w = 1 - Math.abs(k) / (reach + 1);
+        if (w <= 0) continue;
+        const ii = Math.min(Math.max(Math.round(i + ui * k), 0), size - 1);
+        const jj = Math.min(Math.max(Math.round(j + uj * k), 0), size - 1);
+        const p = (jj * size + ii) * 4;
+        for (let q = 0; q < 4; q++) sum[q] += soft[p + q] * w;
+        weight += w;
+      }
+      for (let q = 0; q < 4; q++) smeared[o + q] = Math.round(sum[q] / weight);
+    }
+  }
+  return { data: smeared, size, bounds: b };
 }
 
 /** A small tiling texture of two independent smooth noises (in r and g), for the sparkle. */

@@ -12,7 +12,7 @@
  */
 
 import { MeshBuilder } from './meshbuilder.js';
-import { HERO_TREES, LEAF, ground, srgb } from './world.js';
+import { HERO_TREES, GROVE, LEAF, ground, srgb } from './world.js';
 import { makeRng, hash2, clamp, lerp } from './rng.js';
 
 const TAU = Math.PI * 2;
@@ -35,13 +35,30 @@ const KINDS = {
   oak2: { leaves: [LEAF.bronze, LEAF.russet, LEAF.orange], bark: 'oak', trunk: 0.36, crownFrom: 0.34, lumps: 6, lean: [0, 0], detail: 1, wide: 1.1 },
   birch: { leaves: [LEAF.yellow, LEAF.gold, LEAF.yellow], bark: 'birch', trunk: 0.2, crownFrom: 0.55, lumps: 6, lean: [-0.3, -0.2], detail: 1, airy: true },
   birch2: { leaves: [LEAF.gold, LEAF.yellow, LEAF.olive], bark: 'birch', trunk: 0.2, crownFrom: 0.6, lumps: 5, lean: [0.2, 0], detail: 1, airy: true },
+  // The big trees by the creek (world.GROVE): the same build, twice the size. The two nearest
+  // the lake, which the dragons are watched going behind, get the triangles; the rest are
+  // 90 m off and more, and are built as coarsely as the forest is.
+  elderMaple: { leaves: [LEAF.flame, LEAF.orange, LEAF.scarlet, LEAF.orange], bark: 'maple', trunk: 0.62, crownFrom: 0.5, lumps: 7, lean: [0, 0], detail: 1 },
+  elderGold: { leaves: [LEAF.gold, LEAF.yellow, LEAF.orange, LEAF.gold], bark: 'maple', trunk: 0.58, crownFrom: 0.5, lumps: 7, lean: [0, 0], detail: 1 },
+  elderOak: { leaves: [LEAF.russet, LEAF.bronze, LEAF.burgundy, LEAF.russet], bark: 'oak', trunk: 0.7, crownFrom: 0.5, lumps: 8, lean: [0, 0], detail: 0, wide: 1.1, sides: 5 },
+  elderMaple2: { leaves: [LEAF.scarlet, LEAF.flame, LEAF.orange], bark: 'maple', trunk: 0.6, crownFrom: 0.5, lumps: 7, lean: [0, 0], detail: 0, sides: 5 },
+  farGold: { leaves: [LEAF.yellow, LEAF.gold, LEAF.orange], bark: 'maple', trunk: 0.55, crownFrom: 0.5, lumps: 6, lean: [0, 0], detail: 0, boughs: false, sides: 4 },
+  farMaple: { leaves: [LEAF.orange, LEAF.flame, LEAF.gold], bark: 'maple', trunk: 0.55, crownFrom: 0.5, lumps: 6, lean: [0, 0], detail: 0, boughs: false, sides: 4 },
 };
+const PINES = { pine: 6, whitePine: 6, farPine: 4, farPine2: 4 }; // sides of the trunk
 
-/** Leaves: lighter on top, darker underneath, and every facet a little different. */
+/** Leaves: lighter on top, darker underneath, and mottled a little. */
 function leafColor(base, dir, f, seed) {
-  const v = (0.6 + 0.5 * (dir[1] * 0.5 + 0.5)) * (0.84 + 0.32 * hash2(f, seed));
+  const v = (0.56 + 0.56 * (dir[1] * 0.5 + 0.5)) * (0.88 + 0.24 * hash2(f, seed));
   return scale(base, v);
 }
+
+/**
+ * A crown is soft: its colour runs smoothly over each lump, and the light falls on a lump as
+ * on something round (a low sun on a rounded crown gives it a lit side, a dark side and a
+ * glowing edge; on a faceted one it gives a scatter of bright and dark triangles).
+ */
+const SOFT = { corner: true, round: 0.75 };
 
 /**
  * A broadleaf tree. spec: one of HERO_TREES; base: the height of the ground it stands on.
@@ -80,7 +97,7 @@ function broadleaf(m, spec, base, seed) {
     const wig = Math.sin(f * Math.PI) * 1.0;
     trunk.push({ p: [spec.x + lx * out + bend[0] * wig, y, spec.z + lz * out + bend[1] * wig], r: r0 * lerp(1.15, 0.3, Math.pow(f, 0.8)) });
   }
-  m.tube(trunk, 6, barkColor, (k) => wood(trunk[k].p[1]));
+  m.tube(trunk, kind.sides || 6, barkColor, (k) => wood(trunk[k].p[1]));
 
   // Lumps of leaves: one at the top, the rest in a ring round the trunk, all inside the cylinder.
   const lumps = [];
@@ -99,8 +116,8 @@ function broadleaf(m, spec, base, seed) {
   lumps.forEach((lump, i) => {
     const base0 = kind.leaves[i % kind.leaves.length];
     const tint = scale(base0, 0.9 + 0.25 * rng());
-    m.blob(lump.c, lump.r, kind.detail, 0.2, seed + i * 13, (dir, f) => leafColor(tint, dir, f, seed + i), (dir) => [swayAt(lump.c[1] + dir[1] * lump.r[1]), 1, 0, phase]);
-    if (i === 0) return;
+    m.blob(lump.c, lump.r, kind.detail, 0.2, seed + i * 13, (dir, f) => leafColor(tint, dir, f, seed + i), (dir) => [swayAt(lump.c[1] + dir[1] * lump.r[1]), 1, 0, phase], SOFT);
+    if (i === 0 || kind.boughs === false) return;
     // A bough from the trunk into the lump.
     const from = trunk[2 + (i % 3)];
     const mid = [lerp(from.p[0], lump.c[0], 0.55), lerp(from.p[1], lump.c[1], 0.35), lerp(from.p[2], lump.c[2], 0.55)];
@@ -114,6 +131,7 @@ function broadleaf(m, spec, base, seed) {
 
 /** A white pine: a tall bare trunk and flat, ragged tiers of boughs, each a little turned. */
 function pine(m, spec, base, seed) {
+  const sides = PINES[spec.kind] || 6;
   const rng = makeRng(seed);
   const top = spec.height;
   const R = spec.radius;
@@ -129,7 +147,7 @@ function pine(m, spec, base, seed) {
       { p: [spec.x, top - 3, spec.z], r: 0.12 },
       { p: [spec.x, top - 0.4, spec.z], r: 0.03 },
     ],
-    6, (k, i) => scale(bark, 0.8 + 0.4 * hash2(k * 5 + i, seed)), (k) => [k < 2 ? 0 : sway(top) * 0.6, 0, 0, phase]
+    sides, (k, i) => scale(bark, 0.8 + 0.4 * hash2(k * 5 + i, seed)), (k) => [k < 2 ? 0 : sway(top) * 0.6, 0, 0, phase]
   );
   const tiers = Math.max(6, Math.round((top - first) / 2.7));
   const green = LEAF.pine;
@@ -244,11 +262,29 @@ export function buildLedge(surface, seed) {
   const trees = [];
   HERO_TREES.forEach((spec, i) => {
     const base = Math.min(ground(spec.x, spec.z), surface(spec.x, spec.z));
-    const made = spec.kind === 'pine' ? pine(m, spec, base, seed + i * 101) : broadleaf(m, spec, base, seed + i * 101);
+    const made = spec.kind in PINES ? pine(m, spec, base, seed + i * 101) : broadleaf(m, spec, base, seed + i * 101);
     trees.push({ x: spec.x, z: spec.z, top: spec.height, radius: spec.radius, kind: spec.kind, base, phase: made.phase, crown0: made.crown0 });
   });
   BOULDERS.forEach((b, i) => boulder(m, b[0], b[1], b[2], b[3], seed + 500 + i, surface));
   const leaves = litter(m, surface, seed + 900, 170);
   const arrays = m.arrays();
   return { arrays, trees, litter: leaves, triangles: arrays.triangles };
+}
+
+/**
+ * The big trees by the creek (world.GROVE), as one mesh of their own: they are all in one part
+ * of the view, so the mesh can be left out whenever that part is not looked at.
+ * surface(x, z): height of the drawn ground (terrain.heightAt). Returns { arrays, trees, triangles }.
+ */
+export function buildGrove(surface, seed) {
+  const m = new MeshBuilder();
+  const trees = [];
+  GROVE.forEach((spec, i) => {
+    // The drawn ground is coarse this far out: start the trunk a little under it.
+    const base = Math.min(ground(spec.x, spec.z), surface(spec.x, spec.z)) - 0.8;
+    const made = spec.kind in PINES ? pine(m, spec, base, seed + 7000 + i * 131) : broadleaf(m, spec, base, seed + 7000 + i * 131);
+    trees.push({ x: spec.x, z: spec.z, top: spec.height, radius: spec.radius, kind: spec.kind, base, phase: made.phase, crown0: made.crown0 });
+  });
+  const arrays = m.arrays();
+  return { arrays, trees, triangles: arrays.triangles };
 }

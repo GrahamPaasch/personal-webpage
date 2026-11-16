@@ -12,6 +12,9 @@ import { hash2, smoothstep } from './rng.js';
 
 const SECTORS = 96;
 const OUTER = 1750;
+/** Nearer than SMOOTH_FROM (metres) the land is shaded facet by facet; beyond SMOOTH_TO, as smooth hills. */
+const SMOOTH_FROM = 34;
+const SMOOTH_TO = 78;
 
 /** Ring radii and how many points each ring has. Ring 0 is the single point underfoot. */
 export function terrainRings() {
@@ -79,22 +82,23 @@ export function buildTerrain(sunHeight) {
     }
   }
 
-  const position = [];
-  const color = [];
-  const light = [0, 0, 0];
-  const albedo = [0, 0, 0];
-  let faces = 0;
-
-  const face = (a, b0, c0) => {
+  // Every face, turned to face up, with its normal; and at every point the mean of the normals
+  // of the faces that meet there, which is the way a smooth hill would face.
+  const fa = [];
+  const fb = [];
+  const fc = [];
+  const fn = [];
+  const sx = new Float32Array(total);
+  const sy = new Float32Array(total);
+  const sz = new Float32Array(total);
+  const collect = (a, b0, c0) => {
     let b = b0;
     let c = c0;
     if (inLake[a] && inLake[b] && inLake[c]) return; // under the water: never seen
     const cx = (vx[a] + vx[b] + vx[c]) / 3;
     const cz = (vz[a] + vz[b] + vz[c]) / 3;
-    const cy = (vy[a] + vy[b] + vy[c]) / 3;
-    const r = Math.hypot(cx, cz);
     // Far behind the viewer the plateau forest hides everything.
-    if (cz > 30 && r > 150) return;
+    if (cz > 30 && Math.hypot(cx, cz) > 150) return;
     const ux = vx[b] - vx[a];
     const uy = vy[b] - vy[a];
     const uz = vz[b] - vz[a];
@@ -104,10 +108,6 @@ export function buildTerrain(sunHeight) {
     let nx = uy * wz - uz * wy;
     let ny = uz * wx - ux * wz;
     let nz = ux * wy - uy * wx;
-    const len = Math.hypot(nx, ny, nz) || 1;
-    nx /= len;
-    ny /= len;
-    nz /= len;
     if (ny < 0) {
       // Wound the other way round: turn it to face up.
       b = c0;
@@ -116,27 +116,17 @@ export function buildTerrain(sunHeight) {
       ny = -ny;
       nz = -nz;
     }
-    const lift = canopyLift(cx, cz, r);
-    // Lifted ground stands for leaves: it must not turn to bare rock where it is steep.
-    const slope = lift > 0.5 ? 0.3 : Math.hypot(nx, nz) / Math.max(ny, 0.05);
-    groundColor(cx, cz, cy, slope, albedo);
-    // Canopy seen from far off is lit like a rough, upward-facing surface.
-    const soft = lift > 0 ? 0.55 : 0;
-    const lx = nx * (1 - soft);
-    const ly = ny * (1 - soft) + soft;
-    const lz = nz * (1 - soft);
-    const ll = Math.hypot(lx, ly, lz) || 1;
-    // The ledge and the cliff under it face the sun with nothing in the way.
-    const open = 1 - smoothstep(14, 24, r);
-    const sun = Math.max(open, sunlitAt(sunHeight, cx, cy + 0.6 + (lift > 0 ? CANOPY * 0.3 : 0), cz, 2.5));
-    lightOn(lx / ll, ly / ll, lz / ll, sun, light);
-    // Each facet a touch different, so the low-poly surface reads as cut stone and not as plastic.
-    const v = 0.93 + 0.14 * hash2(faces * 3 + 1, 99);
+    // (Not yet of unit length: a big face counts for more in the mean.)
     for (const p of [a, b, c]) {
-      position.push(vx[p], vy[p], vz[p]);
-      color.push(albedo[0] * light[0] * v, albedo[1] * light[1] * v, albedo[2] * light[2] * v);
+      sx[p] += nx;
+      sy[p] += ny;
+      sz[p] += nz;
     }
-    faces++;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    fa.push(a);
+    fb.push(b);
+    fc.push(c);
+    fn.push(nx / len, ny / len, nz / len);
   };
 
   for (let k = 0; k + 1 < rings; k++) {
@@ -145,12 +135,12 @@ export function buildTerrain(sunHeight) {
     const a0 = start[k];
     const b0 = start[k + 1];
     if (n === 1) {
-      for (let i = 0; i < m; i++) face(a0, b0 + i, b0 + ((i + 1) % m));
+      for (let i = 0; i < m; i++) collect(a0, b0 + i, b0 + ((i + 1) % m));
     } else if (m === n) {
       for (let i = 0; i < n; i++) {
         const j = (i + 1) % n;
-        face(a0 + i, b0 + i, b0 + j);
-        face(a0 + i, b0 + j, a0 + j);
+        collect(a0 + i, b0 + i, b0 + j);
+        collect(a0 + i, b0 + j, a0 + j);
       }
     } else {
       // Twice as many points outside: three triangles per inner segment.
@@ -159,10 +149,86 @@ export function buildTerrain(sunHeight) {
         const o0 = b0 + 2 * i;
         const o1 = b0 + 2 * i + 1;
         const o2 = b0 + ((2 * i + 2) % m);
-        face(a0 + i, o0, o1);
-        face(a0 + i, o1, a0 + j);
-        face(a0 + j, o1, o2);
+        collect(a0 + i, o0, o1);
+        collect(a0 + i, o1, a0 + j);
+        collect(a0 + j, o1, o2);
       }
+    }
+  }
+
+  const light = [0, 0, 0];
+  const albedo = [0, 0, 0];
+  /** The lit colour of ground at (x, y, z) that faces along the unit normal n, into out. */
+  const lit = (x, y, z, nx, ny, nz, r, out) => {
+    const lift = canopyLift(x, z, r);
+    // Lifted ground stands for leaves: it must not turn to bare rock where it is steep.
+    const slope = lift > 0.5 ? 0.3 : Math.hypot(nx, nz) / Math.max(ny, 0.05);
+    groundColor(x, z, y, slope, albedo);
+    // Canopy seen from far off is lit like a rough, upward-facing surface.
+    const soft = lift > 0 ? 0.55 : 0;
+    const lx = nx * (1 - soft);
+    const ly = ny * (1 - soft) + soft;
+    const lz = nz * (1 - soft);
+    const ll = Math.hypot(lx, ly, lz) || 1;
+    // The ledge and the cliff under it face the sun with nothing in the way.
+    const open = 1 - smoothstep(14, 24, r);
+    const sun = Math.max(open, sunlitAt(sunHeight, x, y + 0.6 + (lift > 0 ? CANOPY * 0.3 : 0), z, 2.5));
+    lightOn(lx / ll, ly / ll, lz / ll, sun, light);
+    out[0] = albedo[0] * light[0];
+    out[1] = albedo[1] * light[1];
+    out[2] = albedo[2] * light[2];
+  };
+
+  // How much each point is shaded as part of a smooth hill (1) and how much as the corner of
+  // a facet of rock (0). Underfoot and on the cliff the facets are the look: cut stone. Far
+  // off they are only the grain of the mesh, and a hillside of flat triangles reads as a toy;
+  // there the light runs smoothly over the land, as it does over a real hill a mile away.
+  const smooth = new Float32Array(total);
+  const round = new Float32Array(total * 3);
+  const tmp = [0, 0, 0];
+  for (let p = 0; p < total; p++) {
+    const r = Math.hypot(vx[p], vz[p]);
+    smooth[p] = smoothstep(SMOOTH_FROM, SMOOTH_TO, r);
+    if (smooth[p] <= 0) continue;
+    const len = Math.hypot(sx[p], sy[p], sz[p]);
+    if (!(len > 0)) continue; // no face kept here
+    lit(vx[p], vy[p], vz[p], sx[p] / len, sy[p] / len, sz[p] / len, r, tmp);
+    round[p * 3] = tmp[0];
+    round[p * 3 + 1] = tmp[1];
+    round[p * 3 + 2] = tmp[2];
+  }
+
+  const faces = fa.length;
+  const position = new Float32Array(faces * 9);
+  const color = new Float32Array(faces * 9);
+  const flat = [0, 0, 0];
+  for (let f = 0; f < faces; f++) {
+    const a = fa[f];
+    const b = fb[f];
+    const c = fc[f];
+    const facet = smooth[a] < 1 || smooth[b] < 1 || smooth[c] < 1;
+    if (facet) {
+      const cx = (vx[a] + vx[b] + vx[c]) / 3;
+      const cy = (vy[a] + vy[b] + vy[c]) / 3;
+      const cz = (vz[a] + vz[b] + vz[c]) / 3;
+      lit(cx, cy, cz, fn[f * 3], fn[f * 3 + 1], fn[f * 3 + 2], Math.hypot(cx, cz), flat);
+      // Each facet a touch different, so the surface reads as cut stone and not as plastic.
+      const v = 0.93 + 0.14 * hash2(f * 3 + 1, 99);
+      flat[0] *= v;
+      flat[1] *= v;
+      flat[2] *= v;
+    }
+    const corners = [a, b, c];
+    for (let k = 0; k < 3; k++) {
+      const p = corners[k];
+      const o = f * 9 + k * 3;
+      position[o] = vx[p];
+      position[o + 1] = vy[p];
+      position[o + 2] = vz[p];
+      const t = smooth[p];
+      color[o] = facet ? flat[0] + (round[p * 3] - flat[0]) * t : round[p * 3];
+      color[o + 1] = facet ? flat[1] + (round[p * 3 + 1] - flat[1]) * t : round[p * 3 + 1];
+      color[o + 2] = facet ? flat[2] + (round[p * 3 + 2] - flat[2]) * t : round[p * 3 + 2];
     }
   }
 
@@ -260,8 +326,8 @@ export function buildTerrain(sunHeight) {
 
   return {
     surfaceNear,
-    position: new Float32Array(position),
-    color: new Float32Array(color),
+    position,
+    color,
     triangles: faces,
     vertices: faces * 3,
     rings,

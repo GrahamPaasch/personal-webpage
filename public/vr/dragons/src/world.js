@@ -19,11 +19,11 @@ const DEG = Math.PI / 180;
 export const LAKE_LEVEL = -46;
 
 /**
- * Where the sun is: a little left of straight ahead and low, so it hangs over the far end of the
- * lake. A unit vector toward it.
+ * Where the sun is: a little left of straight ahead and very low, minutes from setting, so it
+ * sits just over the ridges at the far end of the lake. A unit vector toward it.
  */
 export const SUN_AZIMUTH = 12 * DEG; // left of straight ahead
-export const SUN_ELEVATION = 9 * DEG;
+export const SUN_ELEVATION = 6.5 * DEG;
 export const SUN_DIR = [
   -Math.sin(SUN_AZIMUTH) * Math.cos(SUN_ELEVATION),
   Math.sin(SUN_ELEVATION),
@@ -139,6 +139,12 @@ const HILLS = [
   return { x: h[0], z: h[1], ra: h[2], rc: h[3], ux: -Math.sin(az), uz: -Math.cos(az), h: h[5], power: h[6] };
 });
 
+/** The rim of the bluff rounds off: this far back from the edge it starts, and this far down it is at the edge (metres). */
+const PROW_BACK = 1.4;
+const PROW_DROP = 0.6;
+/** The bank at the water's edge: all land stands this far above the lake (metres). */
+const SHORE_STEP = 0.7;
+
 const smax = (a, b, k) => {
   const h = Math.max(k - Math.abs(a - b), 0) / k;
   return Math.max(a, b) + h * h * k * 0.25;
@@ -149,7 +155,7 @@ const smin = (a, b, k) => -smax(-a, -b, k);
  * How far a point is outside the top of the viewer's bluff, in metres (negative: on top of it).
  * The top is a wooded plateau behind the viewer, and in front of it a narrow pulpit of rock that
  * juts out over the valley: the ledge. The edge is 2.6 m in front of the viewer and 3 m to each
- * side, so the valley can be seen straight down on three sides.
+ * side, so the valley can be seen on three sides.
  */
 export function bluffFront(x, z) {
   const k = x < 0 ? 0.0028 : 0.012;
@@ -194,14 +200,20 @@ export function ground(x, z) {
   const flat = smoothstep(5, 26, r);
   const plateau = 2.8 * noise2(x / 62 + 1.3, z / 62 + 9.1) * flat + 0.022 * Math.max(z, 0) * flat + 1.2 * fbm(x / 9, z / 9, 2) * smoothstep(9, 22, r);
   const front = bluffFront(x, z);
-  let bluff;
-  if (front <= 0) {
-    // The rock rounds off toward its rim.
-    bluff = plateau - 0.35 * smoothstep(-1.6, 0, front);
-  } else {
+  // The rock rounds off toward its rim like the prow of a boat: it starts to fall away 1.4 m
+  // back from the edge and is 0.6 m down by the edge itself, still steepening. (A level top
+  // with a sharp rim hides the valley floor from anyone standing a few steps back from it: the
+  // eye, the rim and whatever is below it are in one line.)
+  const back = clamp((front + PROW_BACK) / PROW_BACK, 0, 1);
+  let bluff = plateau - PROW_DROP * back * back;
+  if (front > 0) {
     const ledges = 1.6 * noise2(x / 7 + 3, z / 7) * smoothstep(1, 6, front);
-    bluff = plateau - 0.35 - 13 * smoothstep(0, 5, front) - 0.62 * Math.max(front - 3, 0) + ledges;
+    // Past the edge the prow's curve runs on for a stride, and then the cliff takes over.
+    bluff -= ((2 * PROW_DROP) / PROW_BACK) * Math.min(front, 1.5) + 13 * smoothstep(0, 5, front) + 0.62 * Math.max(front - 3, 0) - ledges;
   }
+  // Land stands SHORE_STEP above the water everywhere (see below); the pulpit is level with the
+  // viewer's feet, and the neck of rock behind them rises to the plateau over a few strides.
+  bluff -= SHORE_STEP * (1 - smoothstep(2.5, 11, r));
   h = smax(h, bluff, 5);
 
   // The gorge and its creek: a flat floor about 26 m wide with steep sides.
@@ -216,13 +228,14 @@ export function ground(x, z) {
   // Ease the land down to the water, and drop the bed away under it.
   if (dl > 0) {
     const s = smoothstep(0, 42, dl);
-    h = LAKE_LEVEL + (h - LAKE_LEVEL) * s + 0.7 * smoothstep(0, 6, dl);
+    h = LAKE_LEVEL + (h - LAKE_LEVEL) * s + SHORE_STEP * smoothstep(0, 6, dl);
   } else {
     h = LAKE_LEVEL + Math.max(dl * 0.4, -9);
   }
 
-  // The ledge itself: level rock where the viewer stands.
-  if (r < 2.4) h = lerp(0, h, smoothstep(1.2, 2.4, r));
+  // The ledge itself: level rock where the viewer stands. (It is level there already; this
+  // only takes out the last few millimetres.)
+  if (r < 1.6) h = lerp(0, h, smoothstep(1.1, 1.6, r));
   return h;
 }
 
@@ -246,8 +259,9 @@ export function forestDensity(x, z) {
   // further back, which also leaves room for a dragon to come in low over the viewer's shoulder.
   f *= smoothstep(z > 0 ? 27 : 8, z > 0 ? 34 : 13, r);
   // Behind the viewer's right shoulder the plateau is a bare shelf of rock with a few trees
-  // (HERO_TREES): that is the way a dragon comes over.
-  if (z > 0 && x > -4) f *= Math.max(smoothstep(58, 68, r), 1 - smoothstep(-4, 4, x));
+  // (HERO_TREES): that is the way a dragon comes over. (It was a narrower shelf while the
+  // dragons were smaller: a wingspan of twenty metres wants a gate to match.)
+  if (z > 0 && x > -13) f *= Math.max(smoothstep(58, 68, r), 1 - smoothstep(-13, -5, x));
   // The cliff and the fallen rock under it are bare; trees begin lower down the slope.
   const front = bluffFront(x, z);
   if (front > -1.5) f *= smoothstep(44, 56, front);
@@ -257,32 +271,111 @@ export function forestDensity(x, z) {
   if (z < 0) f *= smoothstep(0, 7, Math.abs(x) - (9 + 0.22 * -z)) + smoothstep(70, 82, -z) - smoothstep(0, 7, Math.abs(x) - (9 + 0.22 * -z)) * smoothstep(70, 82, -z);
   // A few natural clearings.
   f *= 1 - smoothstep(0.52, 0.66, fbm(x / 130 + 20, z / 130 - 6, 2) * 1.6);
+  // Nothing of the forest stands against the trunk of one of the big trees by the creek (the
+  // smaller trees do grow under their crowns).
+  if (f > 0) f *= smoothstep(4, 8, groveDistance(x, z));
   return f;
 }
 
 /**
  * The trees that stand close to the ledge, placed by hand: [x, z, height, crown radius, kind].
  * The big maple leans over the viewer's left shoulder and sheds the leaves that drift past; the
- * right side is kept open, because that is where a dragon comes over.
+ * right side is kept open, because that is where a dragon comes over. In particular no trunk
+ * stands within 15 m of the line 13 m to the viewer's right, from the rim to 34 m back, and no
+ * crown reaches within 10 m of it: a dragon that is called goes by along it, low enough to be
+ * watched all the way (flight.js, planPass), and the long swoop of the opening comes down it
+ * the other way. (The pine and the first birch stood four metres nearer to that line while
+ * the dragons were smaller.)
  */
 export const HERO_TREES = [
   { x: -7.5, z: 5.5, height: 15, radius: 5.6, kind: 'maple' },
-  { x: 18.5, z: 13.5, height: 11, radius: 3, kind: 'birch' },
+  { x: 29, z: 27, height: 11, radius: 3, kind: 'birch' },
   { x: -16.5, z: 13, height: 14, radius: 6, kind: 'oak' },
-  { x: 27, z: 9, height: 19, radius: 3.4, kind: 'pine' },
+  { x: 31, z: 9, height: 19, radius: 3.4, kind: 'pine' },
   { x: -3, z: 19, height: 13, radius: 5, kind: 'maple2' },
-  { x: 7, z: 23.5, height: 12, radius: 4.6, kind: 'oak2' },
+  { x: -2, z: 32, height: 12, radius: 4.6, kind: 'oak2' },
   { x: -24, z: 4, height: 10, radius: 3, kind: 'birch2' },
 ];
 
-/** Typical treetop height above the ground, and the tallest any tree grows. */
+/**
+ * The big trees at the mouth of the creek: old sugar maples, oaks and white pines that stand
+ * nearly twice as tall as the forest round them, a row on each bank. The creek's first hundred
+ * metres run between them, and that is the gap in the trees which can be WATCHED from the
+ * ledge: 55 to 120 m off to the front right, the crowns between 8 and 20 degrees below eye
+ * level. The dragons fly through at the height of the crowns (the lane 'narrows' in flight.js),
+ * behind the row on the near bank, and are seen between its trees.
+ *
+ * Placed by hand, as the trees by the ledge are: { x, z, height: where the top is (metres above
+ * the ledge, so all of these are negative), radius of the crown, kind }. Each stands at least
+ * 21 m from the middle of the creek, which leaves the lane 30 m of clear air between the crowns.
+ */
+export const GROVE = [
+  // The near bank, from the lake end. Seen from the ledge the first two stand in front of the
+  // creek with a gap between them and a gap after: a dragon flying up the creek is in the
+  // open, behind the maple, out, behind the gold one, and out again.
+  { x: 27.5, z: -43.5, height: -9.5, radius: 8.5, kind: 'elderMaple' },
+  { x: 54, z: -41.5, height: -8.5, radius: 8, kind: 'elderGold' },
+  { x: 76.5, z: -29.5, height: -6, radius: 5.5, kind: 'whitePine' },
+  { x: 89, z: -15, height: -9, radius: 8.5, kind: 'elderOak' },
+  { x: 97, z: 6, height: -10, radius: 8, kind: 'elderMaple2' },
+  // The far bank: what is seen behind the dragons, through the gaps.
+  { x: 46, z: -100, height: -13, radius: 5, kind: 'farPine' },
+  { x: 79, z: -88, height: -12, radius: 7.5, kind: 'farGold' },
+  { x: 96, z: -77, height: -9, radius: 5, kind: 'farPine2' },
+  { x: 117.5, z: -63.5, height: -12.5, radius: 7.5, kind: 'farMaple' },
+];
+
+/** A circle that holds every tree of the grove, crowns and all: nothing outside it need ask. */
+export const GROVE_REACH = (() => {
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let z0 = Infinity;
+  let z1 = -Infinity;
+  for (const t of GROVE) {
+    x0 = Math.min(x0, t.x);
+    x1 = Math.max(x1, t.x);
+    z0 = Math.min(z0, t.z);
+    z1 = Math.max(z1, t.z);
+  }
+  const x = (x0 + x1) / 2;
+  const z = (z0 + z1) / 2;
+  let radius = 0;
+  for (const t of GROVE) radius = Math.max(radius, Math.hypot(t.x - x, t.z - z) + t.radius);
+  return { x, z, radius };
+})();
+
+/** How far a point is from the nearest trunk in the grove (metres); Infinity well away from it. */
+export function groveDistance(x, z, margin) {
+  if (Math.hypot(x - GROVE_REACH.x, z - GROVE_REACH.z) > GROVE_REACH.radius + (margin || 12)) return Infinity;
+  let best = Infinity;
+  for (let i = 0; i < GROVE.length; i++) {
+    const d = Math.hypot(x - GROVE[i].x, z - GROVE[i].z);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+/** The top of the grove's leaves over a point, or -Infinity where there are none. */
+export function groveTop(x, z) {
+  if (Math.hypot(x - GROVE_REACH.x, z - GROVE_REACH.z) > GROVE_REACH.radius) return -Infinity;
+  let top = -Infinity;
+  for (let i = 0; i < GROVE.length; i++) {
+    const t = GROVE[i];
+    const d = Math.hypot(x - t.x, z - t.z) / t.radius;
+    // A dome: full height over the trunk, a third of the crown lower at its edge.
+    if (d < 1) top = Math.max(top, t.height - 4.5 * d * d);
+  }
+  return top;
+}
+
+/** Typical treetop height above the ground, and the tallest any tree of the forest grows. */
 export const CANOPY = 17;
 export const TREE_MAX = 23;
 
 /** The top of the land as the light sees it: water, bare ground, or the forest's canopy. */
 export function canopyHeight(x, z) {
   if (lakeDistance(x, z) < 0) return LAKE_LEVEL;
-  return ground(x, z) + CANOPY * smoothstep(0.05, 0.6, forestDensity(x, z));
+  return Math.max(ground(x, z) + CANOPY * smoothstep(0.05, 0.6, forestDensity(x, z)), groveTop(x, z));
 }
 
 /**
@@ -291,7 +384,7 @@ export function canopyHeight(x, z) {
  */
 export function clearHeight(x, z) {
   if (lakeDistance(x, z) < 0) return LAKE_LEVEL;
-  return ground(x, z) + TREE_MAX * smoothstep(0.05, 0.5, forestDensity(x, z));
+  return Math.max(ground(x, z) + TREE_MAX * smoothstep(0.05, 0.5, forestDensity(x, z)), groveTop(x, z));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -302,37 +395,128 @@ export function clearHeight(x, z) {
 export const srgb = (r, g, b) => [Math.pow(r, 2.2), Math.pow(g, 2.2), Math.pow(b, 2.2)];
 export const hex = (h) => srgb(((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255);
 
-export const LIGHT = {
-  sun: [2.5, 1.5, 0.74], // low sun: strong and orange
-  sky: [0.2, 0.27, 0.46], // light from above: cool
-  bounce: [0.3, 0.19, 0.1], // light from below: warm, off the leaves
-  exposure: 1.25,
+/**
+ * The grade: how a linear colour becomes what the screen shows. It is the look of the whole
+ * piece, and it is three numbers:
+ *   exposure   where the soft shoulder sits: bright things roll off toward white, never clip
+ *   gamma      one per channel, and not the same: red is held down in the dark and blue is
+ *              lifted, so shadows go cool while the sunlit side stays warm (in the highlights
+ *              the three meet again). This is the "warm lights, cool shadows" of a film grade,
+ *              and because each channel has its own curve it costs the shader nothing.
+ *   contrast   how much of an S-curve is laid over the result: darks deeper, lights brighter
+ * shaders.js builds its dvDisplay() from these same numbers.
+ */
+export const GRADE = {
+  exposure: 1.0,
+  gamma: [0.485, 0.4545, 0.425],
+  contrast: 0.5,
 };
 
-export const FOG = {
-  color: srgb(0.8, 0.69, 0.71), // away from the sun: dusty pink
-  sunColor: [1.75, 1.16, 0.5], // toward the sun: gold
-  haze: 0.00085, // thin haze everywhere, per metre
-  mist: 0.0065, // extra at lake level, per metre
-  falloff: 1 / 14, // the mist thins with height; 14 m scale
-  base: LAKE_LEVEL,
+const displayChannel = (v, i) => {
+  const g = Math.pow(1 - Math.exp(-Math.max(v, 0) * GRADE.exposure), GRADE.gamma[i]);
+  return g + GRADE.contrast * (g * g * (3 - 2 * g) - g);
 };
 
-export const SKY = {
-  zenith: srgb(0.2, 0.36, 0.66),
-  upper: srgb(0.48, 0.58, 0.8),
-};
+/** Linear colour to what is written to the screen: a soft shoulder, gamma, contrast. In place. */
+export function toDisplay(c) {
+  c[0] = displayChannel(c[0], 0);
+  c[1] = displayChannel(c[1], 1);
+  c[2] = displayChannel(c[2], 2);
+  return c;
+}
 
-/** Haze colour looking along a unit direction: gold toward the sun, pink away from it. */
-export function fogColor(dx, dy, dz, out) {
-  const s = Math.max(dx * SUN_DIR[0] + dy * SUN_DIR[1] + dz * SUN_DIR[2], 0);
-  const s2 = s * s;
-  const s8 = s2 * s2 * s2 * s2;
-  const k = s8 * 0.8 + s2 * 0.2;
-  out[0] = lerp(FOG.color[0], FOG.sunColor[0], k);
-  out[1] = lerp(FOG.color[1], FOG.sunColor[1], k);
-  out[2] = lerp(FOG.color[2], FOG.sunColor[2], k);
+/**
+ * The other way: the linear colour that toDisplay() turns into this screen colour (each channel
+ * 0..1). The sky and the haze are chosen as the colours they should have on the screen, and
+ * turned into linear light with this, once, when the page starts.
+ */
+export function fromDisplay(r, g, b) {
+  const out = [r, g, b];
+  for (let i = 0; i < 3; i++) {
+    const y = clamp(out[i], 0, 0.992);
+    // Undo the S-curve (Newton's method: it is monotonic), then the gamma, then the shoulder.
+    let s = y;
+    for (let n = 0; n < 12; n++) {
+      const f = s + GRADE.contrast * (s * s * (3 - 2 * s) - s) - y;
+      const df = 1 + GRADE.contrast * (6 * s - 6 * s * s - 1);
+      s = clamp(s - f / df, 0, 1);
+    }
+    const shoulder = Math.min(Math.pow(s, 1 / GRADE.gamma[i]), 0.9995);
+    out[i] = -Math.log(1 - shoulder) / GRADE.exposure;
+  }
   return out;
+}
+
+/**
+ * How far the sun's light wraps past the edge of what it strikes (0: a hard edge at a right
+ * angle to the sun). Not far: with the sun this low it is the difference between lit and
+ * unlit that gives a tree or a hill its shape, and the sides turned from the sun go to the
+ * blue of the dusk.
+ */
+export const SUN_WRAP = 0.16;
+
+export const LIGHT = {
+  sun: [2.8, 0.8, 0.16], // the last of the sun: strong, and deep orange
+  sky: [0.1, 0.117, 0.225], // light from above: the blue of dusk
+  bounce: [0.12, 0.06, 0.045], // light from below: dim and warm, off the leaves
+  exposure: GRADE.exposure,
+};
+
+/**
+ * Haze. Its colour depends on which way one looks: blazing orange into the sun, a dusty rose
+ * to the sides, the violet of the earth's shadow with the sun at one's back. All three are
+ * given as screen colours. There is a lot of it: it is what gives the valley its depth (each
+ * ridge a shade paler than the one in front), it carries the sun's glow down between the
+ * hills, and it hides the far edge of what is drawn.
+ */
+export const FOG = {
+  color: fromDisplay(0.27, 0.27, 0.49), // away from the sun
+  sideColor: fromDisplay(0.58, 0.3, 0.37), // across it
+  sunColor: fromDisplay(0.95, 0.47, 0.16), // into it
+  haze: 0.0008, // haze everywhere, per metre
+  mist: 0.013, // extra at lake level, per metre
+  falloff: 1 / 9, // the mist lies on the water: it thins with height, on a 9 m scale
+  base: LAKE_LEVEL,
+  desaturate: 0.3, // how far colour drains out of what the haze covers, at full haze
+};
+
+/**
+ * The sky above the haze, as screen colours at a few heights above the horizon (degrees), in
+ * three columns: looking toward the sun, across it, and away from it. On the horizon itself the
+ * sky is the colour of the haze, so that far land fades into it without a seam.
+ */
+export const SKY = {
+  stops: [0, 1.3, 4, 9, 16, 26, 40, 60, 90],
+  toward: [null, [1.0, 0.64, 0.25], [1.0, 0.55, 0.2], [0.97, 0.41, 0.2], [0.8, 0.3, 0.29], [0.52, 0.24, 0.39], [0.27, 0.18, 0.4], [0.12, 0.11, 0.31], [0.055, 0.065, 0.21]],
+  side: [null, [0.78, 0.47, 0.42], [0.74, 0.44, 0.43], [0.63, 0.38, 0.46], [0.47, 0.31, 0.47], [0.31, 0.24, 0.44], [0.18, 0.16, 0.38], [0.095, 0.1, 0.29], [0.055, 0.065, 0.21]],
+  // Over the earth's shadow the sky is rose for a hand's breadth (the "belt of Venus").
+  away: [null, [0.4, 0.34, 0.53], [0.54, 0.4, 0.55], [0.66, 0.43, 0.53], [0.48, 0.35, 0.52], [0.28, 0.24, 0.46], [0.16, 0.16, 0.38], [0.09, 0.1, 0.29], [0.055, 0.065, 0.21]],
+};
+for (const column of [SKY.toward, SKY.side, SKY.away]) for (let i = 1; i < column.length; i++) column[i] = fromDisplay(column[i][0], column[i][1], column[i][2]);
+
+/** Haze colour looking along a unit direction (linear). The same formula is in shaders.js. */
+export function fogColor(dx, dy, dz, out) {
+  const s = dx * SUN_DIR[0] + dy * SUN_DIR[1] + dz * SUN_DIR[2];
+  const a = Math.max(s, 0);
+  const a2 = a * a;
+  const a8 = a2 * a2 * a2 * a2;
+  const side = smoothstep(-0.9, 0.35, s);
+  const sun = a2 * 0.35 + a8 * 0.65;
+  out[0] = lerp(lerp(FOG.color[0], FOG.sideColor[0], side), FOG.sunColor[0], sun);
+  out[1] = lerp(lerp(FOG.color[1], FOG.sideColor[1], side), FOG.sunColor[1], sun);
+  out[2] = lerp(lerp(FOG.color[2], FOG.sideColor[2], side), FOG.sunColor[2], sun);
+  return out;
+}
+
+/**
+ * Lay haze over a linear colour, in place: `amount` of it (0..1), of colour `fog`. What is
+ * covered loses its own colour a little faster than it gains the haze's.
+ */
+export function hazeOver(c, fog, amount) {
+  const grey = 0.3 * c[0] + 0.5 * c[1] + 0.2 * c[2];
+  const d = amount * FOG.desaturate;
+  for (let i = 0; i < 3; i++) c[i] = lerp(lerp(c[i], grey, d), fog[i], amount);
+  return c;
 }
 
 /** How much haze lies between an eye and a point `dist` metres away along a unit direction. */
@@ -347,35 +531,129 @@ export function fogAmount(eyeY, dirY, dist) {
 
 const tmpFog = [0, 0, 0];
 
-/** Sky colour along a unit direction (linear RGB), sun glow included but not the disc. */
-export function skyColor(dx, dy, dz, out) {
+const SUN_FLAT = Math.hypot(SUN_DIR[0], SUN_DIR[2]);
+
+/**
+ * Sky colour along a unit direction (linear RGB). `glow` (default true) adds the light round
+ * the sun, though not its disc: the picture draws that glow as a thing of its own (scene.js,
+ * buildSky), and asks for the sky without it; the lake's mirror image wants it in.
+ */
+export function skyColor(dx, dy, dz, out, glow) {
   const flat = Math.hypot(dx, dz) || 1;
   fogColor(dx / flat, 0, dz / flat, tmpFog);
-  const up = Math.max(dy, 0);
-  const a = 1 - Math.exp(-up * 5.5); // horizon band -> upper sky
-  const b = smoothstep(0.15, 0.95, up); // upper sky -> zenith
+  // Which of the three columns: by how far round from the sun this is.
+  const round = (dx * SUN_DIR[0] + dz * SUN_DIR[2]) / (flat * SUN_FLAT);
+  const toward = smoothstep(0, 1, round);
+  const away = smoothstep(0, 1, -round);
+  const side = 1 - toward - away;
+  const up = Math.asin(clamp(dy, 0, 1)) / DEG;
+  const stops = SKY.stops;
+  let k = 0;
+  while (k + 2 < stops.length && up >= stops[k + 1]) k++;
+  const t = clamp((up - stops[k]) / (stops[k + 1] - stops[k]), 0, 1);
   for (let i = 0; i < 3; i++) {
-    const upper = lerp(SKY.upper[i], SKY.zenith[i], b);
-    out[i] = lerp(tmpFog[i], upper, a);
+    const lo = k === 0 ? tmpFog[i] : SKY.toward[k][i] * toward + SKY.side[k][i] * side + SKY.away[k][i] * away;
+    const hi = SKY.toward[k + 1][i] * toward + SKY.side[k + 1][i] * side + SKY.away[k + 1][i] * away;
+    out[i] = lerp(lo, hi, t);
   }
-  const s = Math.max(dx * SUN_DIR[0] + dy * SUN_DIR[1] + dz * SUN_DIR[2], 0);
-  const glow = Math.pow(s, 24) * 0.55 + Math.pow(s, 220) * 1.6;
-  out[0] += glow * 1.9;
-  out[1] += glow * 1.35;
-  out[2] += glow * 0.7;
+  if (glow !== false) {
+    const s = clamp(dx * SUN_DIR[0] + dy * SUN_DIR[1] + dz * SUN_DIR[2], -1, 1);
+    const off = Math.acos(s) / DEG;
+    const g = 2.6 * Math.exp(-off / 2.4) + 0.5 * Math.exp(-off / 8);
+    out[0] += g;
+    out[1] += g * 0.55;
+    out[2] += g * 0.16;
+  }
   return out;
 }
 
-/** Linear colour to what is written to the screen: a soft shoulder, then gamma. In place. */
-export function toDisplay(c) {
-  for (let i = 0; i < 3; i++) c[i] = Math.pow(1 - Math.exp(-Math.max(c[i], 0) * LIGHT.exposure), 1 / 2.2);
-  return c;
+/**
+ * The moon: nearly full, and up in the east since before the sun began to set, as it is at this
+ * time of the month. It stands opposite the sun (so behind the viewer and a little to their
+ * right, over the trees at the back of the ledge: where the dragons come from when they swoop
+ * over), drawn a good deal bigger than life, as the sun is. Painted on the sky (scene.js).
+ *   azimuth    degrees to the RIGHT of straight behind the viewer
+ *   elevation  degrees above the horizon: clear of the treetops behind, which reach 20
+ *   radius     of its disc, degrees
+ */
+export const MOON = { azimuth: SUN_AZIMUTH / DEG + 2, elevation: 26, radius: 2.0 };
+/** A unit vector toward the moon. */
+export const MOON_DIR = (() => {
+  const az = MOON.azimuth * DEG;
+  const el = MOON.elevation * DEG;
+  return [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)];
+})();
+
+/**
+ * The first stars: how many are tried, and where they may be. Only where the sky has gone
+ * dark enough to show one (well up, and well round from the sun), and brighter the darker it
+ * is there.
+ */
+export const STARS = { count: 150, least: 18, fromSun: 62 };
+
+/**
+ * The far ranges: three lines of mountains beyond everything that is built, one behind the
+ * other, each paler than the one in front. They are what makes the valley one valley in a big
+ * country. Nothing is built for them: they are painted on the sky (scene.js, buildSky), so
+ * they cost no depth and no haze, and they stand where real ones would, at no parallax.
+ *   high   how high the tallest crests stand above the horizon (degrees)
+ *   grain  how many peaks there are to the turn (more: narrower peaks)
+ *   dim    its crests' share of the haze's light (the nearer, the darker)
+ *   sky    how far its colour has gone over to the sky's (the farther, the more)
+ * Farthest first.
+ */
+export const RANGES = [
+  { high: 8.2, grain: 6.4, seed: 3.7, dim: 1, sky: 0.5 },
+  { high: 5.2, grain: 4.9, seed: 11.2, dim: 0.8, sky: 0.14 },
+  { high: 3.0, grain: 3.5, seed: 23.9, dim: 0.6, sky: 0 },
+];
+
+/**
+ * How high the crest of range k stands above the horizon in the direction (dx, dz), in
+ * degrees. The sun goes down in a saddle of the ranges, between two shoulders.
+ */
+export function rangeCrest(k, dx, dz) {
+  const R = RANGES[k];
+  const flat = Math.hypot(dx, dz) || 1;
+  const x = dx / flat;
+  const z = dz / flat;
+  // Noise read round a circle, so that the line closes on itself behind the viewer.
+  const n = fbm(x * R.grain + R.seed, z * R.grain - R.seed, 4);
+  // Crests where the noise crosses nought: sharp on top, wide at the foot.
+  const peak = Math.pow(clamp(1 - 1.7 * Math.abs(n), 0, 1), 1.4);
+  const roll = 0.5 + 0.5 * noise2(x * R.grain * 0.31 - R.seed, z * R.grain * 0.31 + R.seed);
+  const off = Math.acos(clamp((x * SUN_DIR[0] + z * SUN_DIR[2]) / SUN_FLAT, -1, 1));
+  const saddle = Math.exp(-Math.pow(off / 0.17, 2));
+  const shoulder = Math.exp(-Math.pow((off - 0.42) / 0.2, 2));
+  return R.high * (0.3 + 0.5 * peak + 0.2 * roll + 0.22 * shoulder) * (1 - 0.6 * saddle);
+}
+
+/**
+ * The colour (linear) of range k in the direction (dx, dz): at its crest (`top` 1) and down
+ * toward its foot (`top` 0), where it stands in the haze of the valley behind the range in
+ * front. Into `out`.
+ */
+export function rangeColor(k, dx, dz, top, out) {
+  const R = RANGES[k];
+  const flat = Math.hypot(dx, dz) || 1;
+  fogColor(dx / flat, 0, dz / flat, tmpFog);
+  // The sky a little above the horizon: what the haze between the ranges shines with.
+  const e = Math.sin(1.3 * DEG);
+  const c = Math.cos(1.3 * DEG);
+  skyColor((dx / flat) * c, e, (dz / flat) * c, out, false);
+  for (let i = 0; i < 3; i++) {
+    const sky = out[i];
+    const crest = lerp(tmpFog[i] * R.dim, sky, R.sky);
+    const foot = lerp(tmpFog[i], sky, 0.55 + 0.3 * R.sky);
+    out[i] = lerp(foot, crest, top);
+  }
+  return out;
 }
 
 /** Light on a surface with unit normal n, as a multiplier per channel. sunlit: 0 shade .. 1 sun. */
 export function lightOn(nx, ny, nz, sunlit, out) {
   // The sun is low and the sky around it is bright: its light wraps a little past the edge.
-  const d = Math.max((nx * SUN_DIR[0] + ny * SUN_DIR[1] + nz * SUN_DIR[2] + 0.3) / 1.3, 0) * sunlit;
+  const d = Math.max((nx * SUN_DIR[0] + ny * SUN_DIR[1] + nz * SUN_DIR[2] + SUN_WRAP) / (1 + SUN_WRAP), 0) * sunlit;
   const up = ny * 0.5 + 0.5;
   for (let i = 0; i < 3; i++) out[i] = lerp(LIGHT.bounce[i], LIGHT.sky[i], up) + LIGHT.sun[i] * d;
   return out;
@@ -607,7 +885,7 @@ export function groundColor(x, z, h, slope, out) {
   const rock = srgb(0.5 + 0.07 * n, 0.4 + 0.05 * n, 0.43 + 0.05 * n); // quartzite: grey with a pink cast
   const grass = srgb(0.6 + 0.08 * n, 0.52 + 0.06 * n, 0.24);
   const litter = srgb(0.4 + 0.08 * n, 0.25 + 0.05 * n, 0.12);
-  const sand = srgb(0.52, 0.46, 0.34);
+  const sand = srgb(0.38, 0.31, 0.25);
   let c = grass;
   const mix = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
   c = mix(c, litter, smoothstep(0.15, 0.7, f));
