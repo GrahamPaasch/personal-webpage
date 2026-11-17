@@ -33,6 +33,7 @@ const STATIC_APP_DIRS = [
   'viola',
   'viola-gauntlet',
   'vr/dragons',
+  'vr/dragons-360',
   'wrap-chess',
   'wellness',
 ];

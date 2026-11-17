@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Two Dragons, October (360 film) | Graham Paasch</title>
+<meta name="description" content="A pre-rendered, photoreal 360-degree stereo film for VR headsets: a rock ledge over a Wisconsin valley at an October sunset, and two dragons that come in out of the sun and pass over your head.">
+<meta property="og:title" content="Two Dragons, October (360 film)">
+<meta property="og:description" content="A photoreal 360 stereo film for VR headsets: an autumn valley at sunset, and two dragons.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.grahampaasch.com/vr/dragons-360">
+<meta name="theme-color" content="#1a1410">
+<link rel="canonical" href="https://www.grahampaasch.com/vr/dragons-360">
+<link rel="icon" type="image/png" href="/vr/dragons-360/favicon.png">
+<style>
+:root{--ink:#fbf3e4;--mute:#d9c7ad;--gold:#f6b24a;--ember:#d2452a;--dark:#1a1410}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--dark);color:var(--ink);font:16px/1.5 Georgia,"Iowan Old Style","Times New Roman",serif;overflow:hidden;overscroll-behavior:none}
+button,select{font:600 16px/1 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:inherit;cursor:pointer}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#veil{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at 50% 60%,rgba(210,69,42,.25),rgba(26,20,16,.92) 70%);z-index:5;transition:opacity .6s}
+#veil.gone{opacity:0;pointer-events:none}
+#card{max-width:640px;text-align:center}
+h1{margin:0 0 8px;font-size:clamp(34px,6vw,56px);font-weight:400;line-height:1.05}
+h1 em{color:var(--gold)}
+p{margin:0 auto 16px;color:var(--mute);font-size:clamp(15px,2vw,18px)}
+#buttons{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:18px 0 10px}
+#buttons button{min-width:190px;padding:17px 26px;border-radius:999px;border:1px solid rgba(251,243,228,.5);background:rgba(26,20,16,.55)}
+#buttons button.primary{background:var(--ember);border-color:var(--ember)}
+#buttons button:disabled{opacity:.45;cursor:default}
+#status{min-height:1.5em;font:14px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--mute)}
+#quality{background:rgba(26,20,16,.6);border:1px solid rgba(251,243,228,.35);border-radius:8px;padding:6px 8px;font-size:14px}
+small{display:block;margin-top:14px;color:#a8977f;font:13px/1.5 -apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+a{color:var(--gold)}
+#hud{position:fixed;left:0;right:0;bottom:0;display:none;gap:10px;justify-content:center;padding:12px;z-index:4;font:14px -apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+#hud button{padding:10px 16px;border-radius:999px;border:1px solid rgba(251,243,228,.4);background:rgba(26,20,16,.6)}
+#bar{position:fixed;left:0;bottom:0;height:3px;background:var(--gold);width:0;z-index:6}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="veil"><div id="card">
+  <h1>Two Dragons, <em>October</em></h1>
+  <p>A rock ledge over a Wisconsin valley as the sun goes down. Two dragons come in out of the light, low over the lake, and half a minute in, right over your head.</p>
+  <p>A 75-second photoreal 360&deg; film in stereo 3D. Put on headphones, press <b>Enter VR</b>, and look all around: behind you, up, and down over the edge.</p>
+  <div id="buttons">
+    <button id="vr" class="primary" disabled>Enter VR</button>
+    <button id="flat">Watch here</button>
+  </div>
+  <label>Picture: <select id="quality">
+    <option value="hevc">Sharpest (4096 stereo, H.265)</option>
+    <option value="h264">Compatible (2880 stereo, H.264)</option>
+  </select></label>
+  <div id="status">Loading&hellip;</div>
+  <small>Rendered offline in Blender Cycles from real scanned and photographed assets: Poly Haven sky, rocks and trees, ambientCG leaves, NASA's lunar maps, and the Blender Foundation's <i>Sintel</i> dragon. <a href="/vr/dragons-360/credits.html">Credits</a>. The interactive version is at <a href="/vr/dragons">/vr/dragons</a>.</small>
+</div></div>
+<div id="hud"><button id="pp">Pause</button><button id="restart">Restart</button><button id="exitflat">Back</button></div>
+<div id="bar"></div>
+<script type="module">
+import * as THREE from '/vr/dragons-360/vendor/three.module.min.js';
+
+const BASE = 'https://videos.grahampaasch.com/v/';
+const FILES = { hevc: 'two-dragons-october-360-stereo-4k-hevc.mp4', h264: 'two-dragons-october-360-stereo-2880-h264.mp4' };
+const qs = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const status = (t) => { $('status').textContent = t; };
+
+const video = document.createElement('video');
+video.crossOrigin = 'anonymous';
+video.playsInline = true; video.setAttribute('playsinline', ''); video.setAttribute('webkit-playsinline', '');
+video.preload = 'auto';
+window.__video = video;
+
+const probe = document.createElement('video');
+const hevcOK = !!(probe.canPlayType('video/mp4; codecs="hvc1.1.6.L153.B0"') || probe.canPlayType('video/mp4; codecs="hev1.1.6.L153.B0"'));
+let quality = qs.get('q') || (hevcOK ? 'hevc' : 'h264');
+$('quality').value = quality;
+if (!hevcOK) $('quality').querySelector('[value=hevc]').textContent += ' (not supported here)';
+function load(q) {
+  quality = q; $('quality').value = q;
+  video.src = qs.get('src') || (BASE + FILES[q]);
+  video.load();
+}
+let triedFallback = false;
+video.addEventListener('error', () => {
+  if (quality === 'hevc' && !triedFallback) { triedFallback = true; status('This browser cannot play the H.265 file; switching to H.264.'); load('h264'); if (playing) video.play().catch(() => {}); return; }
+  status('The video could not be loaded (' + (video.error && video.error.code) + ').');
+});
+video.addEventListener('progress', () => {
+  if (video.duration && video.buffered.length) $('bar').style.width = (100 * video.buffered.end(video.buffered.length - 1) / video.duration) + '%';
+});
+video.addEventListener('canplay', () => { if (!playing) status('Ready.'); });
+video.addEventListener('waiting', () => status('Buffering…'));
+video.addEventListener('playing', () => status(''));
+video.addEventListener('ended', () => { status('The end. Press Restart to watch again.'); if (renderer.xr.isPresenting) { video.currentTime = 0; video.play(); } });
+$('quality').addEventListener('change', (e) => { const t = video.currentTime; load(e.target.value); video.currentTime = t; });
+load(quality);
+
+// ---- three.js: one sphere per eye, top half = left eye, bottom half = right eye
+const canvas = $('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local');
+renderer.xr.setFramebufferScaleFactor(qs.has('scale') ? +qs.get('scale') : 1.0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(80, innerWidth / innerHeight, 0.1, 100);
+camera.layers.enable(1);
+
+const tex = new THREE.VideoTexture(video);
+tex.colorSpace = THREE.SRGBColorSpace;
+tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+
+function eyeSphere(top) {
+  const g = new THREE.SphereGeometry(50, 96, 64);
+  g.scale(-1, 1, 1);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * 0.5 + (top ? 0.5 : 0));
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex }));
+  m.rotation.y = -Math.PI / 2; // centre of the picture (the lake and the sun) straight ahead, along -Z
+  return m;
+}
+const left = eyeSphere(true); left.layers.set(1); scene.add(left);   // flat view + left eye
+const right = eyeSphere(false); right.layers.set(2); scene.add(right);
+
+// ---- flat view: drag to look
+let yaw = 0, pitch = 0, drag = null, playing = false;
+canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const k = THREE.MathUtils.degToRad(camera.fov) / innerHeight;
+  yaw = drag.yaw + (e.clientX - drag.x) * k; pitch = THREE.MathUtils.clamp(drag.pitch + (e.clientY - drag.y) * k, -1.5, 1.5);
+});
+canvas.addEventListener('pointerup', () => { drag = null; });
+addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') yaw += 0.1; if (e.key === 'ArrowRight') yaw -= 0.1;
+  if (e.key === 'ArrowUp') pitch = Math.min(1.5, pitch + 0.1); if (e.key === 'ArrowDown') pitch = Math.max(-1.5, pitch - 0.1);
+  if (e.key === ' ') { video.paused ? video.play() : video.pause(); }
+});
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+renderer.setAnimationLoop(() => {
+  if (!renderer.xr.isPresenting) camera.rotation.set(pitch, yaw, 0, 'YXZ');
+  renderer.render(scene, camera);
+});
+
+async function start() {
+  playing = true;
+  try { await video.play(); } catch (e) { status('Press play: ' + e.message); }
+}
+$('flat').addEventListener('click', async () => {
+  $('veil').classList.add('gone'); $('hud').style.display = 'flex';
+  await start();
+});
+$('pp').addEventListener('click', () => { video.paused ? video.play() : video.pause(); $('pp').textContent = video.paused ? 'Play' : 'Pause'; });
+$('restart').addEventListener('click', () => { video.currentTime = 0; video.play(); });
+$('exitflat').addEventListener('click', () => { video.pause(); $('veil').classList.remove('gone'); $('hud').style.display = 'none'; });
+
+// ---- WebXR
+let session = null;
+if (navigator.xr) {
+  navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
+    $('vr').disabled = !ok;
+    status(ok ? 'Ready. Press Enter VR.' : 'No VR headset found here. Press Watch here to look around on this screen.');
+  }).catch(() => status('Press Watch here to look around on this screen.'));
+} else status('This browser has no WebXR. Press Watch here to look around on this screen.');
+$('vr').addEventListener('click', async () => {
+  if (session) { session.end(); return; }
+  try {
+    session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+    await renderer.xr.setSession(session);
+    session.addEventListener('end', () => { session = null; video.pause(); $('vr').textContent = 'Enter VR'; status('Paused. Press Enter VR to go back in.'); });
+    $('vr').textContent = 'Exit VR';
+    // a moment of silence and black is not wanted: start from the top each time you go in
+    if (video.ended || video.currentTime > video.duration - 1) video.currentTime = 0;
+    await start();
+  } catch (e) { status('Could not start VR: ' + e.message); session = null; }
+});
+// trigger in VR: pause / play
+renderer.xr.addEventListener('sessionstart', () => {
+  const s = renderer.xr.getSession();
+  s.addEventListener('select', () => { video.paused ? video.play() : video.pause(); });
+});
+window.__state = () => ({ t: video.currentTime, paused: video.paused, rs: video.readyState, w: video.videoWidth, h: video.videoHeight, q: quality, err: video.error && video.error.code });
+</script>
+</body>
+</html>
