@@ -836,6 +836,14 @@ export class Flyer {
     this.lookPitch = 0;
     this.jaw = 0;
     this.flapping = true;
+    this.wideLook = false; // may turn its head further round than usual (fetch.js)
+    // Off the wing (fetch.js): legs let down, wings folded, neck raised. 0 in flight.
+    this.legs = 0;
+    this.reach = 0;
+    this.crouch = 0;
+    this.hipPitch = 0;
+    this.fold = 0;
+    this.neckRaise = 0;
     this.set = 0; // how far the wings are set and cupped for a glide past something close, 0..1
     this.roar = 0; // seconds of roar left
     this.roarYaw = 0; // where the head points while it roars (radians off its line; positive: its left)
@@ -1008,8 +1016,10 @@ export class Flyer {
       const ly = look[1] - this.y;
       const lz = look[2] - this.z;
       const yaw = wrap(Math.atan2(lx, lz) - this.heading);
-      if (Math.abs(yaw) < 115 * DEG) {
-        yawWant = clamp(yaw, -70 * DEG, 70 * DEG);
+      // (Looking back over its shoulder, it can turn its head further: see fetch.js.)
+      const most = this.wideLook ? 105 * DEG : 70 * DEG;
+      if (Math.abs(yaw) < (this.wideLook ? 178 : 115) * DEG) {
+        yawWant = clamp(yaw, -most, most);
         pitchWant = clamp(Math.atan2(ly, Math.hypot(lx, lz)) - this.pitch, -40 * DEG, 45 * DEG);
       }
     }
@@ -1231,6 +1241,7 @@ export class Director {
     // as long need twice the distance between two bodies flying side by side.
     this.room = Math.max((builds[0].size + builds[1].size) / PAIR_DRAWN, 1);
     this.script = options && options.opening ? options.opening : OPENING;
+    this.game = null; // fetch.js hooks itself in here
     this.reset();
   }
 
@@ -1298,6 +1309,7 @@ export class Director {
       this.pointAt(s + 3, ahead);
       this.flyers[i].place(tmp[0], tmp[1], tmp[2], Math.atan2(ahead[0] - tmp[0], ahead[2] - tmp[2]), this.speedAt(s));
     }
+    if (this.game) this.game.reset();
   }
 
   // --- The path -------------------------------------------------------------------------------
@@ -1553,17 +1565,7 @@ export class Director {
     let who = free[0];
     if (free.length > 1 && rank(free[1]) < rank(who)) who = free[1];
     const f = this.flyers[who];
-    // It comes in over the near end of the lake, on one of a few lines a little apart (so that
-    // no two calls in a row are answered alike), and goes by where planPass finds is best
-    // for that line: to the viewer's right, a little above their head.
-    const from = CALL_LINES[this.calls++ % CALL_LINES.length];
-    const ux = -Math.sin(from);
-    const uz = Math.cos(from);
-    const plan = planPass(ux, uz, f.size);
-    const job = { phase: 'out', pass: plan.point, turn: plan.turn, side: plan.side, line: [ux, uz], dir: [ux, uz], exit: [ux, uz], t: 0, roared: false };
-    // Already far enough out over the valley: then it simply comes.
-    if (this.canCome(f, job)) job.phase = 'come';
-    this.jobs[who] = job;
+    this.sendPast(who, null);
     this.callAt = this.time;
     // It answers at once: a short call, and it looks round at the viewer.
     f.cry = CRY_SECONDS;
@@ -1571,16 +1573,41 @@ export class Director {
     return who;
   }
 
+  /**
+   * Send dragon i past the viewer, the way a called one comes. It comes in over the near end of
+   * the lake, on one of a few lines a little apart (so that no two calls in a row are answered
+   * alike), and goes by where planPass finds is best for that line: to the viewer's right, a
+   * little above their head. `extra` is added to the job (fetch.js: { drop: true } to toss the
+   * ball to the viewer as it goes by).
+   */
+  sendPast(i, extra) {
+    const f = this.flyers[i];
+    const from = CALL_LINES[this.calls++ % CALL_LINES.length];
+    const ux = -Math.sin(from);
+    const uz = Math.cos(from);
+    const plan = planPass(ux, uz, f.size);
+    const job = { phase: 'out', pass: plan.point, turn: plan.turn, side: plan.side, line: [ux, uz], dir: [ux, uz], exit: [ux, uz], t: 0, roared: false };
+    if (extra) Object.assign(job, extra);
+    // Already far enough out over the valley: then it simply comes.
+    if (this.canCome(f, job)) job.phase = 'come';
+    this.jobs[i] = job;
+    return job;
+  }
+
   // --- One step of time -----------------------------------------------------------------------
 
   step(dt) {
     this.time += dt;
     const flyers = this.flyers;
+    const game = this.game;
+    // Fetch (fetch.js) first: the ball, and any dragon that is off the wing.
+    if (game) game.step(dt);
+    const eager = !!(game && game.eager);
 
     // Where each dragon is along the path. A dragon that is off on a call, or still far from
     // the lane on its way back, has no place on it.
     for (let i = 0; i < 2; i++) {
-      if (this.jobs[i]) {
+      if (this.jobs[i] || eager) {
         this.on[i] = false;
         continue;
       }
@@ -1604,7 +1631,7 @@ export class Director {
     let behind = 0;
     for (let i = 0; i < 2; i++) {
       const should = this.center + (i === 0 ? 0.5 : -0.5) * this.gap;
-      if (this.jobs[i]) behind = Math.max(behind, 60);
+      if (this.jobs[i] || eager) behind = Math.max(behind, 60);
       else if (this.on[i]) behind = Math.max(behind, should - this.along[i]);
       else behind = Math.max(behind, 80);
     }
@@ -1676,7 +1703,16 @@ export class Director {
       if (toViewer < this.closest) this.closest = toViewer;
       if (job) {
         this.lanePoint[i][3] = Infinity;
-        this.wantSpeed[i] = this.flyPast(i, job, dt, toViewer);
+        if (game && game.posed(i)) continue;
+        this.wantSpeed[i] = job.kind === 'fetch' ? game.fly(i, job, dt, carrot) : this.flyPast(i, job, dt, toViewer);
+        continue;
+      }
+      if (eager) {
+        // Playing: round the ring in front of the ledge, watching the ball.
+        this.lanePoint[i][3] = Infinity;
+        this.setWant[i] = 0;
+        if (game.posed(i)) continue;
+        this.wantSpeed[i] = game.circle(i, carrot, dt);
         continue;
       }
       // Wings set where the lane says so (and a little before: they take a moment to settle).
@@ -1857,10 +1893,21 @@ export class Director {
 
     for (let i = 0; i < 2; i++) {
       const f = flyers[i];
+      // Off the wing: fetch.js has placed and posed it already.
+      if (game && game.posed(i)) continue;
       // Where to look: at the viewer when close or called, otherwise the chaser watches the leader.
       let look = null;
       if (near[i] < 75 || this.jobs[i]) look = VIEWER;
       else if ((i === 0 ? 1 : -1) !== this.lead && !this.jobs[i]) look = [flyers[1 - i].x, flyers[1 - i].y, flyers[1 - i].z];
+      // (Playing, it watches the ball, or whatever fetch.js says.)
+      if (game) {
+        const watch = game.look(i);
+        if (watch !== undefined) look = watch;
+        f.wideLook = game.wideLook(i);
+        // Whatever giving way has done to it, a point a playing dragon chases stays clear of the ledge.
+        const job = this.jobs[i];
+        if ((job && job.kind === 'fetch') || (!job && eager)) game.keepClear(this.carrots[i], i);
+      }
       f.step(dt, this.carrots[i], this.wantSpeed[i], look, this.setWant[i]);
       if (f.beatNow > 0) this.events.push({ type: 'beat', dragon: i, strength: f.beatNow });
     }
@@ -1947,16 +1994,17 @@ export class Director {
     const along = rx * u[0] + rz * u[1];
     const aside = Math.abs(rz * u[0] - rx * u[1]);
     if (job.phase === 'out') {
-      carrot[0] = job.pass[0] - u[0] * CALL_GATE;
-      carrot[2] = job.pass[2] - u[1] * CALL_GATE;
-      carrot[1] = Math.max(job.pass[1] + lineRise(-CALL_GATE), flightFloor(carrot[0], carrot[2]) + 3);
+      const gate = job.gate || CALL_GATE;
+      carrot[0] = job.pass[0] - u[0] * gate;
+      carrot[2] = job.pass[2] - u[1] * gate;
+      carrot[1] = Math.max(job.pass[1] + lineRise(-gate), flightFloor(carrot[0], carrot[2]) + 3);
       // Beside the ledge or behind it there are trees between it and the valley: over them.
       if (f.z > -12 && toViewer < HERO_REACH + 12) carrot[1] = Math.max(carrot[1], CALL_OVER);
       if (job.t > 18 || this.canCome(f, job)) {
         job.phase = 'come';
         job.t = 0;
       }
-      return CALL_SLOW;
+      return job.slow || CALL_SLOW;
     }
     if (job.phase === 'come') {
       // The point it chases runs ahead of it down the line, and stops beside the viewer.
@@ -1973,6 +2021,7 @@ export class Director {
         job.roared = true;
         this.roar(i, 'call');
       }
+      if (job.drop && this.game) this.game.passing(i, job, false);
       if (d < 24 || along > -16 || job.t > 40) {
         // Close: keep the line it is on, straight through the point beside the viewer, and
         // then out the way that was planned.
@@ -2014,6 +2063,7 @@ export class Director {
     const out = (f.x - job.pass[0]) * job.exit[0] + (f.z - job.pass[2]) * job.exit[1];
     // Wings still set until it is well past the viewer.
     if (gone < 14) this.setWant[i] = 1;
+    if (job.drop && this.game) this.game.passing(i, job, out > 48 || job.t > 12);
     if (out > 48 || job.t > 12) this.jobs[i] = null;
     return toViewer < 34 ? 13.5 : 20;
   }

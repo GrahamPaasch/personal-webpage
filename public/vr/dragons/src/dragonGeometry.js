@@ -10,7 +10,7 @@
  */
 
 import { MeshBuilder } from './meshbuilder.js';
-import { BONE, makeSkeleton } from './rig.js';
+import { BONE, LEG, makeSkeleton } from './rig.js';
 import { hash2 } from './rng.js';
 
 const HIDE = 0;
@@ -171,18 +171,23 @@ export function buildDragon(build, colors) {
   }
 
   // -------------------------------------------------------------------------------------------
-  // Legs: tucked back along the tail.
+  // Legs.
   // -------------------------------------------------------------------------------------------
-  for (const [side, bone] of [[1, BONE.legL], [-1, BONE.legR]]) {
-    m.tube(
-      [
-        { p: P(side * 0.42 * K, -0.3, -0.75), r: 0.24 * s },
-        { p: P(side * 0.56 * K, -0.78, -1.45), r: 0.17 * s },
-        { p: P(side * 0.5 * K, -0.6, -2.2), r: 0.09 * s },
-        { p: P(side * 0.5 * K, -0.74, -2.7), r: 0.02 * s },
-      ],
-      4, (k) => (k === 2 ? colors.horn : scaleColor(colors.side, 0.85)), one(bone)
-    );
+  if (b.legs === 'old') {
+    // The first ones: a thin stalk on one bone, tucked back along the tail.
+    for (const [side, bone] of [[1, BONE.legL], [-1, BONE.legR]]) {
+      m.tube(
+        [
+          { p: P(side * 0.42 * K, -0.3, -0.75), r: 0.24 * s },
+          { p: P(side * 0.56 * K, -0.78, -1.45), r: 0.17 * s },
+          { p: P(side * 0.5 * K, -0.6, -2.2), r: 0.09 * s },
+          { p: P(side * 0.5 * K, -0.74, -2.7), r: 0.02 * s },
+        ],
+        4, (k) => (k === 2 ? colors.horn : scaleColor(colors.side, 0.85)), one(bone)
+      );
+    }
+  } else {
+    buildLegs(m, b, colors, P, one, two);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -250,7 +255,97 @@ export function buildDragon(build, colors) {
     });
   }
 
-  return { arrays: m.arrays(), skeleton };
+  return { arrays: m.arrays(), skeleton, feet: footPoints(b) };
+}
+
+/**
+ * What a dragon stands on (rig.js, footDrop): the ball of each foot and the points of its
+ * talons, or the ends of the old stalks. b: the build, as makeSkeleton fills it in.
+ */
+export function footPoints(b) {
+  const s = b.scale;
+  const K = b.bulk;
+  const P = (x, y, z) => [x * s, y * s, z * s];
+  const feet = [];
+  if (b.legs === 'old') {
+    for (const [side, bone] of [[1, BONE.legL], [-1, BONE.legR]]) feet.push({ bone, p: P(side * 0.5 * K, -0.74, -2.7) });
+    return feet;
+  }
+  for (const [side, bone] of [[1, BONE.footL], [-1, BONE.footR]]) {
+    feet.push({ bone, p: P(side * LEG.ball[0] * K, LEG.ball[1] - 0.14, LEG.ball[2]) });
+    feet.push({ bone, p: P(side * LEG.ball[0] * K, LEG.ball[1] - 0.12, LEG.ball[2] + 0.62) });
+    feet.push({ bone, p: P(side * LEG.ball[0] * K, LEG.ball[1] - 0.12, LEG.ball[2] - 0.32) });
+  }
+  return feet;
+}
+
+/**
+ * The hind legs: a heavy thigh that grows out of the flank, a knee, a shin, the long bone of the
+ * foot, and four toes (three forward, one back), each ending in a hooked talon. Built standing,
+ * as the rest pose has them (rig.js, LEG); the flight tucks them up under the tail. One tube runs
+ * from the hip to the ball of the foot, bending at the joints, so that a bent knee stays whole.
+ */
+function buildLegs(m, b, colors, P, one, two) {
+  const K = b.bulk;
+  const s = b.scale;
+  const thighCol = scaleColor(colors.side, 0.8);
+  const shinCol = scaleColor(mixColor(colors.side, colors.horn, 0.35), 0.75);
+  const footCol = scaleColor(mixColor(colors.side, colors.horn, 0.6), 0.7);
+  const talonCol = colors.horn;
+  const at = (q, side, dx, dy, dz) => P(side * (q[0] * K + (dx || 0)), q[1] + (dy || 0), q[2] + (dz || 0));
+  const mid = (a, c, f) => [a[0] + (c[0] - a[0]) * f, a[1] + (c[1] - a[1]) * f, a[2] + (c[2] - a[2]) * f];
+  for (const [side, thigh, shin, foot] of [[1, BONE.legL, BONE.shinL, BONE.footL], [-1, BONE.legR, BONE.shinR, BONE.footR]]) {
+    // The leg, hip to ball of the foot. The top of the thigh is held by the hips as much as by
+    // the thigh, so it stays in the flank however the leg swings.
+    const path = [
+      { p: at(LEG.hip, side, -0.06, 0.16, 0.12), r: 0.5 * s, aux: two(BONE.hips, thigh, 0.55) },
+      { p: at(mid(LEG.hip, LEG.knee, 0.45), side, 0.03, 0, 0.04), r: 0.44 * s, aux: one(thigh) },
+      { p: at(LEG.knee, side), r: 0.23 * s, aux: two(thigh, shin, 0.5) },
+      { p: at(mid(LEG.knee, LEG.ankle, 0.5), side, 0, 0, 0.03), r: 0.18 * s, aux: one(shin) },
+      { p: at(LEG.ankle, side, 0, 0, -0.03), r: 0.13 * s, aux: two(shin, foot, 0.5) },
+      { p: at(LEG.ball, side), r: 0.1 * s, aux: one(foot) },
+    ];
+    const colorAt = (k) => (k < 2 ? thighCol : k < 4 ? shinCol : footCol);
+    m.tube(path, 6, colorAt, (k) => path[k].aux, { capEnd: footCol });
+    // The toes: three forward, spread, and one back; each a short tube and a hooked talon.
+    const ball = LEG.ball;
+    const toes = [
+      [0, 0.62, 0.075], // [spread (radians, outward), length, thickness]
+      [0.42, 0.5, 0.065],
+      [-0.36, 0.48, 0.065],
+      [Math.PI, 0.32, 0.06],
+    ];
+    for (const [spread, len, r] of toes) {
+      const dx = Math.sin(spread) * side;
+      const dz = Math.cos(spread);
+      const base = [ball[0] * K * side, ball[1], ball[2]];
+      const pt = (along, down) => P(base[0] + dx * along, base[1] - down, base[2] + dz * along);
+      const end = pt(len, 0.1);
+      m.tube(
+        [
+          { p: P(base[0], base[1] + 0.02, base[2]), r: r * 1.15 * s },
+          { p: pt(len * 0.55, 0.07), r: r * s },
+          { p: end, r: r * 0.8 * s },
+        ],
+        4, footCol, one(foot)
+      );
+      // The talon: forward and over, then down to a point.
+      const t1 = pt(len + 0.16, 0.08);
+      const t2 = pt(len + 0.24, 0.24);
+      m.tube(
+        [
+          { p: end, r: r * 0.85 * s },
+          { p: t1, r: r * 0.5 * s },
+          { p: t2, r: 0.006 * s },
+        ],
+        3, talonCol, one(foot)
+      );
+    }
+  }
+}
+
+function mixColor(a, c, t) {
+  return [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t, a[2] + (c[2] - a[2]) * t];
 }
 
 /**
@@ -368,13 +463,19 @@ export const FLAME_GLOW = [
   [0.3, 6.6, 0.19],
 ];
 
+/**
+ * Which legs the dragons have: 'old' (the first, thin stalks) or 'new' (thick hind legs with
+ * talons). Chosen in the headset from the side-by-side test at /vr/dragons/legs.
+ */
+export const LEGS = 'old';
+
 /** The two dragons of this piece. Colours are sRGB here and converted by the caller. */
 export const DRAGONS = [
   {
     name: 'Ember',
     // 19.7 m from wingtip to wingtip: the span of a small airliner. (It was 13.6 m; seen in a
     // headset from 25 m that was a big bird, and this is a dragon.)
-    build: { scale: 1.45, neck: 1, tail: 1, wing: 1, bulk: 1, horn: 1 },
+    build: { scale: 1.45, neck: 1, tail: 1, wing: 1, bulk: 1, horn: 1, legs: LEGS },
     beat: 0.72, // wingbeats a second at an easy pace: wings this long are not beaten fast
     voice: 1.16, // how big it sounds (the sound was balanced for 1 and 0.78)
     colors: {
@@ -390,7 +491,7 @@ export const DRAGONS = [
   },
   {
     name: 'Tarn',
-    build: { scale: 1.1, neck: 1.08, tail: 1.12, wing: 1.06, bulk: 0.9, horn: 1.25 },
+    build: { scale: 1.1, neck: 1.08, tail: 1.12, wing: 1.06, bulk: 0.9, horn: 1.25, legs: LEGS },
     beat: 0.94,
     voice: 0.88,
     // Its upper side is a light teal on purpose: a dark one sat at the value of shaded forest,

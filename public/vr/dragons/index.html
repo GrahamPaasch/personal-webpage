@@ -71,6 +71,8 @@ body.tools #veil,body.tools #hud,body.tools #hint{display:none}
 
 <div id="hud" hidden>
   <button id="soundChip" aria-pressed="true" title="Sound on or off (M)">Sound</button>
+  <button id="throwChip" title="Throw the ball (hold T: the longer, the harder)">Throw</button>
+  <button id="modeChip" title="How they bring it back (A)">Exercise</button>
   <button id="callChip" title="Call a dragon (Space)">Call a dragon</button>
   <button id="vrChip" hidden>Enter VR</button>
 </div>
@@ -89,6 +91,11 @@ body.tools #veil,body.tools #hud,body.tools #hint{display:none}
     document.getElementById('note').textContent = 'The page could not load its code. Check the connection and reload.';
   };
   document.head.appendChild(s);
+  // The list of versions on the card (one list for all of them, kept at the newest one's root).
+  var v = document.createElement('script');
+  v.src = dir + 'versions.js';
+  v.setAttribute('data-current', 'v3');
+  document.head.appendChild(v);
 })();
 </script>
 </body>

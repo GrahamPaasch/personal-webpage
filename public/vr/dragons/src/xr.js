@@ -39,7 +39,9 @@ async function setSessionPlain(manager, session) {
 export class XRControl {
   /**
    * handlers: { onSessionStart(), onSessionEnd(), onTrigger(hand) -> false if the call could
-   *             not be answered, onVisibility(visible), onPlaced() }
+   *             not be answered, onVisibility(visible), onPlaced(),
+   *             onGrip(controller, down) (the grip squeezed or let go: see `controllers`),
+   *             onButtonA(controller) (A on the right controller, X on the left) }
    * options: { plainLayer: draw through a plain XRWebGLLayer, scale: framebuffer scale,
    *            foveation: 0..1 }
    */
@@ -75,11 +77,19 @@ export class XRControl {
     }
     if (o.foveation !== undefined && o.foveation >= 0 && o.foveation <= 1) xr.setFoveation(o.foveation);
 
-    // Both controllers (or tracked hands, whose pinch arrives as the same event).
+    // Both controllers (or tracked hands, whose pinch arrives as the same event). Each knows
+    // where it is in the world (its grip: where the hand holding it is) and how fast it is
+    // moving, from where it has been over the last few frames: that is what a throw is.
     this.controllers = [0, 1].map((index) => {
       const ray = xr.getController(index);
       stage.rig.add(ray);
-      const c = { index, ray, source: null, handedness: '' };
+      const grip = xr.getControllerGrip(index);
+      stage.rig.add(grip);
+      const c = {
+        index, ray, grip, source: null, handedness: '', squeezing: false, buttonA: false,
+        position: new THREE.Vector3(), velocity: new THREE.Vector3(), tracked: false,
+        trail: [], // the last few { t, x, y, z }
+      };
       ray.addEventListener('connected', (e) => {
         c.source = e.data;
         c.handedness = e.data.handedness || '';
@@ -92,6 +102,14 @@ export class XRControl {
         // One buzz in the hand: a dragon is coming. Two short ones: none can just now.
         const answered = this.handlers.onTrigger(c.handedness);
         this.pulse(c, answered !== false);
+      });
+      ray.addEventListener('squeezestart', () => {
+        c.squeezing = true;
+        if (this.handlers.onGrip) this.handlers.onGrip(c, true);
+      });
+      ray.addEventListener('squeezeend', () => {
+        c.squeezing = false;
+        if (this.handlers.onGrip) this.handlers.onGrip(c, false);
       });
       return c;
     });
@@ -293,6 +311,7 @@ export class XRControl {
       this.placed = true;
       if (this.handlers.onPlaced) this.handlers.onPlaced();
     }
+    this.trackHands();
     this.frames++;
     // The first half second is the headset settling: not counted.
     if (this.frames <= 36) return false;
@@ -303,6 +322,49 @@ export class XRControl {
     const late = dt > this.nominal * 1.5;
     if (late) t.late++;
     return late;
+  }
+
+  /**
+   * Where each hand is in the world, and how fast it is moving (over the last 70 ms or so: a
+   * throw is measured over the last moment before the grip opens, not the last frame, which
+   * would be all noise). And the A (or X) button, which is read from the gamepad.
+   */
+  trackHands() {
+    const now = performance.now() / 1000;
+    this.stage.rig.updateMatrixWorld(true);
+    for (const c of this.controllers) {
+      c.tracked = !!c.source && c.grip.visible;
+      if (!c.tracked) {
+        c.trail.length = 0;
+        c.velocity.set(0, 0, 0);
+        continue;
+      }
+      c.grip.updateMatrixWorld(true);
+      c.position.setFromMatrixPosition(c.grip.matrixWorld);
+      const trail = c.trail;
+      trail.push({ t: now, x: c.position.x, y: c.position.y, z: c.position.z });
+      while (trail.length > 2 && now - trail[1].t > 0.075) trail.shift();
+      if (trail.length > 12) trail.shift();
+      const first = trail[0];
+      const span = now - first.t;
+      if (span > 0.012) c.velocity.set((c.position.x - first.x) / span, (c.position.y - first.y) / span, (c.position.z - first.z) / span);
+      else c.velocity.set(0, 0, 0);
+      const pad = c.source && c.source.gamepad;
+      const pressed = !!(pad && pad.buttons && pad.buttons[4] && pad.buttons[4].pressed);
+      if (pressed && !c.buttonA && this.handlers.onButtonA) this.handlers.onButtonA(c);
+      c.buttonA = pressed;
+    }
+  }
+
+  /** A short buzz in one hand (strength 0..1, milliseconds). */
+  buzz(c, strength, ms) {
+    try {
+      const pad = c && c.source && c.source.gamepad;
+      const motor = pad && pad.hapticActuators && pad.hapticActuators[0];
+      if (motor && motor.pulse) motor.pulse(strength, ms);
+    } catch (err) {
+      /* no haptics */
+    }
   }
 
   /**

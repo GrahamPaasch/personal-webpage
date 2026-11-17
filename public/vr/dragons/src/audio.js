@@ -50,6 +50,7 @@ export const LEVEL = {
   fire: 0.6, // the rush of flame inside a roar, relative to the voice
   cry: 0.5, // a short call: the answer to being called
   whistle: 0.07,
+  things: 0.9, // the ball and what it falls in: splashes, thuds, the snap of jaws (fetch.js)
   reverb: 0.55,
   echo: 0.4,
 };
@@ -643,6 +644,7 @@ export class Soundscape {
     this.hushed = false;
     this.nearest = Infinity;
     this.lastBird = null;
+    this.listenerAt = [0, 1.62, 0];
   }
 
   /**
@@ -733,6 +735,13 @@ export class Soundscape {
     this.birdBus = ctx.createGain();
     this.birdBus.gain.value = LEVEL.birds;
     this.birdBus.connect(master);
+    // The ball's sounds, and what it falls in or onto.
+    this.thingBus = ctx.createGain();
+    this.thingBus.gain.value = LEVEL.things;
+    this.thingBus.connect(master);
+    const thingSend = ctx.createGain();
+    thingSend.gain.value = 0.7;
+    this.thingBus.connect(thingSend).connect(this.reverbIn);
     this.birdSend = ctx.createGain();
     this.birdSend.gain.value = 0.45;
     this.birdBus.connect(this.birdSend).connect(this.reverbIn);
@@ -1039,6 +1048,7 @@ export class Soundscape {
    * viewer's head). dragons: [{ x, y, z, vx, vy, vz, speed, beating, cupped }] in the same order as attach().
    */
   update(dt, listener, dragons) {
+    this.listenerAt = listener.position;
     const ctx = this.ctx;
     if (!this.running) return;
     const now = ctx.currentTime;
@@ -1182,6 +1192,75 @@ export class Soundscape {
     breath.connect(band).connect(air).connect(out);
     breath.start(t, 1.1, 0.6);
     this.stats.whistles = (this.stats.whistles || 0) + 1;
+  }
+
+  /**
+   * A sound of the game, placed where it happens (it is heard late from far off, like the
+   * dragons): 'splash' (the ball into the lake), 'thrash' (a dragon beating at the water),
+   * 'thud' (the ball on grass), 'rock' (on rock), 'land' (a dragon's feet coming down), 'snap'
+   * (jaws closing on the ball), 'rustle' (the ball through a crown), 'swish' (a throw, at the
+   * hand). size: 0..1 or so. Every one is a little burst of noise, filtered and shaped: no
+   * sound files.
+   */
+  thing(kind, x, y, z, size) {
+    if (!this.running) return 0;
+    const ctx = this.ctx;
+    const k = Math.max(0.15, Math.min(size || 0.5, 1.5));
+    const panner = ctx.createPanner();
+    panner.panningModel = 'equalpower';
+    panner.distanceModel = 'inverse';
+    panner.refDistance = 6;
+    panner.rolloffFactor = 0.9;
+    placeNow(panner, x, y, z);
+    const distance = Math.hypot(x - this.listenerAt[0], y - this.listenerAt[1], z - this.listenerAt[2]);
+    const air = ctx.createBiquadFilter();
+    air.type = 'lowpass';
+    air.frequency.value = Math.min(airCutoff(distance) * 1.4, 16000);
+    air.connect(panner).connect(this.thingBus);
+    const t0 = ctx.currentTime + 0.02 + soundDelay(distance);
+    // [band centre (Hz), width (Q), attack, length (s), level, pitch fall] for each burst.
+    const SHAPES = {
+      splash: [[700, 0.7, 0.005, 0.5, 1.1, 0.5], [2600, 1.2, 0.01, 0.9, 0.5, 0.7], [180, 1, 0.003, 0.25, 0.9, 0.6]],
+      thrash: [[900, 0.8, 0.01, 0.35, 0.8, 0.6], [3000, 1.3, 0.02, 0.5, 0.35, 0.8]],
+      thud: [[140, 1.2, 0.003, 0.18, 1.2, 0.7], [600, 1, 0.002, 0.08, 0.35, 0.8]],
+      rock: [[260, 1.6, 0.002, 0.14, 1.0, 0.85], [1900, 2.5, 0.001, 0.05, 0.4, 0.9]],
+      land: [[90, 1, 0.01, 0.4, 1.6, 0.6], [400, 0.8, 0.005, 0.25, 0.6, 0.7]],
+      snap: [[1400, 3, 0.001, 0.05, 0.9, 0.9], [320, 2, 0.002, 0.12, 0.8, 0.7]],
+      rustle: [[3800, 0.8, 0.03, 0.7, 0.45, 0.9], [1500, 1, 0.02, 0.5, 0.3, 0.9]],
+      swish: [[900, 0.7, 0.05, 0.28, 0.45, 1.6]],
+    };
+    const shape = SHAPES[kind] || SHAPES.thud;
+    let longest = 0;
+    let last = null;
+    for (const [f0, q, attack, length, level, fall] of shape) {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      const band = ctx.createBiquadFilter();
+      band.type = 'bandpass';
+      band.Q.value = q;
+      band.frequency.setValueAtTime(f0 * (0.9 + 0.2 * this.rng()), t0);
+      band.frequency.exponentialRampToValueAtTime(f0 * fall, t0 + length);
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0, t0);
+      env.gain.linearRampToValueAtTime(level * k, t0 + attack);
+      env.gain.exponentialRampToValueAtTime(0.0008, t0 + length * (0.8 + 0.5 * k));
+      src.connect(band).connect(env).connect(air);
+      src.start(t0, this.rng() * 3, length * 1.4 + 0.05);
+      longest = Math.max(longest, length);
+      last = src;
+    }
+    if (last) {
+      last.onended = () => {
+        try {
+          air.disconnect();
+          panner.disconnect();
+        } catch (err) {
+          /* already gone */
+        }
+      };
+    }
+    this.stats.things = (this.stats.things || 0) + 1;
+    return longest;
   }
 
   /** A downstroke of dragon i. */

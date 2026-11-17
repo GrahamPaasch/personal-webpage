@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Two Dragons, October | Graham Paasch</title>
+<meta name="description" content="Stand on a rock ledge over a Wisconsin valley at the end of an October day and watch two dragons fly: through the gaps in the trees, low over the lake, and now and then right over your head. A WebXR scene for VR headsets (built for the Oculus Quest 1), with a flat-screen view for everything else.">
+<meta property="og:title" content="Two Dragons, October">
+<meta property="og:description" content="A rock ledge over an autumn valley, and two dragons. WebXR for VR headsets, with a flat-screen view for everything else.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.grahampaasch.com/vr/dragons">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#1a1410">
+<link rel="canonical" href="https://www.grahampaasch.com/vr/dragons">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231a1410'/%3E%3Ccircle cx='16' cy='20' r='9' fill='%23f6b24a'/%3E%3Cpath d='M2 9l9 3 5 5 5-5 9-3-6 9-5 1-3 5-3-5-5-1z' fill='%23b02a14'/%3E%3C/svg%3E">
+<style>
+:root{--ink:#fbf3e4;--mute:#d9c7ad;--gold:#f6b24a;--ember:#d2452a;--dark:#1a1410}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--dark);color:var(--ink);font:16px/1.5 Georgia,"Iowan Old Style","Times New Roman",serif;overflow:hidden;overscroll-behavior:none}
+button{font:600 16px/1 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:inherit;cursor:pointer}
+#stage{position:fixed;top:0;left:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+
+/* The opening card. The valley is already alive behind it. */
+#veil{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 20px max(40px,env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(26,20,16,.05) 0%,rgba(26,20,16,.12) 45%,rgba(26,20,16,.78) 100%);transition:opacity .9s ease;z-index:5}
+#veil.gone{opacity:0;pointer-events:none}
+/* The curtain: closed for a moment while the piece is set to its beginning. */
+#veil::before{content:"";position:absolute;inset:0;background:var(--dark);opacity:0;transition:opacity .28s ease;pointer-events:none}
+#veil.curtain::before{opacity:1}
+#veil.curtain #card{opacity:0;transition:opacity .2s ease}
+#card{position:relative}
+body.tools #veil,body.tools #hud,body.tools #hint{display:none}
+#card{max-width:620px;text-align:center}
+#card h1{margin:0 0 6px;font-size:clamp(34px,6vw,58px);font-weight:400;letter-spacing:.01em;line-height:1.05;text-shadow:0 2px 24px rgba(0,0,0,.55)}
+#card h1 em{font-style:italic;color:var(--gold)}
+#lede{margin:0 auto 20px;max-width:520px;color:var(--mute);font-size:clamp(16px,2.2vw,19px);text-shadow:0 1px 12px rgba(0,0,0,.7)}
+#buttons{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+#buttons button{min-width:190px;padding:17px 26px;border-radius:999px;border:1px solid rgba(251,243,228,.5);background:rgba(26,20,16,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:transform .15s ease,background .15s ease}
+#buttons button:hover:not(:disabled){transform:translateY(-1px);background:rgba(26,20,16,.75)}
+#buttons button.primary{background:var(--ember);border-color:var(--ember);box-shadow:0 6px 28px rgba(210,69,42,.45)}
+#buttons button.primary:hover:not(:disabled){background:#e0502f}
+#buttons button:disabled{opacity:.5;cursor:default}
+#note{min-height:1.5em;margin:16px auto 0;max-width:520px;color:var(--mute);font:14px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;text-shadow:0 1px 10px rgba(0,0,0,.8)}
+
+/* Small controls once the card is gone. */
+#hud{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:max(14px,env(safe-area-inset-bottom));display:flex;gap:8px;flex-wrap:wrap;align-items:center;z-index:4;opacity:.92}
+#hud[hidden]{display:none}
+#hud button{padding:10px 15px;border-radius:999px;border:1px solid rgba(251,243,228,.35);background:rgba(26,20,16,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:14px}
+#hud button:hover:not(:disabled){background:rgba(26,20,16,.75)}
+#hud button[aria-pressed="false"]{color:var(--mute);text-decoration:line-through}
+#hint{position:fixed;left:0;right:0;top:max(16px,env(safe-area-inset-top));text-align:center;font:14px/1.4 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);text-shadow:0 1px 10px rgba(0,0,0,.85);pointer-events:none;transition:opacity 1.2s ease;z-index:4;padding:0 16px}
+#hint.gone{opacity:0}
+#hint[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){#veil,#hint{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="stage" tabindex="0" aria-label="A valley in autumn from a rock ledge, with two dragons flying"></canvas>
+
+<div id="veil">
+  <div id="card">
+    <h1>Two Dragons, <em>October</em></h1>
+    <p id="lede">A rock ledge over a Wisconsin valley at the end of the day. The maples have turned, and two dragons are out over the lake.</p>
+    <div id="buttons">
+      <button id="enterVR" class="primary" disabled>Enter VR</button>
+      <button id="watch" disabled>Watch here</button>
+    </div>
+    <p id="note" role="status">Waking the valley&hellip;</p>
+  </div>
+</div>
+
+<div id="hud" hidden>
+  <button id="soundChip" aria-pressed="true" title="Sound on or off (M)">Sound</button>
+  <button id="callChip" title="Call a dragon (Space)">Call a dragon</button>
+  <button id="vrChip" hidden>Enter VR</button>
+</div>
+<div id="hint" class="gone" hidden>Drag to look around. Tap, or press Space, to call a dragon.</div>
+
+<script>
+/* The page is served from a folder (grahampaasch.com/vr/dragons, with or without a trailing
+   slash), so the module is loaded from wherever this page lives, not from the site root. */
+(function () {
+  var p = location.pathname;
+  var dir = p.charAt(p.length - 1) === '/' ? p : /\.html?$/i.test(p) ? p.slice(0, p.lastIndexOf('/') + 1) : p + '/';
+  var s = document.createElement('script');
+  s.type = 'module';
+  s.src = dir + 'src/main.js';
+  s.onerror = function () {
+    document.getElementById('note').textContent = 'The page could not load its code. Check the connection and reload.';
+  };
+  document.head.appendChild(s);
+  // The list of versions on the card (one list for all of them, kept at the newest one's root).
+  var v = document.createElement('script');
+  v.src = dir + '../versions.js';
+  v.setAttribute('data-current', 'v1');
+  document.head.appendChild(v);
+})();
+</script>
+</body>
+</html>

@@ -17,6 +17,7 @@ import { buildTerrain } from './terrain.js';
 import { bakeReflection, bakeNoise } from './reflection.js';
 import { MeshBuilder } from './meshbuilder.js';
 import { buildLedge, buildGrove } from './ledge.js';
+import { SPIRE } from './fetch.js';
 import { hash2, makeRng } from './rng.js';
 
 export { THREE };
@@ -35,7 +36,17 @@ export const MOTES = { motes: 150, sparks: 48, ash: 42 };
 export const MOTE_BOX = { min: [-9, -4.5, -12], size: [18, 12.5, 17] };
 
 /** The one line of words shown in the headset, on the rim of the ledge. */
-const HINT_TEXT = 'Pull the trigger to call a dragon';
+/**
+ * The lines of words that can stand over the rim in the headset (see buildHint), one picture
+ * for all of them. HINT names them.
+ */
+const HINT_LINES = [
+  'Pull the trigger to call a dragon',
+  'Grip to pick up the ball, let go to throw',
+  'Exercise: they bring it to your feet',
+  'Perch: they bring it to the rock beside you',
+];
+export const HINT = { call: 0, ball: 1, exercise: 2, perch: 3 };
 
 /** Azimuth slices the forest is split into, so trees behind the viewer are not drawn. */
 const FOREST_SECTORS = 6;
@@ -128,7 +139,7 @@ export class Stage {
     await step('grove', '', () => this.buildGrove());
     await step('leaves', '', () => this.buildLeaves(o.leaves === undefined ? LEAF_COUNT : o.leaves));
     await step('motes', '', () => this.buildMotes());
-    await step('hint', '', () => this.buildHint(HINT_TEXT));
+    await step('hint', '', () => this.buildHint(HINT_LINES));
     this.built = true;
   }
 
@@ -783,7 +794,7 @@ export class Stage {
 
   /** The trees, boulders and fallen leaves close to the viewer: one mesh. */
   buildLedge() {
-    const built = buildLedge(this.terrain.surfaceNear(40), WORLD_SEED);
+    const built = buildLedge(this.terrain.surfaceNear(40), WORLD_SEED, { spire: SPIRE });
     const mesh = new THREE.Mesh(toGeometry(built.arrays), worldMaterial(this.shared, { lit: true, sway: true }));
     // Its trees stand on every side of the viewer: there is no direction in which it is out of sight.
     mesh.frustumCulled = false;
@@ -894,23 +905,29 @@ export class Stage {
    * graphics chip. (Made when a session starts, it cost the headset a dropped frame or ten two
    * seconds into every session, just as the person began to look around.)
    */
-  buildHint(text) {
+  buildHint(lines) {
+    // All the lines in one picture, one above the other; the one shown is chosen by where the
+    // picture is read from (so changing it costs nothing).
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
-    canvas.height = 128;
+    canvas.height = 128 * lines.length;
     const c = canvas.getContext('2d');
-    c.font = '600 60px Georgia, "Times New Roman", serif';
+    c.font = '600 56px Georgia, "Times New Roman", serif';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.lineJoin = 'round';
     c.lineWidth = 10;
     c.strokeStyle = 'rgba(26, 20, 16, 0.85)';
-    c.strokeText(text, 512, 66);
     c.fillStyle = '#fbf3e4';
-    c.fillText(text, 512, 66);
+    lines.forEach((text, k) => {
+      c.strokeText(text, 512, 66 + 128 * k);
+      c.fillText(text, 512, 66 + 128 * k);
+    });
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
+    texture.repeat.set(1, 1 / lines.length);
+    texture.offset.set(0, 1 - 1 / lines.length);
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0, depthWrite: false, depthTest: false, fog: false, toneMapped: false });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7 / 8), material);
     // Over the rim, below the line of sight to the lake, turned up to face the viewer.
@@ -924,13 +941,20 @@ export class Stage {
     } catch (err) {
       /* it will be sent when it is first drawn */
     }
-    this.hint = { mesh, material, texture, age: 0, seconds: 0, text, showing: false, shown: 0 };
+    this.hint = { mesh, material, texture, age: 0, seconds: 0, lines, line: 0, showing: false, shown: 0, delay: 2.5 };
   }
 
-  /** Show the line for this many seconds (it takes two and a half to begin to appear). */
-  showHint(seconds) {
+  /**
+   * Show a line for this many seconds: `line` is which (HINT; the trigger's, if not said), and
+   * `soon` makes it appear at once (it otherwise takes two and a half seconds to begin to).
+   */
+  showHint(seconds, line, soon) {
     const h = this.hint;
     if (!h) return;
+    const k = line === undefined ? HINT.call : line;
+    h.line = k;
+    h.texture.offset.set(0, 1 - (k + 1) / h.lines.length);
+    h.delay = soon ? 0 : 2.5;
     h.age = 0;
     h.seconds = seconds || 14;
     h.showing = true;
@@ -950,7 +974,7 @@ export class Stage {
     const h = this.hint;
     if (!h || !h.showing) return;
     h.age += dt;
-    const fadeIn = Math.min(Math.max((h.age - 2.5) / 1.5, 0), 1);
+    const fadeIn = Math.min(Math.max((h.age - h.delay) / (h.delay > 0 ? 1.5 : 0.4), 0), 1);
     const fadeOut = Math.min(Math.max((h.seconds - h.age) / 2, 0), 1);
     h.material.opacity = 0.95 * fadeIn * fadeOut;
     h.mesh.visible = h.material.opacity > 0.01;

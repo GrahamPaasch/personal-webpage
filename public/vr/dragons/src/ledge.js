@@ -255,10 +255,14 @@ function litter(m, surface, seed, count) {
 
 /**
  * Build everything. surface(x, z): height of the drawn ground (see terrain.surfaceNear).
+ * options: { spire: { x, z, top, radius } } to stand the perching spire there too.
  * Returns { arrays, trees: [{ x, y, z, radius, kind, phase }], triangles }.
  */
-export function buildLedge(surface, seed) {
+export function buildLedge(surface, seed, options) {
   const m = new MeshBuilder();
+  // The rock spire a dragon perches on to hand the ball back (fetch.js, SPIRE), part of this mesh.
+  const spire = options && options.spire;
+  if (spire) buildSpire(m, spire.x, spire.z, spire.top, spire.radius, ground(spire.x, spire.z), seed + 4242);
   const trees = [];
   HERO_TREES.forEach((spec, i) => {
     const base = Math.min(ground(spec.x, spec.z), surface(spec.x, spec.z));
@@ -287,4 +291,48 @@ export function buildGrove(surface, seed) {
   });
   const arrays = m.arrays();
   return { arrays, trees, triangles: arrays.triangles };
+}
+
+/**
+ * A spire of the same quartzite as the bluff: a column of stacked, slightly crooked blocks
+ * from below the ground at its foot up to a rough top that a dragon can stand on. Built into
+ * whatever mesh `m` is (so it costs no draw call of its own).
+ *   x, z     where it stands; top: the height of its top (metres, the ledge at 0)
+ *   radius   of the top; it widens toward its foot
+ *   foot     the height of the ground at its foot
+ * Returns the number of triangles added.
+ */
+export function buildSpire(m, x, z, top, radius, foot, seed) {
+  const before = m.triangleCount;
+  const sides = 9;
+  const rng = makeRng(seed);
+  const rings = [];
+  const heights = [];
+  const levels = 7;
+  const bottom = foot - 3;
+  for (let k = 0; k <= levels; k++) {
+    const f = k / levels;
+    // Slow at the top (its last block is a cap): heights bunched toward it.
+    const y = lerp(bottom, top, 1 - Math.pow(1 - f, 1.25));
+    heights.push(y);
+    const r = radius * (1 + 0.85 * Math.pow(1 - f, 1.6)) * (0.92 + 0.16 * rng());
+    // Each block a little off the one under it.
+    const ox = (rng() - 0.5) * 0.5 * radius * (1 - f * 0.6);
+    const oz = (rng() - 0.5) * 0.5 * radius * (1 - f * 0.6);
+    const ring = [];
+    for (let i = 0; i < sides; i++) {
+      const a = (i / sides) * Math.PI * 2 + 0.3 * k;
+      const rr = r * (0.82 + 0.3 * hash2(i * 13 + k, seed));
+      ring.push([x + ox + Math.cos(a) * rr, y + (k === levels ? 0.25 * (hash2(i, seed + 1) - 0.5) : 0), z + oz + Math.sin(a) * rr]);
+    }
+    rings.push(ring);
+  }
+  // Light on the west faces and the top, the colour of the bluff; darker toward its foot.
+  const tint = scale(ROCK, 0.95);
+  m.loft(rings.map((r) => r.slice().reverse()), {
+    faceColor: (k, i) => scale(tint, (0.62 + 0.3 * (k / levels)) * (0.88 + 0.24 * hash2(i * 7 + k, seed + 3))),
+    aux: [0, 0, 0, 0],
+    capEnd: scale(tint, 1.08),
+  });
+  return m.triangleCount - before;
 }

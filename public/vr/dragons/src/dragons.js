@@ -8,13 +8,14 @@
 
 import { THREE, dragonMaterial, flameMaterial } from './shaders.js';
 import { buildDragon, buildFlame, DRAGONS } from './dragonGeometry.js';
-import { BONE, BONE_COUNT, restPose, poseSkeleton, poseFromFlyer, heave } from './rig.js';
+import { BONE, BONE_COUNT, restPose, poseSkeleton, poseFromFlyer, heave, footDrop, skinPoint } from './rig.js';
 import { ROAR_SECONDS } from './flight.js';
 import * as W from './world.js';
 
 const tmpEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const tmpUp = new THREE.Vector3();
 const tmpBone = new THREE.Matrix4();
+const tmpPoint = new THREE.Vector3();
 
 /**
  * How hard a dragon is breathing fire, 0..1, from how much of its roar is left (seconds): the
@@ -29,14 +30,16 @@ export function firePower(roarLeft) {
 }
 
 export class DragonView {
-  constructor(stage, index) {
+  /** override: changes to the build (the legs test draws the same dragon with { legs: 'old' }). */
+  constructor(stage, index, override) {
     const spec = DRAGONS[index];
     this.spec = spec;
     this.stage = stage;
     const colors = {};
     for (const k of Object.keys(spec.colors)) colors[k] = W.srgb(spec.colors[k][0], spec.colors[k][1], spec.colors[k][2]);
-    const built = buildDragon(spec.build, colors);
+    const built = buildDragon(Object.assign({}, spec.build, override || {}), colors);
     this.skeleton = built.skeleton;
+    this.feet = built.feet;
     this.scale = built.skeleton.build.scale;
     this.world = new Float32Array(BONE_COUNT * 12);
     this.skin = new Float32Array(BONE_COUNT * 12);
@@ -84,6 +87,26 @@ export class DragonView {
     this.flame.visible = false;
     stage.scene.add(this.flame);
     this.fire = 0;
+  }
+
+  /**
+   * How far below its origin this dragon's feet would be, posed as `f` has it (metres): what
+   * to add to the height of what it stands on to set it down there. (Poses the skeleton.)
+   */
+  footDrop(f, time) {
+    const pose = poseFromFlyer(this.pose, f, (time + this.scale * 10) / Math.sqrt(this.scale));
+    poseSkeleton(this.skeleton, pose, this.world, this.skin);
+    return footDrop(this.skin, this.feet, f.pitch);
+  }
+
+  /** Where a rest-pose point carried by the head (p: model space) is in the world, as last drawn. */
+  pointOnHead(p, out) {
+    skinPoint(this.skin, BONE.head, p, out);
+    tmpPoint.set(out[0], out[1], out[2]).applyMatrix4(this.mesh.matrix);
+    out[0] = tmpPoint.x;
+    out[1] = tmpPoint.y;
+    out[2] = tmpPoint.z;
+    return out;
   }
 
   /**

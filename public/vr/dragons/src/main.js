@@ -19,8 +19,8 @@
  * weeks), and the next one starts with a smaller picture or without anti-aliasing: see
  * governor.js, nextSession(). ?scale= and ?aa= in the address overrule what is remembered.
  */
-import { Stage, THREE, WORLD_SEED } from './scene.js';
-import { VIGNETTE } from './shaders.js';
+import { Stage, THREE, WORLD_SEED, HINT } from './scene.js';
+import { VIGNETTE, worldMaterial } from './shaders.js';
 import { FlatView } from './view.js';
 import { DragonView } from './dragons.js';
 import { DRAGONS } from './dragonGeometry.js';
@@ -29,6 +29,8 @@ import { Soundscape } from './audio.js';
 import { XRControl } from './xr.js';
 import { Governor, QUALITY, QUALITY_WORDS, nextSession } from './governor.js';
 import { SUN_DIR } from './world.js';
+import { Fetch, REST_SPOT } from './fetch.js';
+import { BallView, buildHand } from './ballView.js';
 
 /** How many of the sparks in the air are alight when no dragon has breathed fire for a while (0..1). */
 const EMBER_REST = 0.35;
@@ -47,6 +49,7 @@ const $ = (id) => document.getElementById(id);
 const dom = {
   veil: $('veil'), enterVR: $('enterVR'), watch: $('watch'), note: $('note'), hud: $('hud'),
   sound: $('soundChip'), call: $('callChip'), vrChip: $('vrChip'), hint: $('hint'),
+  throwChip: $('throwChip'), modeChip: $('modeChip'),
 };
 
 const state = {
@@ -82,6 +85,11 @@ let dragons;
 let audio;
 let xr;
 let governor;
+let game; // fetch.js: the ball and what the dragons do with it
+let ballView;
+const jaws = [0, 0, 0]; // where a ball in a dragon's jaws is drawn
+let jawsShown = false;
+const throwKey = { down: 0, held: false }; // a throw from a flat screen: held longer, thrown harder
 const target = { x: 0, y: 0, z: -150 };
 const listener = { position: [0, 1.62, 0], forward: [0, 0, -1], up: [0, 1, 0] };
 const movers = [
@@ -120,6 +128,18 @@ async function build() {
   await new Promise((resolve) => setTimeout(resolve, 0));
   // The map of how low a dragon may fly: worked out now, not in the first frame.
   floorGrid();
+  // The ball, its glow and trail, the splashes and the hands: made now, so that their shaders
+  // are compiled with everything else's.
+  ballView = new BallView(stage);
+  const handMaterial = worldMaterial(stage.shared, { lit: true });
+  const hands = { left: buildHand(stage, handMaterial, 1), right: buildHand(stage, handMaterial, -1) };
+  for (const h of [hands.left, hands.right]) {
+    h.position.set(0, 0, -0.03);
+    h.visible = false;
+    stage.scene.add(h); // (until a controller is there to carry it)
+  }
+  for (const s2 of ballView.splashes) s2.mesh.visible = true;
+  ballView.trail.visible = true;
   // Every shader is compiled now, the ones for things not yet in sight too (a mirror image in
   // the lake, fire): otherwise the first roar would cost a dropped frame or ten on a headset.
   try {
@@ -129,6 +149,10 @@ async function build() {
   }
   const seed = number('seed');
   director = new Director(DRAGONS.map((d) => ({ beat: d.beat, size: d.build.scale })), seed === undefined ? WORLD_SEED : seed);
+  game = new Fetch(director, DRAGONS);
+  for (const s2 of ballView.splashes) s2.mesh.visible = false;
+  ballView.trail.visible = false;
+  state.hands = hands;
   audio = new Soundscape({ hrtf: params.get('hrtf') !== '0', reverb: params.get('reverb') !== '0', lite: params.get('sound') === 'lite', seed: director.seed });
   governor = new Governor();
   const trees = number('trees');
@@ -149,11 +173,17 @@ async function build() {
         // How to call a dragon, on the rim of the ledge; again later if nobody has (see frame).
         state.hint.wanted = true;
         state.hint.due = Infinity;
-        stage.showHint(16);
+        // First how to pick up and throw the ball; the trigger's line comes later (see hint()).
+        stage.showHint(14, HINT.ball);
+        state.hint.ballShown = true;
+        game.setHands(true);
         showControls();
       },
       onSessionEnd: () => {
         state.vr.presenting = false;
+        // No hands any more: a ball in one goes back on the rock.
+        game.setHands(false);
+        if (game.ball.state === 'held') game.ball.place(REST_SPOT[0], REST_SPOT[1]);
         stage.setVignette(VIGNETTE.flat);
         sound(() => audio.sleep('hidden', document.hidden));
         const report = xr.sessionReport();
@@ -174,6 +204,10 @@ async function build() {
         if (state.vr.last) say(state.vr.last, 40);
       },
       onTrigger: () => call() >= 0,
+      // Grip: take the ball (if the hand is at it); let go: throw it.
+      onGrip: (c, down) => attempt('fetch', grip, c, down),
+      // A (or X): exercise and perch, in turn.
+      onButtonA: (c) => attempt('fetch', toggleMode, c),
       // The headset has been taken off (or put back on): quiet while nobody is in it.
       onVisibility: (visible) => sound(() => audio.sleep('hidden', !visible)),
     },
@@ -213,6 +247,7 @@ async function build() {
   // For the tools and tests, and for poking at it from a console.
   window.__dragons = {
     stage, view, state, THREE, dragons, director, audio, xr, governor, seek, fly, call, begin, applyQuality, frame,
+    game, ballView, throwFlat, pose,
     ready: true,
     buildMs: state.buildMs,
     setFlatShot: () => {
@@ -267,6 +302,7 @@ function frame(dt, xrFrame) {
     if (state.begun) attempt('governor', govern, dt, 1 / 45);
   }
   attempt('surroundings', surroundings, dt);
+  attempt('ball', drawBall, dt);
   hear(dt);
   // This one is not switched off if it throws: there is nothing to fall back on, and the
   // next frame may be drawn.
@@ -281,6 +317,61 @@ function frame(dt, xrFrame) {
 // (The parts of a frame are plain functions, not closures made in frame(): nothing is made per frame.)
 function headset(dt, xrFrame) {
   xr.update(dt, xrFrame);
+  // A hand holding the ball carries it (and may be winding up a throw).
+  for (const c of xr.controllers) {
+    const hand = state.hands[c.handedness === 'left' ? 'left' : 'right'];
+    if (c.tracked && hand.parent !== c.grip) c.grip.add(hand);
+    hand.visible = c.tracked;
+    if (!c.tracked) continue;
+    if (game.ball.state === 'held' && game.ball.hand === handName(c)) {
+      game.hold(handName(c), c.position.x, c.position.y, c.position.z, c.velocity.x, c.velocity.y, c.velocity.z);
+    }
+  }
+}
+
+function handName(c) {
+  return c.handedness === 'left' ? 'left' : c.handedness === 'right' ? 'right' : 'hand' + c.index;
+}
+
+/** The grip closed or opened on controller c. */
+function grip(c, down) {
+  const name = handName(c);
+  if (down) {
+    if (game.grab(name, c.position.x, c.position.y, c.position.z)) {
+      xr.buzz(c, 0.45, 40);
+      unlockSound();
+    }
+  } else if (game.ball.state === 'held' && game.ball.hand === name) {
+    game.release(name, c.velocity.x, c.velocity.y, c.velocity.z);
+    xr.buzz(c, 0.25, 25);
+  }
+}
+
+function toggleMode(c) {
+  const mode = game.toggleMode();
+  if (c) xr.buzz(c, 0.35, 30);
+  if (xr.presenting) stage.showHint(5, mode === 'perch' ? HINT.perch : HINT.exercise, true);
+  else say(mode === 'perch' ? 'Perch: they bring it to the rock beside you.' : 'Exercise: they drop it at your feet.', 4);
+  showControls();
+}
+
+/** The ball, its glow and trail, and the splashes: where the game says (in the jaws, where the picture has the head). */
+function drawBall(dt) {
+  const cam = xr.presenting ? stage.renderer.xr.getCamera() : stage.camera;
+  tmpHead.setFromMatrixPosition(cam.matrixWorld);
+  const b = game.ball;
+  // In flat view the ball in hand is not drawn (it would fill the screen): it is thrown with T.
+  ballView.orb.visible = !(b.state === 'held' && !xr.presenting);
+  ballView.halo.visible = ballView.orb.visible;
+  ballView.update(b, tmpHead, dt, state.time, jawsShown ? jaws : null);
+}
+
+/** Throw from a flat screen, as hard as `hand` (m/s at the hand), the way the view faces. */
+function throwFlat(hand) {
+  if (!game) return false;
+  unlockSound();
+  const yaw = view ? view.yaw : 0;
+  return game.throwFlat(yaw, hand);
 }
 
 function govern(dt, nominal) {
@@ -307,6 +398,8 @@ function surroundings(dt) {
   head[0] = tmpHead.x;
   head[1] = tmpHead.y;
   head[2] = tmpHead.z;
+  // (Before the session has placed the person on the ledge, the head is wherever the room had it.)
+  if (!xr.presenting || xr.placed) game.setHead(head[0], head[1], head[2]);
   const flyers = director.flyers;
   let wake = 0;
   let cover = 0;
@@ -378,7 +471,7 @@ function hint(dt) {
     return;
   }
   if (h.due === Infinity) h.due = state.time + HINT_EVERY;
-  if (state.time >= h.due && state.nearest > NEAR_RANGE) stage.showHint(12);
+  if (state.time >= h.due && state.nearest > NEAR_RANGE) stage.showHint(12, HINT.call);
 }
 const HINT_EVERY = 45;
 
@@ -401,11 +494,69 @@ function advance(dt) {
       soundBroke(err);
     }
   }
+  playEvents();
+}
+
+/** What has happened in the game since the last frame: heard, seen, felt. */
+function playEvents() {
+  const list = game.events;
+  if (!list.length) return;
+  const hearing = audio.running && !soundFailed;
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i];
+    try {
+      if (e.type === 'splash') {
+        ballView.splash(e.x, e.y, e.z, e.size);
+        if (hearing) audio.thing(e.thrash ? 'thrash' : 'splash', e.x, e.y, e.z, e.size);
+      } else if (e.type === 'bounce') {
+        if (hearing) audio.thing(e.rock ? 'rock' : 'thud', e.x, e.y, e.z, e.size);
+      } else if (e.type === 'rustle') {
+        if (hearing) audio.thing('rustle', e.x, e.y, e.z, 1);
+      } else if (e.type === 'catch') {
+        const f = director.flyers[e.dragon];
+        if (hearing) audio.thing('snap', f.x, f.y, f.z, 1);
+      } else if (e.type === 'land') {
+        if (hearing) audio.thing('land', e.x, e.y, e.z, DRAGONS[e.dragon].build.scale / 1.45);
+      } else if (e.type === 'roar') {
+        if (hearing) audio.roar(e.dragon, 'call', ROAR_SECONDS);
+      } else if (e.type === 'betrayed') {
+        if (hearing) audio.cry(e.dragon, 'busy');
+      } else if (e.type === 'pleased' || e.type === 'eager') {
+        // They answer: the one nearer, a short call.
+        if (hearing) audio.cry(e.dragon !== undefined ? e.dragon : nearer(), 'answer');
+      } else if (e.type === 'throw') {
+        if (hearing) audio.thing('swish', head[0] + 0.3, head[1], head[2] - 0.4, Math.min(e.speed / 25, 1));
+        state.hint.wanted = state.hint.wanted && game.throws < 1;
+      } else if (e.type === 'fresh') {
+        if (xr.presenting) for (const c of xr.controllers) if (handName(c) === game.ball.hand) xr.buzz(c, 0.6, 60);
+      } else if (e.type === 'offer') {
+        // Held out to be taken: a buzz in both hands, so it is noticed.
+        if (xr.presenting) for (const c of xr.controllers) xr.buzz(c, 0.3, 40);
+      }
+    } catch (err) {
+      soundBroke(err);
+    }
+  }
+  list.length = 0;
+}
+
+function nearer() {
+  const f = director.flyers;
+  return Math.hypot(f[0].x, f[0].z) < Math.hypot(f[1].x, f[1].z) ? 0 : 1;
 }
 
 function pose(dt) {
   const f = director.flyers;
   for (let i = 0; i < dragons.length; i++) dragons[i].update(f[i], state.time, dt);
+  // A ball in a dragon's jaws is drawn where the picture has its head (to the centimetre).
+  jawsShown = false;
+  if (game) {
+    const b = game.ball;
+    if ((b.state === 'carried' || b.state === 'offered') && b.owner >= 0) {
+      dragons[b.owner].pointOnHead(game.bodies[b.owner].held, jaws);
+      jawsShown = true;
+    }
+  }
   // The flat view looks at the nearer dragon, mostly.
   const d0 = Math.hypot(f[0].x, f[0].y, f[0].z);
   const d1 = Math.hypot(f[1].x, f[1].y, f[1].z);
@@ -541,7 +692,7 @@ function watchHere() {
     state.starting = false;
     begin(true);
     showControls();
-    say('Drag to look around. Tap, or press Space, to call a dragon.', 9);
+    say('Hold T (or the Throw button) to throw the ball. Drag to look around; tap, or Space, to call a dragon.', 10);
   }, 320);
 }
 
@@ -626,10 +777,11 @@ function showControls() {
   dom.watch.classList.toggle('primary', !vr.supported && !vr.checking);
   if (vr.error) dom.note.textContent = vr.error;
   else if (vr.checking) dom.note.textContent = 'Looking for a headset…';
-  else if (vr.supported) dom.note.textContent = 'In the headset: look around, lean out, and pull the trigger to call a dragon. Sound on.';
-  else dom.note.textContent = vr.reason + ' Here you can watch, and drag to look around.';
+  else if (vr.supported) dom.note.textContent = 'In the headset: grip to pick up the ball, let go to throw. A switches how they bring it back; the trigger calls a dragon. Sound on.';
+  else dom.note.textContent = vr.reason + ' Here you can watch: drag to look around, hold T (or the Throw button) to throw the ball, A to switch how they bring it back.';
   dom.hud.hidden = TOOLS || !state.begun || vr.presenting;
   dom.sound.setAttribute('aria-pressed', String(state.sound));
+  if (game) dom.modeChip.textContent = game.mode === 'perch' ? 'Perch' : 'Exercise';
 }
 
 function wireControls(canvas) {
@@ -656,21 +808,54 @@ function wireControls(canvas) {
   });
   window.addEventListener('keydown', (e) => {
     if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.target && /^(BUTTON|INPUT|TEXTAREA|SELECT|A)$/.test(e.target.tagName) && e.code !== 'KeyM') return;
+    // (M, T and A work wherever the focus is; Space and Enter on a button press the button.)
+    if (e.target && /^(BUTTON|INPUT|TEXTAREA|SELECT|A)$/.test(e.target.tagName) && !/^Key[MTA]$/.test(e.code)) return;
     if (e.code === 'Space' || e.code === 'Enter') {
       if (!state.begun) watchHere();
       else call();
       e.preventDefault();
     } else if (e.code === 'KeyM') {
       dom.sound.click();
+    } else if (e.code === 'KeyT' && state.begun) {
+      windUp();
+    } else if (e.code === 'KeyA' && state.begun) {
+      toggleMode(null);
     }
   });
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'KeyT') letFly();
+  });
+  // The throw button: hold it to throw harder.
+  dom.throwChip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    windUp();
+  });
+  dom.throwChip.addEventListener('pointerup', letFly);
+  dom.throwChip.addEventListener('pointerleave', letFly);
+  dom.modeChip.addEventListener('click', () => toggleMode(null));
   // No sound from a tab nobody is looking at. (In the headset it is the VR session that says
   // whether anybody is looking: see onVisibility.)
   document.addEventListener('visibilitychange', () => {
     if (xr.presenting) return;
     sound(() => audio.sleep('hidden', document.hidden));
   });
+}
+
+/** T (or the throw button) pressed: the longer it is held, the harder the throw. */
+function windUp() {
+  if (throwKey.held) return;
+  throwKey.held = true;
+  throwKey.down = performance.now();
+  game.wake('up');
+}
+
+function letFly() {
+  if (!throwKey.held) return;
+  throwKey.held = false;
+  // A tap is a lob; a second and a half is as hard as anybody throws.
+  const held = Math.min((performance.now() - throwKey.down) / 1500, 1);
+  const hand = 2.5 + 13 * held * held * (3 - 2 * held) * 0.9 + 1.5 * held;
+  if (!throwFlat(hand)) say(game.ball.state === 'carried' ? 'A dragon has it. It is bringing it back.' : 'The ball is not here just now.', 3);
 }
 
 function layout() {
