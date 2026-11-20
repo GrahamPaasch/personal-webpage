@@ -46,6 +46,9 @@ const state = {
   simTime: 0,
   view: 'eye',
   show: { ghost: true, arcs: true, mine: true },
+  // The colorblind palette for the throw colours (palette.js). Never saved: every launch starts
+  // off, so a headset lent to someone never comes back in their mode.
+  colorblind: false,
 
   /**
    * What is remembered between visits. Only three things change it: a trigger calibration, the
@@ -135,6 +138,7 @@ function start() {
     onSpeed: (v) => setSpeed(v),
     onView: (mode) => setView(mode),
     onShow: (key, on) => setShow(key, on),
+    onColorblind: (on) => setColorblind(on),
     onSound: (type, patch) => setSound(type, patch),
     onCalibration: (key, value) => setCalibrationValue(key, value),
     onNudge: (key, value) => setNudge(key, value),
@@ -220,6 +224,7 @@ function start() {
 
   ui.setSpeed(state.speed);
   ui.setShow(state.show);
+  ui.setColorblind(state.colorblind);
   ui.setSound(audio.settings, audio.running);
   ui.setCalibration(state.anchor, state.nudge, state.handTracking);
   ui.setVR(state.vr);
@@ -255,7 +260,7 @@ function start() {
   });
 
   // For the smoke test and for poking at the app from a console.
-  window.__vrj = { state, stage, view, audio, xr, ui, schedule, scorer, setPattern, setSpeed, setView, calibrate, panelAction, THREE };
+  window.__vrj = { state, stage, view, audio, xr, ui, schedule, scorer, setPattern, setSpeed, setView, setColorblind, calibrate, panelAction, THREE };
 }
 
 /** The browser cannot draw 3D at all: say so where the picture would be, and offer nothing dead. */
@@ -424,6 +429,13 @@ function setShow(key, on) {
   xr.setShowMyHands(state.show.mine);
   ui.setShow(state.show);
   save();
+}
+
+/** Colorblind throw colours on or off. Only the drawing changes, and nothing is saved. */
+function setColorblind(on) {
+  state.colorblind = !!on;
+  stage.setColorblind(state.colorblind);
+  ui.setColorblind(state.colorblind);
 }
 
 function setSound(type, patch) {
@@ -687,6 +699,7 @@ const board = {
   showArcs: true,
   showGhost: true,
   showMyHands: true,
+  colorblind: false,
   hands: false,
 };
 
@@ -708,6 +721,7 @@ function panelModel() {
   board.showArcs = state.show.arcs;
   board.showGhost = state.show.ghost;
   board.showMyHands = state.show.mine;
+  board.colorblind = state.colorblind;
   board.hands = state.vr.hands;
   return board;
 }
@@ -746,7 +760,8 @@ function panelAction(id) {
     setNudge(parts[1], state.nudge[parts[1]] + (parts[2] === '+' ? 0.005 : -0.005));
   } else if (kind === 'toggle') {
     const key = parts[1];
-    setShow(key, !state.show[key]);
+    if (key === 'colorblind') setColorblind(!state.colorblind);
+    else setShow(key, !state.show[key]);
   } else if (kind === 'spot') {
     xr.moveHeadTo(state.anchor.spotX, state.anchor.spotZ);
   } else if (kind === 'exit') {

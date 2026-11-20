@@ -13,15 +13,21 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { RIGHT, LEFT, throwAtBeat, flightState } from './physics.js';
 import { sceneAt, handPath } from './hands.js';
+import { NORMAL, COLORBLIND, OUTLINE_COLOR, OUTLINE_SCALE } from './palette.js';
 
 export { THREE };
 
 /**
  * Ball colours, indexed by GRADE in accuracy.js. Every ball is white; a thrown ball is green,
  * yellow or red for its flight, by how well the person's hand followed the ghost hand through
- * that throw. Four materials in all, shared by every ball.
+ * that throw. Four materials in all, shared by every ball; the colorblind toggle swaps to four
+ * others (palette.js), made once at the start.
  */
-export const BALL_COLORS = [0xffffff, 0x35d45f, 0xffd21f, 0xff3b3b];
+export const BALL_COLORS = NORMAL.map((look) => look.color);
+
+function ballMaterial(look) {
+  return new THREE.MeshLambertMaterial({ color: look.color, emissive: look.color, emissiveIntensity: look.intensity });
+}
 
 /** Ghost hands are cool and see-through; the person's own hands are warm and solid. */
 export const GHOST_HAND_COLOR = 0xcfe4ff;
@@ -65,10 +71,14 @@ export class Stage {
 
     this.ballRadius = 0.03;
     this.ballGeometry = new THREE.SphereGeometry(1, BALL_SEGMENTS[0], BALL_SEGMENTS[1]);
-    this.ballMaterials = BALL_COLORS.map(
-      (c, grade) => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: grade === 0 ? 0.22 : 0.45 })
-    );
+    this.palettes = { normal: NORMAL.map(ballMaterial), colorblind: COLORBLIND.map(ballMaterial) };
+    this.ballMaterials = this.palettes.normal; // the palette in use, indexed by GRADE
+    this.colorblind = false;
+    this.grades = null; // the grades last drawn (null: none)
+    // A thin white rim behind the ball (an inverted hull), shown only where the palette asks.
+    this.outlineMaterial = new THREE.MeshBasicMaterial({ color: OUTLINE_COLOR, side: THREE.BackSide });
     this.balls = [];
+    this.outlines = [];
 
     this.ghostHands = [makeHandCup(GHOST_HAND_COLOR, true), makeHandCup(GHOST_HAND_COLOR, true)];
     this.anchor.add(this.ghostHands[RIGHT], this.ghostHands[LEFT]);
@@ -176,14 +186,21 @@ export class Stage {
 
     while (this.balls.length < pattern.balls) {
       const mesh = new THREE.Mesh(this.ballGeometry, this.ballMaterials[0]);
+      const outline = new THREE.Mesh(this.ballGeometry, this.outlineMaterial);
+      outline.scale.setScalar(OUTLINE_SCALE); // in ball radii: a child of the ball
+      outline.visible = false;
+      mesh.add(outline);
       this.anchor.add(mesh);
       this.balls.push(mesh);
+      this.outlines.push(outline);
     }
     this.balls.forEach((mesh, i) => {
       mesh.visible = i < pattern.balls;
       mesh.scale.setScalar(this.ballRadius);
       mesh.material = this.ballMaterials[0];
+      this.outlines[i].visible = false;
     });
+    this.grades = null;
 
     this.rebuildArcs();
     this.rebuildHandLoops();
@@ -248,11 +265,27 @@ export class Stage {
    * every ball is white. Only swaps one of the four shared materials, and only on a change.
    */
   setBallGrades(grades) {
+    this.grades = grades;
     const n = this.pattern ? this.pattern.balls : 0;
+    const looks = this.colorblind ? COLORBLIND : NORMAL;
     for (let i = 0; i < n; i++) {
-      const material = this.ballMaterials[grades ? grades[i] : 0] || this.ballMaterials[0];
+      let grade = grades ? grades[i] : 0;
+      if (!this.ballMaterials[grade]) grade = 0;
+      const material = this.ballMaterials[grade];
       if (this.balls[i].material !== material) this.balls[i].material = material;
+      const outline = looks[grade].outline === true;
+      if (this.outlines[i].visible !== outline) this.outlines[i].visible = outline;
     }
+  }
+
+  /**
+   * The colorblind palette (palette.js) on or off. Same grades, other materials: the balls are
+   * redrawn at once in the grades they already have.
+   */
+  setColorblind(on) {
+    this.colorblind = !!on;
+    this.ballMaterials = this.colorblind ? this.palettes.colorblind : this.palettes.normal;
+    this.setBallGrades(this.grades);
   }
 
   setShowArcs(on) {

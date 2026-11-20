@@ -119,6 +119,7 @@ export class VRPanel {
     v[n++] = model.showArcs;
     v[n++] = model.showGhost;
     v[n++] = model.showMyHands;
+    v[n++] = model.colorblind;
     v[n++] = model.hands;
     v.length = n;
 
@@ -332,11 +333,12 @@ export class VRPanel {
 
     // Toggles.
     this.row(ctx, M, y, inner, H, G, [
-      { id: 'toggle:arcs', label: 'arcs', on: m.showArcs },
-      { id: 'toggle:ghost', label: 'ghost hands', on: m.showGhost },
-      { id: 'toggle:mine', label: 'my hands', on: m.showMyHands },
-      { id: 'spot', label: 'my spot' },
-      { id: 'exit', label: 'exit VR' },
+      { id: 'toggle:arcs', label: 'arcs', on: m.showArcs, share: 0.6 },
+      { id: 'toggle:ghost', label: 'ghost hands', on: m.showGhost, share: 1.3 },
+      { id: 'toggle:mine', label: 'my hands', on: m.showMyHands, share: 1.15 },
+      { id: 'toggle:colorblind', label: 'colorblind', on: m.colorblind, share: 1.15 },
+      { id: 'spot', label: 'my spot', share: 0.95 },
+      { id: 'exit', label: 'exit VR', share: 0.85 },
     ]);
     y += H + G;
 
@@ -353,11 +355,16 @@ export class VRPanel {
     this.texture.needsUpdate = true;
   }
 
+  /** Buttons side by side. An item's `share` (default 1) is its width relative to the others. */
   row(ctx, x, y, w, h, gap, items) {
-    const bw = (w - gap * (items.length - 1)) / items.length;
-    items.forEach((item, i) => {
-      this.button(ctx, Object.assign({ x: x + i * (bw + gap), y, w: bw, h }, item));
-    });
+    let shares = 0;
+    for (const item of items) shares += item.share || 1;
+    const unit = (w - gap * (items.length - 1)) / shares;
+    for (const item of items) {
+      const bw = unit * (item.share || 1);
+      this.button(ctx, { x, y, w: bw, h, id: item.id, label: item.label, on: item.on, accent: item.accent });
+      x += bw + gap;
+    }
   }
 
   button(ctx, b) {

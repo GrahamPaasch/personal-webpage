@@ -55,6 +55,7 @@ export class FlatUI {
     $('showGhost').addEventListener('change', (e) => h.onShow('ghost', e.target.checked));
     $('showArcs').addEventListener('change', (e) => h.onShow('arcs', e.target.checked));
     $('showMine').addEventListener('change', (e) => h.onShow('mine', e.target.checked));
+    $('colorblind').addEventListener('change', (e) => h.onColorblind(e.target.checked));
 
     document.querySelectorAll('.sound').forEach((row) => {
       const type = row.dataset.sound;
@@ -182,6 +183,10 @@ export class FlatUI {
     $('showGhost').checked = show.ghost;
     $('showArcs').checked = show.arcs;
     $('showMine').checked = show.mine;
+  }
+
+  setColorblind(on) {
+    $('colorblind').checked = on;
   }
 
   setSound(settings, running) {
