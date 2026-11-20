@@ -28,12 +28,23 @@ import { THREE, makeHandCup, OWN_HAND_COLOR, TextLabel } from './scene.js';
 import { RIGHT, LEFT, BALL_DIAMETER } from './physics.js';
 import { VRPanel } from './vrpanel.js';
 import { formatSpeed } from './describe.js';
+import { headingOf, wrapAngle } from './placement.js';
 
 const STICK_DEADZONE = 0.5; // high on purpose: a thumb resting on the stick must not move you
 const MOVE_SPEED = 1.4; // m/s, a slow walk
 const SNAP_ANGLE = Math.PI / 6;
 const BUTTON_AX = 4; // xr-standard gamepad: A on the right controller, X on the left
 const BUTTON_BY = 5;
+// Grabbing the pattern with the grip button takes only after it is held this long, so a squeeze
+// while juggling or miming a throw does not move the pattern.
+const GRAB_HOLD_MS = 250;
+// Head poses kept from the last frames, to find where the head was before the origin moved.
+const HEAD_LOG = 12;
+// A head moving more than this between two frames has not moved: the origin under it has.
+const JUMP_METRES = 0.1;
+const JUMP_RADIANS = 0.17;
+// How many frames late a 'reset' event may arrive after the poses have already moved.
+const RESET_LAG_FRAMES = 3;
 
 // The palm lies along the middle metacarpal bone. A joint sits at the wrist end of the bone it is
 // named after, so that bone runs from the first of these joints to the second.
@@ -72,7 +83,9 @@ async function setSessionPlain(manager, session) {
 export class XRControl {
   /**
    * handlers: { onSessionStart(), onSessionEnd(), onFirstPose(sample), onTrigger(), onPanel(id),
-   *             onMenu() }
+   *             onMenu(), canGrab(), onGrabStart(pose), onGrabMove(pose), onGrabEnd(),
+   *             onReset(how), onVisibility(state) }
+   * A grab pose is the grabbing palm in the world: { x, y, z, heading }.
    */
   constructor(stage, handlers) {
     this.stage = stage;
@@ -94,6 +107,17 @@ export class XRControl {
     this.placed = false;
     this.jointDots = null;
     this.timing = { last: 0, frames: 0, seconds: 0, slowest: 0 };
+
+    // Grabbing the pattern (spec 35, 2026-11-20). `grab` is { c, via: 'squeeze' or 'select',
+    // since, hold, engaged } from the press until the release. `moveArmed`: the board's "move"
+    // button was pressed, so the next trigger pull or pinch grabs (tracked hands have no grip).
+    this.grab = null;
+    this.moveArmed = false;
+    // Keeping the pattern still in the room when the headset re-bases its origin.
+    this.visibility = 'visible';
+    this.headLog = [];
+    this.rematch = null; // a head pose to put the head back on, once the next pose arrives
+    this.resets = 0;
 
     this.panel = new VRPanel();
     stage.scene.add(this.panel.group);
@@ -172,6 +196,7 @@ export class XRControl {
       manager.setReferenceSpaceType(type);
       try {
         await this.startDrawing(manager, session);
+        this.watchSession(manager, session);
       } catch (err) {
         // Do not leave a half-started session behind.
         this.session = null;
@@ -208,6 +233,173 @@ export class XRControl {
     if (this.session) this.session.end();
   }
 
+  /**
+   * Listen for the two ways the room can move under the pattern: the reference space's 'reset'
+   * (the headset re-based its origin, as it may after being lifted off and put back on, or
+   * recentred), and the session going hidden or blurred (headset off the face, system menu).
+   */
+  watchSession(manager, session) {
+    const space = manager.getReferenceSpace();
+    if (space && space.addEventListener) space.addEventListener('reset', (e) => this.onReset(e));
+    if (session.addEventListener) session.addEventListener('visibilitychange', () => this.onVisibility(session.visibilityState));
+  }
+
+  /**
+   * The origin moved. With the reset's transform (the new origin in the old one's coordinates,
+   * WebXR) the rig is moved by exactly that, so everything stays where it was in the room.
+   * Without it, the head is put back where it was just before, on the next frame with a pose: the
+   * best guess there is, since the head does not jump while the origin does.
+   */
+  onReset(event) {
+    if (!this.presenting) return;
+    this.resets++;
+    const t = event && event.transform;
+    if (t && t.position && t.orientation) {
+      const rig = this.stage.rig;
+      rig.updateMatrix();
+      const m = new THREE.Matrix4().compose(
+        new THREE.Vector3(t.position.x, t.position.y, t.position.z),
+        new THREE.Quaternion(t.orientation.x, t.orientation.y, t.orientation.z, t.orientation.w),
+        new THREE.Vector3(1, 1, 1)
+      );
+      const next = rig.matrix.clone().multiply(m);
+      const q = new THREE.Quaternion();
+      next.decompose(rig.position, q, new THREE.Vector3());
+      // The rig only ever turns about the vertical (the floor stays level).
+      rig.rotation.set(0, new THREE.Euler().setFromQuaternion(q, 'YXZ').y, 0);
+      this.headLog.length = 0;
+      this.rematch = null;
+      this.syncCamera();
+      this.handlers.onReset('transform');
+      return;
+    }
+    this.rematch = this.headBeforeJump();
+    this.headLog.length = 0;
+    this.handlers.onReset(this.rematch ? 'head' : 'none');
+  }
+
+  /**
+   * Where the head was before the origin moved. The 'reset' event may come a frame or two after
+   * the poses have already moved, so the log is searched for a jump no head makes in one frame;
+   * the pose before it is the one wanted. With no jump in the log, the newest pose is.
+   */
+  headBeforeJump() {
+    const log = this.headLog;
+    if (log.length === 0) return null;
+    let at = log.length - 1;
+    // Only the last few frames: an older jump is not this reset (the head log is cleared on every
+    // reset, snap turn and "my spot", but a stick walk at a slow frame could still look like one).
+    const oldest = Math.max(1, log.length - RESET_LAG_FRAMES);
+    for (let i = log.length - 1; i >= oldest; i--) {
+      const a = log[i - 1];
+      const b = log[i];
+      if (Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) > JUMP_METRES || Math.abs(wrapAngle(b.yaw - a.yaw)) > JUMP_RADIANS) {
+        at = i - 1;
+        break;
+      }
+    }
+    return { ...log[at] };
+  }
+
+  /** Put the head (and so the person and their hands) back on a remembered head pose. */
+  matchHead(target) {
+    this.syncCamera();
+    this.turnAboutHead(wrapAngle(target.yaw - this.headYaw()));
+    this.syncCamera();
+    const head = this.headPosition(this.tmpA);
+    const rig = this.stage.rig;
+    rig.position.x += target.x - head.x;
+    rig.position.y += target.y - head.y;
+    rig.position.z += target.z - head.z;
+    this.syncCamera();
+  }
+
+  onVisibility(state) {
+    this.visibility = state || 'visible';
+    // The poses while the headset is off the face are not the person's: do not log them, and do
+    // not let a grab go on through them.
+    if (this.visibility !== 'visible' && this.grab) this.endGrab();
+    this.handlers.onVisibility(this.visibility);
+  }
+
+  /** Is the pattern held by a hand right now? (Throws are not graded while it is.) */
+  get dragging() {
+    return !!(this.grab && this.grab.engaged);
+  }
+
+  onGrabPress(c, via) {
+    if (this.grab || !this.presenting || !this.handlers.canGrab()) return;
+    // The grip has to be held a moment; a trigger or pinch after "move" takes at once.
+    this.grab = { c, via, since: performance.now(), hold: via === 'squeeze' ? GRAB_HOLD_MS : 0, engaged: false };
+  }
+
+  onGrabRelease(c, via) {
+    const g = this.grab;
+    if (g && g.c === c && g.via === via) this.endGrab();
+  }
+
+  endGrab() {
+    const g = this.grab;
+    this.grab = null;
+    if (!g) return;
+    if (g.via === 'select') this.moveArmed = false;
+    if (g.engaged) {
+      this.pulse(g.c, 0.3, 20);
+      this.handlers.onGrabEnd();
+    }
+  }
+
+  /** Arm (or disarm) the board's "move": the next trigger pull or pinch grabs the pattern. */
+  setMoveArmed(on) {
+    this.moveArmed = !!on;
+  }
+
+  /** The grabbing palm in the world: position, and the heading of the palm's -Z (toward the fingers' tips/thumb). */
+  palmPose(c, out) {
+    c.palm.getWorldPosition(this.tmpA);
+    const dir = this.tmpB.set(0, 0, -1).applyQuaternion(c.palm.getWorldQuaternion(this.tmpQ));
+    out.x = this.tmpA.x;
+    out.y = this.tmpA.y;
+    out.z = this.tmpA.z;
+    out.heading = headingOf(dir.x, dir.z);
+    return out;
+  }
+
+  /** Once a frame: let a held grip take, and move the pattern with the hand that holds it. */
+  updateGrab() {
+    const g = this.grab;
+    if (!g) return;
+    if (!g.c.source || !g.c.palm.visible) {
+      this.endGrab(); // lost the hand: the pattern stays where it was put
+      return;
+    }
+    if (!g.engaged) {
+      if (performance.now() - g.since < g.hold) return;
+      if (!this.handlers.canGrab()) {
+        this.grab = null;
+        return;
+      }
+      g.engaged = true;
+      this.pulse(g.c, 0.6, 30);
+      this.handlers.onGrabStart(this.palmPose(g.c, {}));
+      return;
+    }
+    this.handlers.onGrabMove(this.palmPose(g.c, this.grabPose || (this.grabPose = {})));
+  }
+
+  /** Remember this frame's head pose (only while the headset is on the face and tracking). */
+  logHead() {
+    if (this.visibility !== 'visible' || !this.hasPose()) return;
+    const head = this.headPosition(this.tmpA);
+    const log = this.headLog;
+    const entry = log.length >= HEAD_LOG ? log.shift() : {};
+    entry.x = head.x;
+    entry.y = head.y;
+    entry.z = head.z;
+    entry.yaw = this.headYaw();
+    log.push(entry);
+  }
+
   onSessionStart() {
     const stage = this.stage;
     this.presenting = true;
@@ -218,6 +410,11 @@ export class XRControl {
     this.timing.frames = 0;
     this.timing.seconds = 0;
     this.timing.slowest = 0;
+    this.grab = null;
+    this.moveArmed = false;
+    this.visibility = 'visible';
+    this.headLog.length = 0;
+    this.rematch = null;
     stage.rig.position.set(0, this.referenceSpaceType === 'local' ? 1.6 : 0, 0);
     stage.rig.rotation.set(0, 0, 0);
     // We update the XR camera ourselves each frame, before anything reads the head pose.
@@ -229,6 +426,10 @@ export class XRControl {
   onSessionEnd() {
     this.presenting = false;
     this.session = null;
+    this.grab = null;
+    this.moveArmed = false;
+    this.rematch = null;
+    this.headLog.length = 0;
     this.hidePanel();
     this.speedLabel.mesh.visible = false;
     this.promptLabel.mesh.visible = false;
@@ -311,6 +512,7 @@ export class XRControl {
       this.applyHandLook(c);
     });
     ray.addEventListener('disconnected', () => {
+      if (this.grab && this.grab.c === c) this.endGrab();
       c.source = null;
       c.handedness = null;
       c.line.visible = false;
@@ -319,6 +521,10 @@ export class XRControl {
       this.panel.clearPointer(index);
     });
     ray.addEventListener('selectstart', () => this.onSelect(c));
+    ray.addEventListener('selectend', () => this.onGrabRelease(c, 'select'));
+    // The grip (squeeze) button, held: grab the whole pattern and move it.
+    ray.addEventListener('squeezestart', () => this.onGrabPress(c, 'squeeze'));
+    ray.addEventListener('squeezeend', () => this.onGrabRelease(c, 'squeeze'));
 
     this.applyHandLook(c);
     return c;
@@ -384,6 +590,10 @@ export class XRControl {
     if (button) {
       this.pulse(c, 0.5, 25);
       this.handlers.onPanel(button.id);
+      return;
+    }
+    if (this.moveArmed) {
+      this.onGrabPress(c, 'select');
       return;
     }
     this.handlers.onTrigger();
@@ -545,6 +755,7 @@ export class XRControl {
     const head = this.headPosition(this.tmpA);
     rig.position.x += x - head.x;
     rig.position.z += z - head.z;
+    this.headLog.length = 0;
     this.syncCamera();
   }
 
@@ -611,6 +822,13 @@ export class XRControl {
 
     this.syncCamera();
 
+    // The origin moved without saying how far: put the head back where it was (see onReset).
+    if (this.rematch && this.hasPose() && this.visibility === 'visible') {
+      this.matchHead(this.rematch);
+      this.rematch = null;
+    }
+    if (!this.rematch) this.logHead();
+
     // How the session is running, for the report after it (not physics, and not on screen in VR).
     const stamp = performance.now();
     if (this.timing.last > 0 && this.frames > 30) {
@@ -622,6 +840,7 @@ export class XRControl {
     this.timing.last = stamp;
 
     for (const c of this.controllers) this.updatePalm(c);
+    this.updateGrab();
 
     // Stand the juggler where the person is, on the first frame the headset reports a head pose.
     if (!this.placed && this.hasPose()) {
@@ -681,6 +900,7 @@ export class XRControl {
   }
 
   turnAboutHead(angle) {
+    this.headLog.length = 0; // a turn of the rig is not the origin moving
     const rig = this.stage.rig;
     const head = this.headPosition(this.tmpA).clone();
     const local = rig.worldToLocal(head.clone()); // the head in tracking space

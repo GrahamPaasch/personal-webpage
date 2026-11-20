@@ -33,6 +33,15 @@ function ballMaterial(look) {
 export const GHOST_HAND_COLOR = 0xcfe4ff;
 export const OWN_HAND_COLOR = 0xffd9a0;
 
+/**
+ * Guidelines (spec 35, 2026-11-20): thin flat strips in the pattern plane, a light magenta that
+ * is none of the ball, hand or arc colours and reads on the dark scene. Strips rather than GL
+ * lines, which are one pixel wide in the headset and shimmer.
+ */
+export const GUIDE_COLOR = 0xff7ad9;
+const GUIDE_WIDTH = 0.003; // metres
+const GUIDE_DEPTH = -0.012; // just behind the plane of the balls, so they never cover a ball
+
 const BALL_SEGMENTS = [20, 14];
 const ARC_STEPS = 28;
 
@@ -108,6 +117,17 @@ export class Stage {
       side: THREE.DoubleSide,
       depthWrite: false,
     });
+
+    // Guidelines: one mesh (one draw call), rebuilt when the pattern changes. Off by default.
+    this.guides = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({ color: GUIDE_COLOR, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide })
+    );
+    this.guides.frustumCulled = false;
+    this.guides.visible = false;
+    this.anchor.add(this.guides);
+    this.guideLines = null;
+    this.showGuides = false;
 
     this.pattern = null;
     this.timeline = null;
@@ -286,6 +306,36 @@ export class Stage {
     this.colorblind = !!on;
     this.ballMaterials = this.colorblind ? this.palettes.colorblind : this.palettes.normal;
     this.setBallGrades(this.grades);
+  }
+
+  /**
+   * Guideline positions from guides.js (pattern frame): a horizontal strip at `crossY` from the
+   * left edge to the right, and vertical strips at the left edge, the centre and the right edge.
+   */
+  setGuides(lines) {
+    this.guideLines = lines;
+    const w = GUIDE_WIDTH / 2;
+    const z = GUIDE_DEPTH;
+    const reach = 0.08; // the horizontal strip runs a little past the edges
+    const quads = [
+      [lines.left - reach, lines.crossY - w, lines.right + reach, lines.crossY + w],
+      [lines.left - w, lines.bottom, lines.left + w, lines.top],
+      [lines.center - w, lines.bottom, lines.center + w, lines.top],
+      [lines.right - w, lines.bottom, lines.right + w, lines.top],
+    ];
+    const points = [];
+    for (const [x0, y0, x1, y1] of quads) {
+      points.push(x0, y0, z, x1, y0, z, x1, y1, z, x0, y0, z, x1, y1, z, x0, y1, z);
+    }
+    this.guides.geometry.dispose();
+    this.guides.geometry = new THREE.BufferGeometry();
+    this.guides.geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+    this.guides.visible = this.showGuides;
+  }
+
+  setShowGuides(on) {
+    this.showGuides = !!on;
+    this.guides.visible = this.showGuides && this.guideLines !== null;
   }
 
   setShowArcs(on) {

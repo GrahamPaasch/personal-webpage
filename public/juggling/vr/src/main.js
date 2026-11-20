@@ -32,6 +32,8 @@ import { FlatView } from './view.js';
 import { SoundBoard, SOUND_TYPES } from './audio.js';
 import { XRControl } from './xr.js';
 import { FlatUI } from './ui.js';
+import { guideLines } from './guides.js';
+import { NO_PLACEMENT, applyPlacement, centreOf, cleanPlacement, dragTo, placementFrom, spotFor } from './placement.js';
 
 const STORAGE_KEY = 'vr-juggling-visualizer.v1';
 const AUDIO_LOOKAHEAD = 0.2; // seconds of real time scheduled ahead on the audio clock
@@ -45,7 +47,8 @@ const state = {
   speed: 1, // never saved: the page always opens at real speed
   simTime: 0,
   view: 'eye',
-  show: { ghost: true, arcs: true, mine: true },
+  // `guides`: the guidelines (crossing height, edges, centre). Off by default, remembered.
+  show: { ghost: true, arcs: true, mine: true, guides: false },
   // The colorblind palette for the throw colours (palette.js). Never saved: every launch starts
   // off, so a headset lent to someone never comes back in their mode.
   colorblind: false,
@@ -65,6 +68,15 @@ const state = {
    */
   anchor: { spotX: 0, spotZ: 0, yaw: 0, handHeight: DEFAULT_PLACEMENT.handHeight, distance: DEFAULT_PLACEMENT.distance, eyeHeight: DEFAULT_PLACEMENT.eyeHeight },
   provisional: false,
+
+  /**
+   * Where the person put the pattern by grabbing it (placement.js), relative to `base`: the head
+   * pose it was placed from in this session (entering VR, calibrating, or "recenter"). Saved, so
+   * the next entry puts the pattern in the same place relative to the person.
+   */
+  placement: { ...NO_PLACEMENT },
+  base: { x: 0, z: 0, yaw: 0 },
+  drag: null, // while a hand holds the pattern: what was true when it took hold
 
   nudge: { palm: 0, wrist: 0, thumb: 0 },
   handTracking: false,
@@ -130,6 +142,7 @@ function start() {
       }
     }
     state.handTracking = !!saved.handTracking;
+    state.placement = cleanPlacement(saved.placement);
   }
   showCalibration();
 
@@ -187,6 +200,19 @@ function start() {
       if (state.vr.calibrating) calibrate(xr.sample());
     },
     onPanel: (id) => panelAction(id),
+    canGrab: () => xr.placed && !state.vr.calibrating && !state.vr.palmStep,
+    onGrabStart: (pose) => grabStart(pose),
+    onGrabMove: (pose) => grabMove(pose),
+    onGrabEnd: () => grabEnd(),
+    onReset: (how) => {
+      // The pattern did not move in the room; the person's hands, as recorded, did. Start the
+      // throw being judged again.
+      scorer.forget();
+      if (how === 'none') xr.prompt('The headset moved its origin.\nPress "recenter" on the board if the pattern is off.', 6);
+    },
+    onVisibility: (vis) => {
+      if (vis !== 'visible') scorer.forget();
+    },
     onMenu: () => {
       if (state.vr.calibrating) {
         // Skipped: the pattern stays where it is, and nothing is recorded.
@@ -230,6 +256,7 @@ function start() {
   ui.setVR(state.vr);
   stage.setShowArcs(state.show.arcs);
   stage.setShowGhostHands(state.show.ghost);
+  stage.setShowGuides(state.show.guides);
   setView(state.view);
 
   xr.checkSupport().then(() => {
@@ -260,7 +287,7 @@ function start() {
   });
 
   // For the smoke test and for poking at the app from a console.
-  window.__vrj = { state, stage, view, audio, xr, ui, schedule, scorer, setPattern, setSpeed, setView, setColorblind, calibrate, panelAction, THREE };
+  window.__vrj = { state, stage, view, audio, xr, ui, schedule, scorer, setPattern, setSpeed, setView, setColorblind, setShow, calibrate, panelAction, THREE };
 }
 
 /** The browser cannot draw 3D at all: say so where the picture would be, and offer nothing dead. */
@@ -335,7 +362,8 @@ function frame(dt, now, lead, xrFrame) {
  */
 function colourBalls(drawn, t) {
   if (!drawn || accuracyFailed) return;
-  if (!(xr.presenting && xr.placed) || state.vr.calibrating || state.vr.palmStep) {
+  // Not while the pattern is being moved by hand, nor while the headset is off the face.
+  if (!(xr.presenting && xr.placed) || state.vr.calibrating || state.vr.palmStep || xr.dragging || xr.visibility !== 'visible') {
     if (scorer.coloured || !Number.isNaN(scorer.lastT)) {
       scorer.clear();
       stage.setBallGrades(null);
@@ -376,6 +404,7 @@ function setPattern(text, options) {
   state.collisions = findCollisions(pattern);
   state.vrMessage = '';
   stage.setPattern(pattern, state.timeline, state.collisions);
+  stage.setGuides(guideLines(pattern));
   scorer.setPattern(pattern, state.timeline);
   state.description = ui.setPattern(pattern, state.collisions);
   view.setTarget(state.anchor, patternHeight(), false);
@@ -426,6 +455,7 @@ function setShow(key, on) {
   state.show[key] = on;
   stage.setShowArcs(state.show.arcs);
   stage.setShowGhostHands(state.show.ghost);
+  stage.setShowGuides(state.show.guides);
   xr.setShowMyHands(state.show.mine);
   ui.setShow(state.show);
   save();
@@ -521,6 +551,7 @@ function setNudge(key, value) {
 function resetCalibration() {
   state.calibration = restoreCalibration(null);
   state.nudge = { palm: 0, wrist: 0, thumb: 0 };
+  state.placement = { ...NO_PLACEMENT };
   xr.setNudge(state.nudge);
   showCalibration();
   applyAnchor(false);
@@ -530,9 +561,9 @@ function resetCalibration() {
 /** First head pose of a VR session: stand the juggler where the person is, facing their way. */
 function placeInVR(sample) {
   const a = state.anchor;
-  a.spotX = sample.head.x;
-  a.spotZ = sample.head.z;
-  a.yaw = sample.headYaw;
+  // Where the person put the pattern last time, relative to where they stand and face now.
+  state.base = { x: sample.head.x, z: sample.head.z, yaw: sample.headYaw };
+  Object.assign(a, applyPlacement(state.base, state.placement));
   a.eyeHeight = sample.head.y;
   // A remembered calibration is used again only in the posture it was made in (standing or
   // sitting). Otherwise a first guess is shown, and calibrating is asked for.
@@ -569,6 +600,7 @@ function calibrationPrompt() {
 }
 
 function beginCalibration() {
+  xr.setMoveArmed(false);
   state.vr.calibrating = true;
   state.vr.palmStep = false;
   xr.hidePanel(); // out of the way of the trigger
@@ -616,6 +648,9 @@ function calibrate(sample) {
   c.distance = m.distance;
   c.eyeHeight = m.eyeHeight;
   c.frames = m.frames;
+  // Calibrating places the pattern where the hands are: that is the placement from here on.
+  state.base = { x: m.spotX, z: m.spotZ, yaw: m.yaw };
+  state.placement = { ...NO_PLACEMENT };
   state.provisional = false;
   state.vr.calibrating = false;
   applyAnchor(false);
@@ -648,6 +683,65 @@ function endPalmStep() {
   save();
   xr.summonPanel('side');
   xr.prompt(xr.usingHands() ? 'Controls: on your left' : 'Controls: on your left,\nor press A or X to bring them in front', 6);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Moving the pattern by hand (spec 35, 2026-11-20)
+// ---------------------------------------------------------------------------------------------
+
+/** A hand took hold of the pattern (grip held, or trigger/pinch after "move"). */
+function grabStart(pose) {
+  const a = state.anchor;
+  state.drag = { hand: pose, centre: centreOf(a), yaw: a.yaw };
+  xr.prompt('Moving the pattern.\nLet go to put it here.', 0);
+}
+
+/** The holding hand moved: the pattern goes with it. Nothing is saved until it is let go. */
+function grabMove(pose) {
+  if (!state.drag) return;
+  const a = state.anchor;
+  const to = dragTo(state.drag, pose);
+  a.yaw = to.yaw;
+  a.handHeight = clampHandHeight(to.y);
+  Object.assign(a, spotFor(to.x, to.z, to.yaw, a.distance));
+  stage.setAnchor(a);
+  scorer.forget();
+}
+
+/**
+ * Let go: the pattern stays here. The height is the hand height (as the board's height buttons
+ * set it, so it is remembered as the calibration for this posture); where it stands and how it
+ * is turned is remembered relative to the person.
+ */
+function grabEnd() {
+  if (!state.drag) return;
+  state.drag = null;
+  const a = state.anchor;
+  const c = state.calibration;
+  c.handHeight = a.handHeight;
+  c.distance = a.distance;
+  c.eyeHeight = a.eyeHeight;
+  c.done = true;
+  state.provisional = false;
+  state.placement = cleanPlacement(placementFrom(state.base, a));
+  applyAnchor(false);
+  save();
+  xr.prompt('Placed. Hold a grip button to move it again.', 3);
+}
+
+/**
+ * "Recenter": the pattern back in front of the person, where they last put it relative to
+ * themselves. For when the headset moved its origin without saying so.
+ */
+function recenterHere() {
+  if (!xr.hasPose()) return;
+  const s = xr.sample();
+  state.base = { x: s.head.x, z: s.head.z, yaw: s.headYaw };
+  const a = state.anchor;
+  Object.assign(a, applyPlacement(state.base, state.placement));
+  a.eyeHeight = s.head.y;
+  applyAnchor(false);
+  xr.prompt('Recentred in front of you.', 3);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -700,6 +794,8 @@ const board = {
   showGhost: true,
   showMyHands: true,
   colorblind: false,
+  showGuides: false,
+  moveArmed: false,
   hands: false,
 };
 
@@ -722,6 +818,8 @@ function panelModel() {
   board.showGhost = state.show.ghost;
   board.showMyHands = state.show.mine;
   board.colorblind = state.colorblind;
+  board.showGuides = state.show.guides;
+  board.moveArmed = xr.moveArmed;
   board.hands = state.vr.hands;
   return board;
 }
@@ -762,6 +860,11 @@ function panelAction(id) {
     const key = parts[1];
     if (key === 'colorblind') setColorblind(!state.colorblind);
     else setShow(key, !state.show[key]);
+  } else if (kind === 'move') {
+    xr.setMoveArmed(!xr.moveArmed);
+    if (xr.moveArmed) xr.prompt(xr.usingHands() ? 'Pinch and hold to grab the pattern' : 'Pull and hold a trigger to grab the pattern', 4);
+  } else if (kind === 'recenter') {
+    recenterHere();
   } else if (kind === 'spot') {
     xr.moveHeadTo(state.anchor.spotX, state.anchor.spotZ);
   } else if (kind === 'exit') {
@@ -851,6 +954,7 @@ function save() {
         palmChecked: c.palmChecked,
         nudge: state.nudge,
         handTracking: state.handTracking,
+        placement: state.placement,
       })
     );
   } catch (err) {

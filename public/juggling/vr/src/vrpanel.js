@@ -11,7 +11,7 @@
 import { THREE, roundRect } from './scene.js';
 
 const CW = 1024; // canvas pixels
-const CH = 832;
+const CH = 900;
 const PANEL_WIDTH = 1.0; // metres
 const PANEL_HEIGHT = (PANEL_WIDTH * CH) / CW;
 
@@ -120,6 +120,8 @@ export class VRPanel {
     v[n++] = model.showGhost;
     v[n++] = model.showMyHands;
     v[n++] = model.colorblind;
+    v[n++] = model.showGuides;
+    v[n++] = model.moveArmed;
     v[n++] = model.hands;
     v.length = n;
 
@@ -342,9 +344,17 @@ export class VRPanel {
     ]);
     y += H + G;
 
+    // Placement and guidelines (2026-11-20).
+    this.row(ctx, M, y, inner, H, G, [
+      { id: 'toggle:guides', label: 'guidelines', on: m.showGuides },
+      { id: 'move', label: m.moveArmed ? 'grab it now' : 'move pattern', on: m.moveArmed },
+      { id: 'recenter', label: 'recenter', share: 0.8 },
+    ]);
+    y += H + G;
+
     const help = m.hands
       ? 'Point with a hand and pinch finger and thumb to press.  This board stays on your left.'
-      : 'A or X: bring this board in front of you, or hide it.  Left stick: move.  Right stick: turn.';
+      : 'A or X: this board.  Hold a grip: move the pattern.  Sticks: walk, turn.';
     this.text(ctx, help, CW / 2, y + 26, {
       size: 23,
       color: C.mute,
