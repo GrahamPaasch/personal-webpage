@@ -87,6 +87,12 @@ const nextConfig = {
     '/frankfurt': ['./private/frankfurt/**'],
     '/parents2026': ['./private/parents2026/**'],
   },
+  async redirects() {
+    return [
+      // Short, easy-to-remember alias (his ask 11/21).
+      { source: '/metronome', destination: '/tools/metronome', permanent: false },
+    ];
+  },
   async rewrites() {
     return staticRewrites;
   },
