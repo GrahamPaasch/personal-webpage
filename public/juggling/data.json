@@ -1,12 +1,13 @@
 {
   "goal_hours": 50,
   "min_session_minutes": 15,
-  "updated": "2026-11-22T12:45:35-06:00",
+  "updated": "2026-11-22T13:25:54-06:00",
   "total_seconds": 1918,
   "counted_sessions": 1,
   "latest_coaching": {
     "session_id": "2026-11-22_114249",
     "title": "Juggling coaching, session 1: Your right lane drifts",
+    "pattern": "7-ball cascade",
     "page_url": "https://videos.grahampaasch.com/juggling-s001-coaching",
     "mp4_url": "https://videos.grahampaasch.com/v/juggling-s001-coaching.mp4",
     "poster_url": null,
@@ -21,6 +22,7 @@
       "id": "2026-11-22_114249",
       "start": "2026-11-22T11:42:49-06:00",
       "duration_s": 1918,
+      "pattern": "7-ball cascade",
       "counts": true,
       "coaching_page_url": "https://videos.grahampaasch.com/juggling-s001-coaching",
       "headline": "Your right lane drifts",
