@@ -1,9 +1,19 @@
 {
   "goal_hours": 50,
   "min_session_minutes": 15,
-  "updated": "2026-11-09T12:00:00-06:00",
-  "total_seconds": 0,
-  "counted_sessions": 0,
+  "updated": "2026-11-22T12:14:53-06:00",
+  "total_seconds": 1918,
+  "counted_sessions": 1,
   "latest_coaching": null,
-  "sessions": []
+  "sessions": [
+    {
+      "id": "2026-11-22_114249",
+      "start": "2026-11-22T11:42:49-06:00",
+      "duration_s": 1918,
+      "counts": true,
+      "coaching_page_url": null,
+      "headline": null,
+      "metrics": null
+    }
+  ]
 }
