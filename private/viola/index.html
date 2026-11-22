@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Viola practice · Graham</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎻</text></svg>">
+<style>
+:root{--bg:#14110f;--card:#1f1a16;--ink:#f1e9df;--mute:#a99c8d;--acc:#d9a35b;--ok:#86c06c;--warn:#e07a5f}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);margin:0;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding:24px 18px 70px}
+h1{font-size:2rem;margin:0}.sub{color:var(--mute);margin:2px 0 20px}
+h2{font-size:1.3rem;margin:30px 0 10px;color:var(--acc)}
+.card{background:var(--card);border:1px solid #33291f;border-radius:14px;padding:16px 18px;margin-bottom:12px}
+.today{border:2px solid var(--acc)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+a.btn,button{display:inline-block;background:#2d251d;color:var(--ink);border:1px solid #4a3c2e;border-radius:10px;padding:8px 13px;text-decoration:none;font-size:.95rem;cursor:pointer}
+a.btn:hover,button:hover{border-color:var(--acc)}
+a.go{background:var(--acc);color:#1a130c;font-weight:700;border:0}
+.piece{display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:center;padding:10px 0;border-bottom:1px solid #2c241c}
+.piece:last-child{border:0}.piece b{font-size:1.05rem}.piece small{display:block;color:var(--mute)}
+.big{font-size:2.6rem;font-weight:800;font-variant-numeric:tabular-nums}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.tools{grid-template-columns:1fr}}
+input[type=range]{width:100%}
+.beat{display:inline-block;width:22px;height:22px;border-radius:50%;background:#3a2f24;margin-right:6px}.beat.on{background:var(--acc)}.beat.on.acc{background:var(--warn)}
+.count{color:var(--warn);font-weight:700}
+.tl{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:.8rem}
+.tl .h{color:var(--mute);text-align:center;font-weight:600}
+.tl .d{background:#1a1511;border:1px solid #2c241c;border-radius:8px;min-height:62px;padding:4px 6px}
+.tl .d.today{border:2px solid var(--acc)}.tl .d.out{opacity:.25}
+.tl .n{color:var(--mute)}.tag{display:block;margin-top:2px;border-radius:6px;padding:1px 5px;font-size:.75rem}
+.tag.plan{border:1px dashed var(--acc);color:var(--acc)}.tag.did{background:var(--ok);color:#10200a}.tag.sub{background:var(--warn);color:#2a0d05}
+.note{color:var(--mute);font-size:.92rem}
+ol.ahead{margin:6px 0 0;padding-left:22px;color:var(--mute)}ol.ahead li.cur{color:var(--ink);font-weight:700}
+</style></head><body><div class="wrap">
+<h1>🎻 Viola practice</h1>
+<p class="sub">The Karen Tuttle program: one lesson a day, about 30 minutes, the whole book in order.</p>
+
+<div class="card today" id="today"></div>
+
+<h2>📅 Timeline</h2>
+<div class="card">
+<p class="note" style="margin-top:0">Each day shows the lesson that was planned and whether you did it. Days are only marked done from what you tell me, never guessed. If you did something else instead, it shows as that, not as the planned lesson.</p>
+<div id="months"></div>
+<p class="note" id="histnote"></p>
+<h3 style="margin:14px 0 0;font-size:1.05rem">Coming up, in book order</h3>
+<ol class="ahead" id="ahead"></ol>
+</div>
+
+<div class="tools">
+<div class="card"><h3 style="margin:0 0 6px">⏱️ Practice timer</h3>
+<div class="big" id="tleft">30:00</div>
+<div class="row"><button onclick="setT(20)">20 min</button><button onclick="setT(30)">30 min</button><button onclick="setT(45)">45 min</button><button id="tgo" onclick="toggleT()">▶ Start</button></div>
+<small style="color:var(--mute)">Chimes when time's up: that's your cue to stop and walk away.</small></div>
+<div class="card"><h3 style="margin:0 0 6px">🥁 Metronome</h3>
+<div class="row"><span class="big" id="bpmv">40</span><span style="color:var(--mute)">BPM</span>
+<select id="meter"><option value="1">no accent</option><option value="4">4/4</option><option value="3">3/4</option><option value="2">2/4</option><option value="5">5/4</option><option value="6">6/8</option></select></div>
+<input type="range" id="bpm" min="30" max="220" value="40">
+<div class="row" style="margin:6px 0"><button onclick="nudge(-5)">−5</button><button onclick="nudge(-1)">−1</button><button onclick="nudge(1)">+1</button><button onclick="nudge(5)">+5</button><button id="mgo" onclick="toggleM()">▶ Start</button></div>
+<div id="beats"></div><small style="color:var(--mute)">Set to 40 for spinning sound.</small></div>
+</div>
+
+<h2>🎶 Classical Jams</h2>
+<div class="card">
+<div class="piece"><div><b>Same Air</b><small>Duet with Sean.</small></div><div class="row"><a class="btn go" href="https://videos.grahampaasch.com/same-air-27">Play-along</a></div></div>
+<div class="piece"><div><b>Rameau Suite</b></div><div class="row"><a class="btn go" href="https://videos.grahampaasch.com/rameau-suite-18">Play-along</a></div></div>
+</div>
+
+<h2>📚 Etudes and solo pieces</h2>
+<div class="card">
+<div class="piece"><div><b>Kreutzer No. 13 (Consolini, viola)</b><small>Running sixteenths, D major.</small></div>
+<div class="row"><a class="btn" href="https://videos.grahampaasch.com/kreutzer-13-viola-slow">Slow</a><a class="btn" href="https://videos.grahampaasch.com/kreutzer-13-viola-75">75%</a><a class="btn go" href="https://videos.grahampaasch.com/kreutzer-13-viola-full">Full</a></div></div>
+<div class="piece"><div><b>Bruch: Romanze</b></div>
+<div class="row"><a class="btn" href="https://videos.grahampaasch.com/bruch-romanze-slow">Slow</a><a class="btn" href="https://videos.grahampaasch.com/bruch-romanze-75">75%</a><a class="btn go" href="https://videos.grahampaasch.com/bruch-romanze-full">Full</a></div></div>
+</div>
+<p class="note">The old 7-day Viola Gauntlet is retired in favour of the Tuttle program; its videos are still on the <a href="/viola-gauntlet" style="color:var(--acc)">gauntlet page</a>.</p>
+</div>
+
+<script>
+const V="https://videos.grahampaasch.com";
+// Lessons, in book order. Only Day 1 is built so far.
+const LESSONS=[
+ {n:1,title:"Spinning sound + Chapter 2: Stance, balance and the Hara",mins:31,video:V+"/tuttle-day1",
+  what:"About 5 minutes of spinning sound (slow open-string bows, metronome 40, seconds counted on every bow), then 20 stance and balance exercises over an open-string viola drone: feet, head facing forward, stacking up, the seesaw balance, the Hara, grounding."},
+];
+const AHEAD=["Chapter 3: General left-hand concepts","Chapter 4: Finger action","Chapter 5: Fingerboard","Chapter 6: Shifting","Chapter 7: Double stops","Chapter 8: Trills","Chapter 9: Vibrato","Chapter 10: Right hand / bow-arm concepts","Chapter 11: Bow strokes and articulations","Chapter 12: String crossings","Chapter 13: Bow changes and distribution","Chapter 14: Chords","Chapter 15: Coordination","Etude play-alongs, chapter by chapter"];
+// The lesson you're on. It only moves when you say "next".
+const CURRENT=1;
+// What was planned, by date. Each entry runs until the next one (a new entry is added only
+// when you say "next"), so history keeps showing what was planned on each day.
+const PLAN=[{from:"2026-11-22",lesson:1}];
+const PLAN_START=PLAN[0].from;
+// What you actually did, logged only from what you tell me. Examples of the shape:
+//  {date:"2026-11-22",did:1}                       -> did lesson 1 as planned
+//  {date:"2026-11-23",sub:"Gauntlet day 7 instead"} -> did something else; shown as that
+const LOG=[];
+
+const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const now=new Date(),today=ymd(now);
+const L=LESSONS.find(l=>l.n===CURRENT);
+document.getElementById("today").innerHTML=`<div style="color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:.85rem">Today's lesson${today<PLAN_START?" (starts Sun Nov 22)":""}</div>
+<h3 style="margin:6px 0 4px;font-size:1.35rem">Day ${L.n}: ${L.title}</h3>
+<p style="margin:0 0 10px">${L.what}</p>
+<div class="row"><a class="btn go" href="${L.video}">▶ Start the video (${L.mins} min)</a><button onclick="setT(30);toggleT()">Start a 30 min timer</button></div>
+<p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">Repeat until solid.</b> Do this same lesson every day until it feels solid, then tell me "next" and Day ${L.n+1} takes its place. The calendar never moves on by itself.</p>`;
+
+// Timeline: last month, this month, next month
+const byDate={};LOG.forEach(e=>byDate[e.date]=e);
+function cell(d,inMonth){const k=ymd(d);let tags="";
+ const p=PLAN.filter(x=>x.from<=k).pop();
+ const planned=p&&(k<=today||k===PLAN_START)?p.lesson:null;
+ const e=byDate[k];
+ if(e&&e.sub)tags+=`<span class="tag sub">${e.sub}</span>`+(planned?`<span class="tag plan">planned: Day ${planned}</span>`:"");
+ else if(e&&e.did)tags+=`<span class="tag did">did Day ${e.did}</span>`;
+ else if(planned)tags+=`<span class="tag plan">planned: Day ${planned}</span>`;
+ return `<div class="d${k===today?" today":""}${inMonth?"":" out"}"><span class="n">${d.getDate()}</span>${tags}</div>`}
+function month(y,m){const first=new Date(y,m,1),start=new Date(y,m,1-((first.getDay()+6)%7));let h=`<h3 style="margin:12px 0 6px;font-size:1rem">${first.toLocaleString("en-US",{month:"long",year:"numeric"})}</h3><div class="tl">`+["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(x=>`<div class="h">${x}</div>`).join("");
+ for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);if(i>=35&&d.getMonth()!==m)break;h+=cell(d,d.getMonth()===m)}return h+"</div>"}
+const y=now.getFullYear(),m=now.getMonth();
+document.getElementById("months").innerHTML=month(y,m-1)+month(y,m)+month(y,m+1);
+document.getElementById("histnote").textContent=LOG.length?`${LOG.length} day${LOG.length==1?"":"s"} logged.`:"Nothing logged yet. Day 1 is planned for Sunday, November 22.";
+document.getElementById("ahead").innerHTML=LESSONS.map(l=>`<li class="${l.n===CURRENT?"cur":""}">Day ${l.n}: ${l.title}${l.n===CURRENT?" (now)":""}</li>`).join("")+AHEAD.map(a=>`<li>${a}</li>`).join("");
+
+let AC;function ac(){return AC||(AC=new (window.AudioContext||window.webkitAudioContext)())}
+function blip(t,f,len=0.05,g=0.5){const a=ac(),o=a.createOscillator(),v=a.createGain();o.frequency.value=f;v.gain.setValueAtTime(g,t);v.gain.exponentialRampToValueAtTime(0.001,t+len);o.connect(v);v.connect(a.destination);o.start(t);o.stop(t+len+0.02)}
+// metronome (lookahead scheduler)
+const bpmEl=document.getElementById('bpm'),bv=document.getElementById('bpmv'),mEl=document.getElementById('meter');let mOn=false,next=0,beat=0,timer;
+function drawBeats(){const n=+mEl.value;document.getElementById('beats').innerHTML=Array.from({length:Math.max(n,1)},(_,i)=>`<span class="beat" id="b${i}"></span>`).join('')}
+bpmEl.oninput=()=>bv.textContent=bpmEl.value;mEl.onchange=()=>{beat=0;drawBeats()};drawBeats();
+function nudge(d){bpmEl.value=Math.min(220,Math.max(30,+bpmEl.value+d));bv.textContent=bpmEl.value}
+function sched(){const a=ac(),n=+mEl.value;while(next<a.currentTime+0.12){const b=beat%Math.max(n,1),acc=n>1&&b===0;blip(next,acc?1500:1000,0.04,acc?0.7:0.45);
+const ms=(next-a.currentTime)*1000;setTimeout(()=>{document.querySelectorAll('.beat').forEach(e=>e.classList.remove('on','acc'));const e=document.getElementById('b'+b);if(e){e.classList.add('on');if(acc)e.classList.add('acc')}},Math.max(0,ms));
+next+=60/+bpmEl.value;beat++}}
+function toggleM(){mOn=!mOn;document.getElementById('mgo').textContent=mOn?'■ Stop':'▶ Start';if(mOn){ac().resume();next=ac().currentTime+0.05;beat=0;timer=setInterval(sched,25)}else clearInterval(timer)}
+// practice timer with exit chime
+let tLen=30*60,tLeft=tLen,tRun=false,tInt,tEnd;
+function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function setT(m){tLen=tLeft=m*60;document.getElementById('tleft').textContent=fmt(tLeft)}
+function toggleT(){tRun=!tRun;document.getElementById('tgo').textContent=tRun?'❚❚ Pause':'▶ Start';if(tRun){ac().resume();tEnd=Date.now()+tLeft*1000;tInt=setInterval(()=>{tLeft=Math.max(0,Math.round((tEnd-Date.now())/1000));document.getElementById('tleft').textContent=fmt(tLeft);
+if(tLeft<=0){clearInterval(tInt);tRun=false;document.getElementById('tgo').textContent='▶ Start';document.getElementById('tleft').textContent='Done. Stop! 🎉';const t=ac().currentTime;[0,0.35,0.7].forEach((d,i)=>blip(t+d,[660,880,1320][i],0.5,0.6))}},250)}else{clearInterval(tInt)}}
+</script>
+</body></html>

@@ -30,7 +30,6 @@ const STATIC_APP_DIRS = [
   'panelclash',
   'sidewalks-of-rage',
   'stitch',
-  'viola',
   'viola-gauntlet',
   'vr/dragons',
   'vr/dragons/v1',
@@ -86,6 +85,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/frankfurt': ['./private/frankfurt/**'],
     '/parents2026': ['./private/parents2026/**'],
+    '/viola': ['./private/viola/**'],
   },
   async redirects() {
     return [
