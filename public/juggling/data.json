@@ -1,21 +1,21 @@
 {
   "goal_hours": 50,
   "min_session_minutes": 15,
-  "updated": "2026-11-22T13:25:54-06:00",
+  "updated": "2026-11-22T13:29:37-06:00",
   "total_seconds": 1918,
   "counted_sessions": 1,
   "latest_coaching": {
     "session_id": "2026-11-22_114249",
-    "title": "Juggling coaching, session 1: Your right lane drifts",
+    "title": "7-ball cascade coaching, session 1: 44 attempts, 19 with all seven thrown",
     "pattern": "7-ball cascade",
     "page_url": "https://videos.grahampaasch.com/juggling-s001-coaching",
     "mp4_url": "https://videos.grahampaasch.com/v/juggling-s001-coaching.mp4",
     "poster_url": null,
     "fixes": [
-      "Your right lane drifts",
-      "A repeatable top throw"
+      "Throw higher: 70 cm too low",
+      "Wider: 46 cm too narrow"
     ],
-    "duration_s": 67.5
+    "duration_s": 178.1
   },
   "sessions": [
     {
@@ -25,17 +25,77 @@
       "pattern": "7-ball cascade",
       "counts": true,
       "coaching_page_url": "https://videos.grahampaasch.com/juggling-s001-coaching",
-      "headline": "Your right lane drifts",
+      "headline": "44 attempts, 19 with all seven thrown",
       "metrics": {
-        "column_width_cm": 25.3,
-        "vertical_height_cm": {
-          "L": 21.6,
-          "R": 20.0
+        "pattern": "7-ball cascade",
+        "runs": 44,
+        "all_thrown": 19,
+        "best_run": 8,
+        "throws_per_run": [
+          4,
+          5,
+          7,
+          6,
+          7,
+          7,
+          6,
+          7,
+          7,
+          4,
+          3,
+          7,
+          3,
+          6,
+          3,
+          6,
+          6,
+          7,
+          7,
+          7,
+          5,
+          5,
+          6,
+          6,
+          7,
+          6,
+          6,
+          7,
+          5,
+          5,
+          7,
+          7,
+          7,
+          6,
+          7,
+          6,
+          5,
+          7,
+          7,
+          4,
+          4,
+          7,
+          6,
+          8
+        ],
+        "catches_per_run": null,
+        "peak_cm": 99.3,
+        "width_cm": 44.9,
+        "beat_ms": 234,
+        "vs_ideal": {
+          "height_cm": -70.3,
+          "width_cm": -46.4,
+          "cross_cm": -70.0,
+          "flight_ms": -276,
+          "beat_ms": 24
         },
-        "pass_clearance_cm": 55.5,
-        "sync_error_ms": 217.3,
-        "throws_tracked": 366,
-        "longest_run": 11
+        "real_s": 180.0,
+        "shadow_s": 265.0,
+        "self_report": {
+          "flashes": 5,
+          "flashes_text": "about 5",
+          "goal_flashes": 5,
+          "source": "Graham, after the session (11/22)"
+        }
       }
     }
   ]
