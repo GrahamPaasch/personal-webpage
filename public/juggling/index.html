@@ -1,8 +1,8 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>50 Hours of the Inverted Box: relearning a 3-ball juggling trick, on camera | Graham Paasch</title>
-<meta name="description" content="Graham is relearning the 3-ball inverted box (siteswap (4,2x)(2x,4)) with 50 hours of recorded practice. Every session is filmed, measured by a ball tracker, and turned into a short coaching video. Follow the counter.">
-<meta property="og:title" content="50 hours of the inverted box">
-<meta property="og:description" content="Relearning a 3-ball juggling trick on camera: a voice-started webcam, a ball tracker, and a coaching video after every session. Watch the hour counter climb.">
+<title>Seven balls, 35 to 100 catches: a juggling project with AI coaching | Graham Paasch</title>
+<meta name="description" content="Graham's best seven-ball cascade is 35 catches. The goal is 100. Every practice session is filmed, the runs are counted and measured against Jack Kalvan's optimal seven-ball cascade, and each session becomes a short coaching video.">
+<meta property="og:title" content="Seven balls: 35 catches to 100">
+<meta property="og:description" content="A seven-ball cascade from a 35-catch lifetime best to 100 catches, with a VR visualizer, a ball tracker and a coaching video after every session.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.grahampaasch.com/juggling">
 <meta name="twitter:card" content="summary">
@@ -12,46 +12,60 @@
 :root{--bg:#0d1017;--card:#151a24;--card2:#1b2130;--ink:#ecebe6;--mute:#9aa3b2;--line:#252c3b;--a:#ff9f43;--b:#2fd6c3;--c:#ff5c8a;--link:#7cc7ff}
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(1200px 500px at 70% -100px,#1d2433 0,transparent 70%),var(--bg);color:var(--ink);font:17px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-main{max-width:920px;margin:auto;padding:0 18px 60px}
+main{max-width:980px;margin:auto;padding:0 18px 60px}
 a{color:var(--link)}
 h1{font-size:clamp(30px,5.4vw,46px);line-height:1.08;margin:0 0 .3em;letter-spacing:-.01em}
 h2{font-size:22px;margin:0 0 .5em}
+h3{font-size:17px;margin:0 0 .4em}
 .kicker{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--a);font-weight:700;margin:0 0 6px}
-.hero{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:center;padding:34px 0 10px}
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:24px;align-items:start;padding:34px 0 10px}
 .hero p.lede{color:#c9ccd3;margin:0 0 18px;font-size:18px}
-.box-anim{width:100%;max-width:340px;justify-self:center;display:block}
 .counter{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .counter .big{font-size:clamp(46px,9vw,72px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1;background:linear-gradient(90deg,var(--a),var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
 .counter .of{font-size:22px;color:var(--mute);font-weight:600}
-.cheer{color:var(--b);font-weight:600;margin:8px 0 0;min-height:1.6em}
+.note{color:var(--b);font-weight:600;margin:8px 0 0;min-height:1.6em}
 section{margin:30px 0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
-.balls{display:grid;grid-template-columns:repeat(25,1fr);gap:6px;row-gap:18px;margin:4px 0 18px}
-.ball{aspect-ratio:1;border-radius:50%;background:linear-gradient(to top,var(--col) var(--p),#232a39 var(--p));box-shadow:inset -2px -3px 4px rgba(0,0,0,.35),inset 2px 2px 3px rgba(255,255,255,.12);position:relative}
-.ball.ten::after{content:attr(data-h);position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:10px;color:var(--mute);margin-top:1px}
-.ball.next{animation:hop 1.4s ease-in-out infinite}
-@keyframes hop{0%,100%{transform:translateY(0)}45%{transform:translateY(-7px)}}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:20px}
+.road{position:relative;height:46px;margin:44px 6px 38px}
+.road .track{position:absolute;left:0;right:0;top:18px;height:10px;border-radius:6px;background:#232a39}
+.road .fill{position:absolute;left:0;top:18px;height:10px;border-radius:6px;background:linear-gradient(90deg,var(--a),var(--c))}
+.road .mk{position:absolute;bottom:18px;transform:translateX(-50%);text-align:center;font-size:12px;color:var(--mute);white-space:nowrap}
+.road .mk i{display:block;width:3px;height:18px;margin:2px auto 0;background:var(--mute);border-radius:2px}
+.road .mk b{display:block;color:var(--ink);font-size:13px}
+.road .mk.lo{bottom:auto;top:28px}
+.road .mk.lo i{height:10px;margin:0 auto 2px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
 .stat{background:var(--card2);border-radius:12px;padding:10px 12px}
 .stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
 .stat span{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+.stat small{display:block;font-size:12px;color:var(--mute);line-height:1.35;margin-top:2px}
+.diagram{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 12px 10px}
+.diagram svg{width:100%;display:block;max-height:560px}
+.diagram .ctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-top:6px}
+.diagram button{background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:2px 10px;font:inherit;cursor:pointer}
+.diagram button[aria-pressed=true]{border-color:var(--a);color:var(--a)}
+.diagram .cap{font-size:13px;color:var(--mute);margin:6px 2px 0;line-height:1.45}
+svg text{font-family:inherit}
+.params{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.params td{border-top:1px solid var(--line);padding:5px 8px;vertical-align:top}
+.params tr:first-child td{border-top:0}
+.params td:first-child{white-space:nowrap;font-weight:600}
+.params td:nth-child(2){white-space:nowrap;color:var(--a)}
+.params td:last-child{color:var(--mute)}
 .video-wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;align-items:start}
 video{width:100%;border-radius:12px;background:#000;display:block;aspect-ratio:16/9}
 .fixes{margin:6px 0 10px;padding-left:1.2em}
 .fixes li{margin:4px 0}
 .muted{color:var(--mute)}
 .small{font-size:14px}
-.empty{display:flex;gap:18px;align-items:center}
-.empty svg{flex:0 0 auto}
 .sess{list-style:none;margin:0;padding:0}
 .sess li{border-top:1px solid var(--line);padding:12px 0;display:grid;grid-template-columns:150px 1fr auto;gap:4px 16px;align-items:start}
 .sess li:first-child{border-top:0}
 .sess .when{font-weight:600}
 .sess .when small{display:block;color:var(--mute);font-weight:400;font-size:13px}
 .tag{display:inline-block;font-size:12px;border-radius:999px;padding:1px 9px;margin-right:6px;font-weight:600}
-.tag.yes{background:rgba(47,214,195,.14);color:var(--b)}
-.tag.no{background:rgba(154,163,178,.14);color:var(--mute)}
 .tag.pat{background:rgba(255,159,67,.14);color:#ffb873}
+.tag.no{background:rgba(154,163,178,.14);color:var(--mute)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .chip{font-size:12px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:1px 8px;color:#c9ccd3;font-variant-numeric:tabular-nums}
 .sess .go{white-space:nowrap;font-size:14px}
@@ -61,92 +75,106 @@ video{width:100%;border-radius:12px;background:#000;display:block;aspect-ratio:1
 .steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:26px;height:26px;border-radius:50%;background:var(--card2);color:var(--a);font-weight:700;font-size:14px;display:grid;place-items:center}
 code{background:var(--card2);padding:1px 6px;border-radius:6px;font-size:.92em}
 .history{border-left:3px solid var(--c)}
+.history .hrs{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
 footer{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;font-size:15px;color:var(--mute)}
 footer .more{display:flex;flex-wrap:wrap;gap:8px 18px;margin:6px 0 10px}
 #err{color:#ff8f8f;font-size:14px}
-@media (max-width:760px){
+@media (max-width:820px){
   .hero{grid-template-columns:1fr;padding-top:22px}
-  .box-anim{max-width:260px;order:-1}
-  .balls{grid-template-columns:repeat(10,1fr);gap:7px;row-gap:16px}
   .stats{grid-template-columns:repeat(2,1fr)}
   .video-wrap,.two{grid-template-columns:1fr}
   .sess li{grid-template-columns:1fr auto}
   .sess .body{grid-column:1/-1;grid-row:2}
   .card{padding:16px}
 }
-@media (prefers-reduced-motion:reduce){.ball.next{animation:none}}
 </style></head><body><main>
 
 <header class="hero">
   <div>
-    <p class="kicker">Juggling project &middot; 50 hours</p>
-    <h1>Relearning the inverted box, one recorded hour at a time</h1>
-    <p class="lede">The inverted box is a 3-ball trick I could do once. I'm getting it back with 50 hours of on-camera practice, and every session gets measured and turned into a short coaching video. Come watch the counter climb (and the balls drop).</p>
-    <div class="counter"><span class="big" id="hours">0.0</span><span class="of">/ <span id="goal">50</span> hours</span></div>
-    <p class="cheer" id="cheer">&nbsp;</p>
+    <p class="kicker">Juggling project &middot; seven balls</p>
+    <h1>Seven balls: from 35 catches to 100</h1>
+    <p class="lede">My best seven-ball cascade ever is <b>35 catches</b>. The goal is <b>100</b>. I practice with real balls and a VR headset that shows the ideal pattern. The laptop films every session, a tracker counts and measures the runs against that same ideal, and each session becomes a short coaching video. If it works, it becomes an article for the IJA: <i>&ldquo;I took my seven-ball from 35 catches to 100 catches using AI.&rdquo;</i></p>
+    <div class="counter"><span class="big" id="best">35</span><span class="of">/ <span id="goal">100</span> catches</span></div>
+    <p class="note" id="note">&nbsp;</p>
   </div>
-  <svg class="box-anim" id="box" viewBox="0 0 300 270" role="img" aria-label="Animation of the 3-ball inverted box: two balls rise and fall in columns on the outside while the third swings back and forth in a U below the hands">
-    <path d="M80 205V45M220 205V45" stroke="#2a3244" stroke-width="2" stroke-dasharray="3 6" fill="none"/>
-    <path d="M80 205Q150 290 220 205" stroke="#2a3244" stroke-width="2" stroke-dasharray="3 6" fill="none"/>
-    <g id="trails"></g>
-    <circle id="bA" r="13" fill="#ff9f43"/><circle id="bB" r="13" fill="#2fd6c3"/><circle id="bC" r="13" fill="#ff5c8a"/>
-    <path id="hL" d="M62 214q18 14 36 0" stroke="#c9ccd3" stroke-width="5" stroke-linecap="round" fill="none" opacity=".7"/>
-    <path id="hR" d="M202 214q18 14 36 0" stroke="#c9ccd3" stroke-width="5" stroke-linecap="round" fill="none" opacity=".7"/>
-  </svg>
+  <figure class="diagram" style="margin:0">
+    <svg id="cascade" viewBox="0 0 400 470" role="img" aria-labelledby="cascade-t cascade-d">
+      <title id="cascade-t">Animated seven-ball cascade, Jack Kalvan's spatially optimal pattern</title>
+      <desc id="cascade-d">Seven balls on two crossing parabolic arcs. Each hand throws from the inside of the pattern, the ball crosses the middle and is caught on the far outside by the other hand, which scoops it inward and throws it again. Drawn to scale from Kalvan's equations; faint circles show each ball's safety zone, which touch but never overlap.</desc>
+      <g id="static"></g><g id="zones"></g><g id="dyn"></g><g id="labels"></g>
+    </svg>
+    <div class="ctl" role="group" aria-label="Animation speed">
+      <span>Speed</span>
+      <button type="button" data-speed="1" aria-pressed="false">real time</button>
+      <button type="button" data-speed="0.5" aria-pressed="false">&frac12;&times;</button>
+      <button type="button" data-speed="0.25" aria-pressed="true">&frac14;&times;</button>
+      <button type="button" data-speed="0" aria-pressed="false">pause</button>
+      <span id="clear" style="margin-left:auto"></span>
+    </div>
+    <figcaption class="cap">The ideal seven-ball cascade, to scale, as you see it standing in the pattern. It uses the same numbers the <a href="/juggling/vr">VR headset</a> uses: the model is literally the same code (<code>vr/src/physics.js</code>). Parameters are <a href="#kalvan">below</a>.</figcaption>
+  </figure>
 </header>
 
 <div id="err" role="status"></div>
 
-<section class="card" aria-labelledby="prog-h">
-  <h2 id="prog-h">The 50-ball progress bar</h2>
-  <p class="muted small" style="margin-top:-4px">One ball per hour. They fill up as practice video piles up.</p>
-  <div class="balls" id="balls" role="progressbar" aria-valuemin="0" aria-valuemax="50" aria-valuenow="0"></div>
+<section class="card" aria-labelledby="road-h">
+  <h2 id="road-h">The road: 35 &rarr; 100 catches</h2>
+  <div class="road" id="road" aria-hidden="true"></div>
+  <p class="muted small" id="road-note" style="margin:0"></p>
   <div class="stats">
-    <div class="stat"><b id="s-sessions">0</b><span>Sessions counted</span></div>
-    <div class="stat"><b id="s-left">50.0</b><span>Hours to go</span></div>
-    <div class="stat"><b id="s-pct">0%</b><span>Of the goal</span></div>
-    <div class="stat"><b id="s-last">&ndash;</b><span>Last session</span></div>
+    <div class="stat"><b id="s-best">&ndash;</b><span>Best run this project</span><small id="s-best-src"></small></div>
+    <div class="stat"><b id="s-att">&ndash;</b><span>Attempts per session</span><small id="s-att-src"></small></div>
+    <div class="stat"><b id="s-all">&ndash;</b><span>All 7 thrown</span><small id="s-all-src"></small></div>
+    <div class="stat"><b id="s-flash">&ndash;</b><span>Flashes</span><small>7 throws, 7 catches (my count)</small></div>
   </div>
 </section>
 
 <section class="card" aria-labelledby="vid-h">
   <h2 id="vid-h">Latest coaching video</h2>
-  <div id="coach"></div>
+  <div id="coach"><p class="muted">Loading&hellip;</p></div>
 </section>
 
 <section class="card" aria-labelledby="log-h">
   <h2 id="log-h">Session log</h2>
-  <p class="muted small" style="margin-top:-4px">Sessions of <span id="minmin">15</span>+ minutes count toward the 50 hours (raw video time, rests included). Shorter ones are warm-ups: still on the record, just not on the counter.</p>
   <ul class="sess" id="sessions"></ul>
 </section>
 
+<section class="card" id="kalvan" aria-labelledby="k-h">
+  <h2 id="k-h">The diagram&rsquo;s math: Kalvan&rsquo;s optimal cascade</h2>
+  <p>Jack Kalvan&rsquo;s <a href="http://www.juggling.org/papers/OJ/">&ldquo;Optimal Juggling&rdquo; (1996)</a> calls a pattern <i>spatially optimal</i> when it leaves the same room for error everywhere balls are likely to collide. In a cascade there are two such places: two balls on the <b>same arc</b>, near the top, one rising and one falling; and two balls on <b>opposite arcs</b>, where they cross in the middle. Give each ball a circular safety zone of diameter D<sub>1</sub> (Kalvan: &ldquo;adding a safety factor into the diameter of the balls&rdquo;). The pattern is optimal when neighbours on one arc just graze at the top <i>and</i> balls on crossing arcs just graze in the middle. Every number below follows from three choices: the tempo &tau;, the dwell ratio r and the flight distance F.</p>
+  <table class="params" id="params"></table>
+  <p class="muted small" style="margin-bottom:0" id="k-src"></p>
+</section>
+
 <div class="two">
-  <section class="card" aria-labelledby="what-h">
-    <h2 id="what-h">What is the inverted box?</h2>
-    <p>Three balls, two hands, both hands throwing at the same time. One ball goes straight up a column on the left, another straight up a column on the right, and the third shuttles side to side underneath them in a low U, like the bottom of a box that someone turned upside down.</p>
-    <p>In juggler notation (siteswap) it is <code>(4,2x)(2x,4)</code>: each beat one hand sends a ball up its own column (the <code>4</code>) while the other passes a ball straight across (the <code>2x</code>). Then they swap jobs. It looks calm. It is not calm.</p>
-    <p class="muted small">It is also called the upside-down box.</p>
-  </section>
   <section class="card" aria-labelledby="how-h">
     <h2 id="how-h">How this works</h2>
     <ol class="steps">
-      <li>I say <b>&ldquo;start juggling&rdquo;</b> and the webcam starts recording. No fiddling with buttons mid-pattern.</li>
-      <li>A ball tracker runs over the footage and measures what a coach would eyeball: <b>column width</b>, <b>throw height</b> of each hand, <b>pass clearance</b> under the columns, and <b>sync</b> between the hands.</li>
-      <li>The pipeline cuts a <b>coaching video under 3 minutes</b>: best and worst moments, the numbers, and a couple of concrete fixes for next time.</li>
-      <li>Sessions of 15+ minutes add their raw video time to the counter above. Then I pick the balls up off the floor and do it again.</li>
+      <li>I open the laptop page and press <b>Start</b>. The webcam records; I alternate real seven-ball attempts with shadow juggling in the VR headset.</li>
+      <li>A ball tracker finds every attempt, counts the balls thrown, and measures peak height, width and tempo against the ideal pattern above (the same guidelines the headset draws).</li>
+      <li>The pipeline cuts a <b>coaching video under 3 minutes</b>: the attempts, me against the ideal, and two fixes for next time.</li>
+      <li>This page updates itself. Then I pick seven balls up off the floor and do it again.</li>
     </ol>
+  </section>
+  <section class="card" aria-labelledby="cue-h">
+    <h2 id="cue-h">Why the counts are careful</h2>
+    <p>From the laptop on the ottoman, the top of a real seven-ball pattern leaves the frame and the catches happen behind my forearms. So the tracker counts <b>throws</b> per attempt, not catches. Catches on this page are either measured (once the camera can see them) or my own count, and they are labelled which.</p>
+    <p class="muted small" style="margin-bottom:0">A <b>flash</b> is all seven balls thrown once and all seven caught: 7 catches.</p>
   </section>
 </div>
 
 <section class="card history" aria-labelledby="hist-h">
-  <h2 id="hist-h">Previously, on Graham juggles</h2>
-  <p>This isn't my first long-form juggling project. Years ago I filmed a <b>10-hour series</b> and put it on a YouTube channel. YouTube later deleted the channel, so those ten hours now live on only in my forearms and in a couple of friends' memories (who are, frankly, unreliable witnesses).</p>
-  <p class="muted" style="margin-bottom:0">They don't count toward the 50. The balls don't remember them either. This time the footage lives on my own site, so the only thing that can delete it is me tripping over a power cord.</p>
+  <h2 id="hist-h">History</h2>
+  <p>This page started on 9 November 2026 as <b>&ldquo;50 hours of the inverted box&rdquo;</b>, a 3-ball trick I once could do. It is a synchronous pattern, siteswap <code>(4,2x)(2x,4)</code>: on every beat one hand throws a ball straight up its own column on the outside while the other hand passes a ball <b>straight across, flat, from hand to hand</b> under it, and then the hands swap jobs. Seeing the ideal seven-ball pattern in VR changed the plan, and since 22 November 2026 the project is seven balls only.</p>
+  <p style="margin-bottom:4px"><span class="hrs" id="h-ib">0.0</span> <span class="muted">/ <span id="h-goal">50</span> inverted-box hours recorded</span></p>
+  <p class="muted small" style="margin:0" id="h-all"></p>
+  <p class="muted small" style="margin:10px 0 0">Before that, years ago, I filmed a 10-hour juggling series for a YouTube channel that YouTube later deleted. This time the footage lives on my own site.</p>
 </section>
 
 <footer>
   <b style="color:var(--ink)">More juggling</b>
   <div class="more">
+    <a href="/juggling/vr">The ideal pattern in VR</a>
     <a href="/juggling/13-club-feed">13-club feed (passing pattern)</a>
     <a href="/juggling/extra-club-patterns">Extra-club passing patterns</a>
     <a href="https://videos.grahampaasch.com/">All coaching videos</a>
@@ -155,225 +183,278 @@ footer .more{display:flex;flex-wrap:wrap;gap:8px 18px;margin:6px 0 10px}
   <div class="small" id="updated"></div>
 </footer>
 </main>
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const safeUrl = (u) => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null);
-  const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
-  const TZ = 'America/Chicago';
-  const fmtDate = (iso, opts) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString(undefined, { timeZone: TZ, ...opts }); };
-  const fmtDur = (s) => {
-    s = Math.max(0, Math.round(num(s) || 0));
-    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-    return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(sec).padStart(2, '0')}s`;
-  };
-  const COLORS = ['var(--a)', 'var(--b)', 'var(--c)'];
+<script type="module">
+import { buildPattern, findCollisions, G } from '/juggling/vr/src/physics.js';
+import { buildHandTimeline, sceneAt, handPath } from '/juggling/vr/src/hands.js';
+import { guideLines } from '/juggling/vr/src/guides.js';
 
-  const cheers = [
-    [0, 'Hour zero. The balls are clean, the floor is clean, the optimism is unbounded.'],
-    [0.01, 'The counter has moved. This is officially a thing now.'],
-    [1, 'First hour in the bag. The floor has seen some things.'],
-    [5, 'Five hours. The columns are starting to remember which way is up.'],
-    [10, 'Ten hours: matched the legendary (deleted) YouTube series.'],
-    [20, 'Twenty hours. Forearms: noticeably opinionated.'],
-    [25, 'Halfway! Statistically, most of the drops are behind us. Probably.'],
-    [35, 'Thirty-five hours. The box is starting to look like a box.'],
-    [45, 'Final stretch. Five more hours of very calm-looking chaos.'],
-    [50, 'Fifty hours. Box: un-inverted, re-inverted, and fully relearned.'],
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeUrl = (u) => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null);
+const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+const TZ = 'America/Chicago';
+const fmtDate = (iso, opts) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString(undefined, { timeZone: TZ, ...opts }); };
+const fmtDur = (s) => {
+  s = Math.max(0, Math.round(num(s) || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(sec).padStart(2, '0')}s`;
+};
+
+// ------------------------------------------------------------------------------------------
+// The seven-ball cascade: Kalvan's spatially optimal pattern, from the VR app's physics.js
+// ------------------------------------------------------------------------------------------
+const P = buildPattern('7');
+const K = P.spatial;                 // uniformPattern(7): T, r, W, flight, H, F, Vh, D1, D2, P, xT, xC ...
+const TL = buildHandTimeline(P);
+const GL = guideLines(P);
+const COL = findCollisions(P);
+const NS = 'http://www.w3.org/2000/svg';
+const svg = $('cascade');
+const S = 190;                       // px per metre
+const CX = 215, BASE = 398;          // pattern origin (centre line, hand height)
+const X = (x) => CX + x * S, Y = (y) => BASE - y * S;
+const BALL_COLORS = ['#ff9f43', '#2fd6c3', '#ff5c8a', '#7cc7ff', '#ffd166', '#b28dff', '#8ee26b'];
+const el = (tag, attrs, parent, text) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const cm = (m) => `${(m * 100).toFixed(m < 0.995 ? 1 : 0)} cm`;
+
+function drawStatic() {
+  const g = $('static'), lab = $('labels');
+  const guide = { stroke: '#3a4560', 'stroke-width': 1.2, 'stroke-dasharray': '4 5', fill: 'none' };
+  // headset guidelines: left/right verticals through the catch points, centre line, crossing line
+  for (const x of [GL.left, GL.center, GL.right]) el('line', { x1: X(x), x2: X(x), y1: Y(GL.bottom), y2: Y(GL.top), ...guide }, g);
+  el('line', { x1: X(GL.left) - 10, x2: X(GL.right) + 10, y1: Y(GL.crossY), y2: Y(GL.crossY), ...guide, stroke: '#4d5a7a' }, g);
+  el('line', { x1: X(GL.left) - 10, x2: X(GL.right) + 10, y1: Y(K.H), y2: Y(K.H), ...guide, stroke: '#2c3447' }, g);
+  el('line', { x1: X(GL.left) - 24, x2: X(GL.right) + 24, y1: Y(0), y2: Y(0), stroke: '#2c3447', 'stroke-width': 1 }, g);
+  // the two parabolic arcs: right hand throws from +xT (inside) to -xC (far outside), left mirrors
+  const arc = (x0, x1) => {
+    const vx = (x1 - x0) / K.flight, vy = G * K.flight / 2;
+    let d = '';
+    for (let k = 0; k <= 80; k++) { const s = (k / 80) * K.flight; d += `${k ? 'L' : 'M'}${X(x0 + vx * s).toFixed(1)} ${Y(vy * s - 0.5 * G * s * s).toFixed(1)}`; }
+    return d;
+  };
+  el('path', { d: arc(K.xT, -K.xC), stroke: '#ff9f43', 'stroke-opacity': 0.35, 'stroke-width': 1.6, fill: 'none' }, g);
+  el('path', { d: arc(-K.xT, K.xC), stroke: '#2fd6c3', 'stroke-opacity': 0.35, 'stroke-width': 1.6, fill: 'none' }, g);
+  // hand paths (dotted: Kalvan leaves the exact path unspecified)
+  for (const h of [0, 1]) {
+    const pts = handPath(TL, h, 120);
+    el('path', { d: pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)} ${Y(p.y).toFixed(1)}`).join(''), stroke: '#c9ccd3', 'stroke-opacity': 0.35, 'stroke-width': 1.2, 'stroke-dasharray': '1.5 3.5', fill: 'none' }, g);
+  }
+  // T and C points (Kalvan's labels: throw inside, catch outside)
+  const tc = (x, t) => { el('circle', { cx: X(x), cy: Y(0), r: 2.6, fill: '#c9ccd3' }, g); el('text', { x: X(x), y: Y(0) + 16, 'text-anchor': 'middle', 'font-size': 11, fill: '#9aa3b2' }, lab, t); };
+  tc(K.xT, 'T'); tc(-K.xT, 'T'); tc(K.xC, 'C'); tc(-K.xC, 'C');
+  // dimensions
+  const dim = { stroke: '#9aa3b2', 'stroke-width': 1, fill: 'none' };
+  const t11 = { 'font-size': 11, fill: '#c9ccd3' };
+  // width (catch to catch) along the bottom
+  // below the lowest point of the hands' scoop, so the labels never sit under a hand
+  const yMin = Math.min(...[0, 1].flatMap((h) => handPath(TL, h, 120).map((q) => q.y)));
+  const yW = Y(yMin) + 40;
+  svg.setAttribute('viewBox', `0 0 400 ${Math.ceil(yW + 22)}`);
+  el('path', { d: `M${X(-K.xC)} ${yW - 4}v8M${X(K.xC)} ${yW - 4}v8M${X(-K.xC)} ${yW}H${X(K.xC)}`, ...dim }, lab);
+  el('text', { x: CX, y: yW + 15, 'text-anchor': 'middle', ...t11 }, lab, `width F+P = ${cm(K.width)}`);
+  // F: one throw's flight distance, T(+xT) to C(-xC)
+  const yF = Y(yMin) + 18;
+  el('path', { d: `M${X(-K.xC)} ${yF - 3}v6M${X(K.xT)} ${yF - 3}v6M${X(-K.xC)} ${yF}H${X(K.xT)}`, ...dim, stroke: '#ff9f43' }, lab);
+  el('text', { x: X((K.xT - K.xC) / 2), y: yF + 13, 'text-anchor': 'middle', 'font-size': 10.5, fill: '#ffb873' }, lab, `F = ${cm(K.F)}`);
+  // P: horizontal distance between the two arcs (their apexes are P apart)
+  const yP = Y(K.H) - 14;
+  el('path', { d: `M${X(-K.P / 2)} ${yP - 3}v6M${X(K.P / 2)} ${yP - 3}v6M${X(-K.P / 2)} ${yP}H${X(K.P / 2)}`, ...dim }, lab);
+  el('text', { x: CX, y: yP - 6, 'text-anchor': 'middle', ...t11 }, lab, `P = ${cm(K.P)}`);
+  // H: height above the hands, on the right
+  const xH = X(GL.right) + 30;
+  el('path', { d: `M${xH - 4} ${Y(0)}h8M${xH - 4} ${Y(K.H)}h8M${xH} ${Y(0)}V${Y(K.H)}`, ...dim }, lab);
+  el('text', { x: xH + 6, y: Y(K.H / 2), ...t11 }, lab, `H = ${(K.H).toFixed(2)} m`);
+  el('text', { x: xH + 6, y: Y(K.H / 2) + 14, 'font-size': 10, fill: '#9aa3b2' }, lab, 'peak above');
+  el('text', { x: xH + 6, y: Y(K.H / 2) + 26, 'font-size': 10, fill: '#9aa3b2' }, lab, 'the hands');
+  // crossing line label, left
+  el('text', { x: X(GL.left) - 14, y: Y(GL.crossY) - 5, 'text-anchor': 'end', 'font-size': 10.5, fill: '#9aa3b2' }, lab, 'balls cross');
+  el('text', { x: X(GL.left) - 14, y: Y(GL.crossY) + 8, 'text-anchor': 'end', 'font-size': 10.5, fill: '#9aa3b2' }, lab, `at ${GL.crossY.toFixed(2)} m`);
+  el('text', { x: X(GL.left) - 14, y: Y(0) - 4, 'text-anchor': 'end', 'font-size': 10.5, fill: '#9aa3b2' }, lab, 'hands');
+  // header line inside the figure
+  el('text', { x: 8, y: 16, 'font-size': 11.5, fill: '#ecebe6', 'font-weight': 600 }, lab, `7 balls · τ ${K.T.toFixed(2)} s · r ${K.dwellRatio.toFixed(2)} · ω ${K.W.toFixed(1)}`);
+  el('text', { x: 8, y: 31, 'font-size': 10.5, fill: '#9aa3b2' }, lab, `flight ${K.flight.toFixed(3)} s · beat ${(K.beat * 1000).toFixed(0)} ms · D₁ = D₂ = ${cm(K.D1)}`);
+  el('text', { x: 8, y: 46, 'font-size': 10.5, fill: '#9aa3b2' }, lab, `ball ${cm(K.ballDiameter)} · safety zone ${cm(K.D1)} (faint rings)`);
+}
+
+const dyn = $('dyn'), zones = $('zones');
+const ballEls = [], zoneEls = [];
+for (let i = 0; i < P.ballCount; i++) {
+  zoneEls.push(el('circle', { r: (K.D1 / 2) * S, fill: 'none', stroke: BALL_COLORS[i], 'stroke-opacity': 0.22, 'stroke-width': 1 }, zones));
+}
+const handEls = [0, 1].map(() => el('path', { d: 'M-12 4q12 10 24 0', stroke: '#c9ccd3', 'stroke-width': 4, 'stroke-linecap': 'round', fill: 'none', opacity: 0.75 }, dyn));
+for (let i = 0; i < P.ballCount; i++) ballEls.push(el('circle', { r: Math.max(4, (K.ballDiameter / 2) * S), fill: BALL_COLORS[i] }, dyn));
+
+let scratch;
+function drawAt(t) {
+  scratch = sceneAt(P, TL, t, scratch);
+  for (const b of scratch.balls) {
+    const x = X(b.x).toFixed(1), y = Y(b.y).toFixed(1);
+    ballEls[b.ball].setAttribute('cx', x); ballEls[b.ball].setAttribute('cy', y);
+    zoneEls[b.ball].setAttribute('cx', x); zoneEls[b.ball].setAttribute('cy', y);
+    zoneEls[b.ball].setAttribute('stroke-opacity', b.air ? 0.22 : 0.07);
+  }
+  scratch.hands.forEach((h, i) => handEls[i].setAttribute('transform', `translate(${X(h.x).toFixed(1)},${(Y(h.y) + 6).toFixed(1)})`));
+}
+
+function paramsTable() {
+  const rows = [
+    ['b', '7', 'balls; odd, so a cascade: every throw crosses to the other hand'],
+    ['τ (hand period)', `${K.T.toFixed(2)} s`, `time between two throws of one hand; a throw every ${(K.beat * 1000).toFixed(0)} ms (${(1 / K.beat).toFixed(2)} throws/s)`],
+    ['r (dwell ratio)', K.dwellRatio.toFixed(2), `fraction of τ a hand holds a ball: dwell ${(K.dwell * 1000).toFixed(0)} ms, empty ${(K.empty * 1000).toFixed(0)} ms. Kalvan: preferred r for 3, 5, 7, 9 balls is "near 2/3"`],
+    ['ω = b/2 − r', K.W.toFixed(2), 'balls in flight per arc (Shannon’s theorem rewritten by Kalvan)'],
+    ['f = ω τ', `${K.flight.toFixed(3)} s`, 'flight time of every throw'],
+    ['H = g f² / 8', `${K.H.toFixed(2)} m`, 'peak above the hands (throw and catch at one height)'],
+    ['F', `${cm(K.F)}`, 'flight distance, inside throw point T to the far catch point C (the juggler’s choice of room for error)'],
+    ['V<sub>h</sub> = F / f', `${K.Vh.toFixed(3)} m/s`, 'horizontal speed of every ball'],
+    ['D₁ = F / ω', cm(K.D1), 'spacing of neighbours on one arc: their safety zones just touch at the top ("optimal arc", F = ω D)'],
+    ['P = D₁ √((4V<sub>h</sub>/gτ)² + 1)', cm(K.P), 'distance between the two arcs so balls crossing in the middle also just touch: D₂ = D₁'],
+    ['width = F + P', cm(K.width), `catch to catch; throw points ±${cm(K.xT)}, catch points ±${cm(K.xC)} from the centre`],
+    ['crossing line', `${GL.crossY.toFixed(2)} m`, 'where a throw crosses the centre line (the headset’s horizontal guideline)'],
+    ['E<sub>max</sub> = (D₁ − D) / 4H', `${K.emaxDeg.toFixed(2)}°`, `largest throw-angle error before two 6 cm balls on one arc touch`],
+    ['closest approach', cm(COL.minDistance), COL.collides ? 'COLLISION' : `checked exactly over a full cycle: no two balls ever come closer than D₁ (centres). Ball diameter ${cm(K.ballDiameter)}`],
   ];
+  $('params').innerHTML = rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+  $('k-src').innerHTML = 'Inputs: τ = 0.42 s, r = 0.70, F = 0.65 m and the 6 cm ball are the seven-ball row of Kalvan &amp; Lewbel&rsquo;s table of good patterns (<i>When Balls Collide</i>, 2018), the row the VR app uses. Kalvan&rsquo;s 1996 paper measured Anthony Gatto&rsquo;s seven-ball cascade at H 1.7 m, F 0.65 m, τ 0.44 s, r &asymp; 0.68 with 6 cm balls, and lists preferred seven-ball τ of 0.40 to 0.44 s. The equations are from &ldquo;Optimal Juggling&rdquo; (sections <i>Optimal Arcs</i> and <i>Finding the Minimum Distance Between Two Arcs of a Cascade</i>), with the ball diameter D replaced by the safety-zone diameter D₁ as the paper suggests. The hand path between T and C is a drawing choice; Kalvan leaves it unspecified.';
+  $('clear').textContent = COL.collides ? 'collision!' : `closest two balls: ${cm(COL.minDistance)}`;
+}
 
-  function renderBalls(hours, goal) {
-    const n = Math.max(1, Math.round(goal));
-    const wrap = $('balls');
-    let html = '';
-    for (let i = 0; i < n; i++) {
-      const p = Math.max(0, Math.min(1, hours - i));
-      const next = p < 1 && (i === 0 || hours - (i - 1) >= 1);
-      const ten = (i + 1) % 10 === 0;
-      html += `<div class="ball${next ? ' next' : ''}${ten ? ' ten' : ''}" data-h="${i + 1}" title="Hour ${i + 1}" style="--col:${COLORS[i % 3]};--p:${(p * 100).toFixed(1)}%"></div>`;
-    }
-    wrap.innerHTML = html;
-    wrap.setAttribute('aria-valuemax', n);
-    wrap.setAttribute('aria-valuenow', hours.toFixed(1));
-    wrap.setAttribute('aria-valuetext', `${hours.toFixed(1)} of ${n} hours`);
-  }
-
-  function countUp(el, to) {
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce || to <= 0) { el.textContent = to.toFixed(1); return; }
-    const t0 = performance.now(), dur = 1100;
-    const step = (t) => {
-      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = (to * e).toFixed(1);
-      if (k < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-    setTimeout(() => { el.textContent = to.toFixed(1); }, dur + 300); // land even if rAF is throttled
-  }
-
-  function metricChips(m) {
-    if (!m || typeof m !== 'object') return '';
-    const out = [];
-    // seven-ball sessions (spec 37): runs, flashes, best run, throws per run, vs the ideal
-    if (num(m.runs) != null) {
-      out.push(`${m.runs} attempt${m.runs === 1 ? '' : 's'}`);
-      if (num(m.all_thrown) != null) out.push(`${m.all_thrown} with all 7 thrown`);
-      const sr = m.self_report && typeof m.self_report === 'object' ? m.self_report : null;
-      if (sr && num(sr.flashes) != null) out.push(`${sr.flashes_text || sr.flashes} flashes (Graham's count)`);
-      const per = Array.isArray(m.throws_per_run) ? m.throws_per_run.filter((v) => num(v) != null) : [];
-      if (per.length) out.push(`balls thrown per attempt: ${per.join(', ')}`);
-      const vi = m.vs_ideal && typeof m.vs_ideal === 'object' ? m.vs_ideal : {};
-      const pk = num(m.peak_cm), dh = num(vi.height_cm);
-      if (pk != null) out.push(`peaks ${Math.round(pk)} cm${dh != null ? ` (${dh > 0 ? '+' : ''}${Math.round(dh)} vs ideal)` : ''}`);
-      const wd = num(m.width_cm), dw = num(vi.width_cm);
-      if (wd != null) out.push(`width ${Math.round(wd)} cm${dw != null ? ` (${dw > 0 ? '+' : ''}${Math.round(dw)} vs ideal)` : ''}`);
-      const sh = num(m.shadow_s); if (sh != null && sh >= 60) out.push(`${Math.round(sh / 60)} min shadow-juggling in VR`);
-      return `<div class="chips">${out.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}</div>`;
-    }
-    const cw = num(m.column_width_cm); if (cw != null) out.push(`columns ${cw.toFixed(1)} cm apart`);
-    const vh = m.vertical_height_cm;
-    if (vh && typeof vh === 'object') {
-      const L = num(vh.L), R = num(vh.R);
-      const hs = [L != null ? `L ${Math.round(L)}` : '', R != null ? `R ${Math.round(R)}` : ''].filter(Boolean);
-      if (hs.length) out.push(`height ${hs.join(' / ')} cm`);
-    } else if (num(vh) != null) out.push(`height ${Math.round(vh)} cm`);
-    const pc = num(m.pass_clearance_cm); if (pc != null) out.push(`pass clearance ${Math.round(pc)} cm`);
-    const se = num(m.sync_error_ms); if (se != null) out.push(`sync &plusmn;${Math.round(se)} ms`);
-    const tt = num(m.throws_tracked); if (tt != null) out.push(`${tt.toLocaleString()} throws tracked`);
-    return out.length ? `<div class="chips">${out.map((c) => `<span class="chip">${c}</span>`).join('')}</div>` : '';
-  }
-
-  function renderCoach(c) {
-    const el = $('coach');
-    const mp4 = c && safeUrl(c.mp4_url);
-    const page = c && safeUrl(c.page_url);
-    if (!c || (!mp4 && !page)) {
-      el.innerHTML = `<div class="empty">
-        <svg width="74" height="74" viewBox="0 0 74 74" aria-hidden="true"><circle cx="37" cy="40" r="22" fill="none" stroke="#2a3244" stroke-width="3" stroke-dasharray="4 6"/><circle cx="37" cy="18" r="9" fill="#ff9f43"><animate attributeName="cy" values="18;10;18" dur="1.2s" repeatCount="indefinite"/></circle><circle cx="19" cy="52" r="9" fill="#2fd6c3"/><circle cx="55" cy="52" r="9" fill="#ff5c8a"/></svg>
-        <div><b>First session coming soon.</b><br><span class="muted">The camera is ready, the tracker is ready, and the balls are mostly accounted for. The first coaching video shows up here right after the first real session.</span></div></div>`;
-      return;
-    }
-    const poster = safeUrl(c.poster_url);
-    const fixes = Array.isArray(c.fixes) ? c.fixes.filter((f) => typeof f === 'string' && f.trim()) : [];
-    const sid = typeof c.session_id === 'string' ? c.session_id : '';
-    const vid = mp4 ? `<video controls preload="metadata" playsinline src="${esc(mp4)}"${poster ? ` poster="${esc(poster)}"` : ''}></video>`
-      : `<p><a href="${esc(page)}" target="_blank" rel="noopener">Watch the coaching video &rarr;</a></p>`;
-    el.innerHTML = `<div class="video-wrap"><div>${vid}</div><div>
-      <h3 style="margin:0 0 4px;font-size:19px">${esc(c.title || 'Coaching video')}</h3>
-      <div class="muted small">${c.pattern ? `${esc(c.pattern)} &middot; ` : ''}${sid ? `Session ${esc(sid)}` : ''}${num(c.duration_s) ? ` &middot; ${fmtDur(c.duration_s)}` : ''}</div>
-      ${fixes.length ? `<p style="margin:12px 0 0"><b>Fixes for next time</b></p><ol class="fixes">${fixes.map((f) => `<li>${esc(f)}</li>`).join('')}</ol>` : ''}
-      ${page ? `<a href="${esc(page)}" target="_blank" rel="noopener">Open on videos.grahampaasch.com &rarr;</a>` : ''}
-    </div></div>`;
-  }
-
-  function renderSessions(list, minMin) {
-    const el = $('sessions');
-    if (!list.length) {
-      el.innerHTML = `<li style="display:block" class="muted">No sessions yet. Every 50 hours starts at minute zero.</li>`;
-      return;
-    }
-    el.innerHTML = list.map((s) => {
-      const counts = s.counts === true || (s.counts == null && num(s.duration_s) >= minMin * 60);
-      const link = safeUrl(s.coaching_page_url);
-      const date = fmtDate(s.start, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) || esc(s.id || '');
-      const time = fmtDate(s.start, { hour: 'numeric', minute: '2-digit' });
-      return `<li>
-        <div class="when">${esc(date)}<small>${esc(time)}${time ? ' &middot; ' : ''}${fmtDur(s.duration_s)}</small></div>
-        <div class="body">
-          <span class="tag ${counts ? 'yes' : 'no'}">${counts ? 'counts' : `warm-up (under ${minMin} min)`}</span>
-          ${s.pattern ? `<span class="tag pat">${esc(s.pattern)}</span>` : ''}
-          ${s.headline ? `<span>${esc(s.headline)}</span>` : ''}
-          ${metricChips(s.metrics)}
-        </div>
-        <div class="go">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">&#9654; coaching video</a>` : '<span class="muted small">no video</span>'}</div>
-      </li>`;
-    }).join('');
-  }
-
-  function render(d) {
-    const goal = num(d.goal_hours) || 50;
-    const minMin = num(d.min_session_minutes) || 15;
-    const sessions = Array.isArray(d.sessions) ? d.sessions.filter((s) => s && typeof s === 'object') : [];
-    const totalS = num(d.total_seconds) || 0;
-    const hours = totalS / 3600;
-    const shown = Math.min(goal, Math.floor(hours * 10) / 10);
-    $('goal').textContent = goal;
-    $('minmin').textContent = minMin;
-    countUp($('hours'), shown);
-    renderBalls(Math.min(hours, goal), goal);
-    const counted = num(d.counted_sessions) != null ? d.counted_sessions : sessions.filter((s) => s.counts).length;
-    $('s-sessions').textContent = counted;
-    $('s-left').textContent = Math.max(0, goal - shown).toFixed(1);
-    $('s-pct').textContent = `${Math.floor(Math.min(100, (hours / goal) * 100))}%`;
-    $('s-last').textContent = sessions[0] ? fmtDate(sessions[0].start, { month: 'short', day: 'numeric' }) || '–' : '–';
-    let cheer = cheers[0][1];
-    for (const [h, msg] of cheers) if (hours >= h) cheer = msg;
-    $('cheer').textContent = cheer;
-    renderCoach(d.latest_coaching);
-    renderSessions(sessions, minMin);
-    const up = fmtDate(d.updated, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
-    $('updated').textContent = up ? `Counter last updated ${up}.` : '';
-  }
-
-  const EMPTY = { goal_hours: 50, min_session_minutes: 15, total_seconds: 0, counted_sessions: 0, latest_coaching: null, sessions: [] };
-  render(EMPTY);
-  fetch('/juggling/data.json', { cache: 'no-store' })
-    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(render)
-    .catch(() => { $('err').textContent = 'Could not load the practice log right now. The balls are fine; the internet dropped one.'; });
-
-  // Inverted box animation: (4,2x)(2x,4). A rides the left column, C the right
-  // column (half a cycle later), B swings across in a U under the hands.
-  const svg = $('box');
-  const balls = { A: $('bA'), B: $('bB'), C: $('bC') };
-  const hands = { L: $('hL'), R: $('hR') };
-  const LX = 80, RX = 220, HY = 205, TOP = 45, DWELL = 0.7, UNIT = 0.2; // seconds per siteswap beat unit
-  const column = (u, x, out) => {
-    if (u < 4 - DWELL) { const s = u / (4 - DWELL); return [x, HY - 4 * (HY - TOP) * s * (1 - s)]; }
-    const p = (u - (4 - DWELL)) / DWELL; // scoop in the hand, inward then back out
-    return [x + out * 14 * Math.sin(Math.PI * p), HY + 10 * Math.sin(Math.PI * p)];
-  };
-  const pass = (u) => {
-    const seg = u < 2 ? 0 : 1, v = u - seg * 2;
-    const from = seg ? LX : RX, to = seg ? RX : LX;
-    if (v < 2 - DWELL) {
-      const s = v / (2 - DWELL), q = 1 - s;
-      return [q * q * from + 2 * q * s * 150 + s * s * to, HY + 2 * q * s * 85];
-    }
-    return [to, HY + 4 * Math.sin(Math.PI * (v - (2 - DWELL)) / DWELL)];
-  };
-  const pos = (t) => {
-    const m = (x) => ((x % 4) + 4) % 4;
-    return { A: column(m(t), LX, 1), C: column(m(t - 2), RX, -1), B: pass(m(t)) };
-  };
-  const trailG = $('trails');
-  const NS = 'http://www.w3.org/2000/svg';
-  const trailDots = [];
-  for (const k of ['A', 'B', 'C']) for (let i = 1; i <= 4; i++) {
-    const c = document.createElementNS(NS, 'circle');
-    c.setAttribute('r', 13 - i * 2.2);
-    c.setAttribute('fill', balls[k].getAttribute('fill'));
-    c.setAttribute('opacity', (0.22 - i * 0.045).toFixed(3));
-    trailG.appendChild(c); trailDots.push([k, i, c]);
-  }
-  const draw = (t) => {
-    const p = pos(t);
-    for (const k in balls) { balls[k].setAttribute('cx', p[k][0].toFixed(1)); balls[k].setAttribute('cy', p[k][1].toFixed(1)); }
-    for (const [k, i, c] of trailDots) { const q = pos(t - i * 0.12)[k]; c.setAttribute('cx', q[0].toFixed(1)); c.setAttribute('cy', q[1].toFixed(1)); }
-    // hands follow whichever ball they are holding, otherwise rest
-    const hy = (x0, holding) => holding ? Math.max(0, holding[1] - HY) : 0;
-    const inL = [p.A, p.B].find((b) => Math.abs(b[0] - LX) < 16 && b[1] >= HY - 1);
-    const inR = [p.C, p.B].find((b) => Math.abs(b[0] - RX) < 16 && b[1] >= HY - 1);
-    hands.L.setAttribute('transform', `translate(${inL ? (inL[0] - LX).toFixed(1) : 0},${hy(LX, inL).toFixed(1)})`);
-    hands.R.setAttribute('transform', `translate(${inR ? (inR[0] - RX).toFixed(1) : 0},${hy(RX, inR).toFixed(1)})`);
-  };
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { draw(1.3); trailG.remove(); return; }
-  let visible = true;
-  if ('IntersectionObserver' in window) new IntersectionObserver((e) => { visible = e[0].isIntersecting; }).observe(svg);
-  const t0 = performance.now();
-  const loop = (now) => { if (visible && !document.hidden) draw((now - t0) / 1000 / UNIT); requestAnimationFrame(loop); };
+drawStatic();
+paramsTable();
+let speed = 0.25;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduce) speed = 0;
+const btns = document.querySelectorAll('.diagram button');
+const press = () => btns.forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.speed) === speed)));
+btns.forEach((b) => b.addEventListener('click', () => { speed = Number(b.dataset.speed); press(); }));
+press();
+let simT = 0.37, last = null, visible = true;
+if ('IntersectionObserver' in window) new IntersectionObserver((e) => { visible = e[0].isIntersecting; }).observe(svg);
+drawAt(simT);
+const loop = (now) => {
+  if (last != null && visible && !document.hidden && speed > 0) { simT += Math.min(0.1, (now - last) / 1000) * speed; drawAt(simT); }
+  last = now;
   requestAnimationFrame(loop);
-})();
+};
+requestAnimationFrame(loop);
+
+// ------------------------------------------------------------------------------------------
+// The practice log (data.json, rebuilt by the session pipeline's update_page.py)
+// ------------------------------------------------------------------------------------------
+function metricChips(m) {
+  if (!m || typeof m !== 'object') return '';
+  const out = [];
+  if (num(m.runs) != null) {
+    out.push(`${m.runs} attempt${m.runs === 1 ? '' : 's'}`);
+    if (num(m.all_thrown) != null) out.push(`${m.all_thrown} with all 7 thrown`);
+    const sr = m.self_report && typeof m.self_report === 'object' ? m.self_report : null;
+    if (sr && num(sr.flashes) != null) out.push(`${sr.flashes_text || sr.flashes} flashes (my count)`);
+    const cpr = Array.isArray(m.catches_per_run) ? m.catches_per_run.filter((v) => num(v) != null) : [];
+    if (cpr.length) out.push(`best run ${Math.max(...cpr)} catches (measured)`);
+    const per = Array.isArray(m.throws_per_run) ? m.throws_per_run.filter((v) => num(v) != null) : [];
+    if (per.length) out.push(`balls thrown per attempt: ${per.join(', ')}`);
+    const vi = m.vs_ideal && typeof m.vs_ideal === 'object' ? m.vs_ideal : {};
+    const sg = (v) => `${v > 0 ? '+' : ''}${Math.round(v)}`;
+    const pk = num(m.peak_cm), dh = num(vi.height_cm);
+    if (pk != null) out.push(`peaks ${Math.round(pk)} cm${dh != null ? ` (${sg(dh)} vs ideal)` : ''}`);
+    const wd = num(m.width_cm), dw = num(vi.width_cm);
+    if (wd != null) out.push(`width ${Math.round(wd)} cm${dw != null ? ` (${sg(dw)} vs ideal)` : ''}`);
+    const bm = num(m.beat_ms), db = num(vi.beat_ms);
+    if (bm != null) out.push(`beat ${Math.round(bm)} ms${db != null ? ` (${sg(db)} vs ideal)` : ''}`);
+    const sh = num(m.shadow_s); if (sh != null && sh >= 60) out.push(`${Math.round(sh / 60)} min shadow juggling in VR`);
+  } else {
+    const tt = num(m.throws_tracked); if (tt != null) out.push(`${tt.toLocaleString()} throws tracked`);
+  }
+  return out.length ? `<div class="chips">${out.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}</div>` : '';
+}
+
+function renderCoach(c) {
+  const box = $('coach');
+  const mp4 = c && safeUrl(c.mp4_url);
+  const page = c && safeUrl(c.page_url);
+  if (!c || (!mp4 && !page)) { box.innerHTML = '<p class="muted">The next coaching video shows up here right after the next session.</p>'; return; }
+  const poster = safeUrl(c.poster_url);
+  const fixes = Array.isArray(c.fixes) ? c.fixes.filter((f) => typeof f === 'string' && f.trim()) : [];
+  const sid = typeof c.session_id === 'string' ? c.session_id : '';
+  const vid = mp4 ? `<video controls preload="metadata" playsinline src="${esc(mp4)}"${poster ? ` poster="${esc(poster)}"` : ''}></video>`
+    : `<p><a href="${esc(page)}" target="_blank" rel="noopener">Watch the coaching video &rarr;</a></p>`;
+  box.innerHTML = `<div class="video-wrap"><div>${vid}</div><div>
+    <h3 style="font-size:19px;margin:0 0 4px">${esc(c.title || 'Coaching video')}</h3>
+    <div class="muted small">${c.pattern ? `${esc(c.pattern)} &middot; ` : ''}${sid ? `Session ${esc(sid)}` : ''}${num(c.duration_s) ? ` &middot; ${fmtDur(c.duration_s)}` : ''}</div>
+    ${fixes.length ? `<p style="margin:12px 0 0"><b>Fixes for next time</b></p><ol class="fixes">${fixes.map((f) => `<li>${esc(f)}</li>`).join('')}</ol>` : ''}
+    ${page ? `<a href="${esc(page)}" target="_blank" rel="noopener">Open on videos.grahampaasch.com &rarr;</a>` : ''}
+  </div></div>`;
+}
+
+function renderSessions(list) {
+  const box = $('sessions');
+  if (!list.length) { box.innerHTML = '<li style="display:block" class="muted">No sessions yet.</li>'; return; }
+  box.innerHTML = list.map((s) => {
+    const link = safeUrl(s.coaching_page_url);
+    const date = fmtDate(s.start, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) || esc(s.id || '');
+    const time = fmtDate(s.start, { hour: 'numeric', minute: '2-digit' });
+    return `<li>
+      <div class="when">${esc(date)}<small>${esc(time)}${time ? ' &middot; ' : ''}${fmtDur(s.duration_s)}</small></div>
+      <div class="body">
+        ${s.pattern ? `<span class="tag pat">${esc(s.pattern)}</span>` : ''}
+        ${s.headline ? `<span>${esc(s.headline)}</span>` : ''}
+        ${metricChips(s.metrics)}
+      </div>
+      <div class="go">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">&#9654; coaching video</a>` : '<span class="muted small">no video</span>'}</div>
+    </li>`;
+  }).join('');
+}
+
+function renderRoad(sb) {
+  const start = num(sb.lifetime_best_catches) || 35, goal = num(sb.goal_catches) || 100;
+  const best = num(sb.best_catches_project);
+  const pct = (v) => `${Math.max(0, Math.min(100, (v / goal) * 100)).toFixed(1)}%`;
+  const top = Math.max(start, best || 0);
+  let h = `<div class="track"></div><div class="fill" style="width:${pct(top)}"></div>`;
+  h += `<div class="mk" style="left:${pct(start)}"><b>${start}</b>lifetime best<i></i></div>`;
+  if (best != null && best !== start) h += `<div class="mk lo" style="left:${pct(best)}"><i></i>${best} this project</div>`;
+  h += `<div class="mk" style="left:${pct(goal)}"><b>${goal}</b>goal<i></i></div>`;
+  $('road').innerHTML = h;
+  $('best').textContent = top;
+  $('goal').textContent = goal;
+  $('note').textContent = best != null && best > start
+    ? `New lifetime best: ${best} catches. ${goal - best} to go.`
+    : `${start} is the number to beat. ${goal - start} more catches to the goal.`;
+  $('road-note').textContent = `The bar starts at my lifetime best (${start}, before this project) and moves when a recorded run beats it.`;
+}
+
+function render(d) {
+  const sessions = Array.isArray(d.sessions) ? d.sessions.filter((s) => s && typeof s === 'object') : [];
+  const sb = d.seven_ball && typeof d.seven_ball === 'object' ? d.seven_ball : {};
+  renderRoad(sb);
+  const best = num(sb.best_catches_project);
+  $('s-best').textContent = best != null ? `${best} catches` : '–';
+  $('s-best-src').textContent = best != null ? `${sb.best_catches_source || ''}${sb.best_catches_date ? `, ${fmtDate(sb.best_catches_date, { month: 'short', day: 'numeric' })}` : ''}` : 'not measured yet';
+  $('s-att').textContent = num(sb.attempts_per_session) != null ? String(sb.attempts_per_session) : '–';
+  $('s-att-src').textContent = num(sb.sessions) != null ? `${sb.attempts || 0} attempts in ${sb.sessions} session${sb.sessions === 1 ? '' : 's'}` : '';
+  $('s-all').textContent = num(sb.all_thrown) != null ? String(sb.all_thrown) : '–';
+  $('s-all-src').textContent = num(sb.attempts) ? `of ${sb.attempts} attempts (tracker)` : '';
+  $('s-flash').textContent = num(sb.flashes) != null ? `${sb.flashes ? '~' : ''}${sb.flashes}` : '–';
+  renderCoach(d.latest_coaching);
+  renderSessions(sessions);
+  const hi = d.history && typeof d.history === 'object' ? d.history : {};
+  $('h-ib').textContent = ((num(hi.inverted_box_seconds) || 0) / 3600).toFixed(1);
+  $('h-goal').textContent = num(hi.inverted_box_goal_hours) || 50;
+  const all = num(hi.all_patterns_seconds) != null ? hi.all_patterns_seconds : num(d.total_seconds);
+  $('h-all').textContent = all != null ? `The spec-34 counter is paused. The camera has recorded ${(all / 3600).toFixed(1)} hours of practice so far across all patterns (sessions of 15 minutes or more).` : '';
+  const up = fmtDate(d.updated, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+  $('updated').textContent = up ? `Practice log last updated ${up}.` : '';
+}
+
+render({ seven_ball: { lifetime_best_catches: 35, goal_catches: 100 }, sessions: [] });
+fetch('/juggling/data.json', { cache: 'no-store' })
+  .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(render)
+  .catch(() => { $('err').textContent = 'Could not load the practice log right now. The balls are fine; the internet dropped one.'; });
 </script>
 </body></html>

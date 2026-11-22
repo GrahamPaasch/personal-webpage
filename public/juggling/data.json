@@ -1,7 +1,28 @@
 {
+  "layout": "seven-ball-road",
+  "seven_ball": {
+    "lifetime_best_catches": 35,
+    "goal_catches": 100,
+    "sessions": 1,
+    "attempts": 44,
+    "all_thrown": 19,
+    "flashes": 5,
+    "best_catches_project": 7,
+    "best_catches_source": "my count (a flash)",
+    "best_catches_date": "2026-11-22T11:42:49-06:00",
+    "attempts_per_session": 44.0,
+    "real_s": 180,
+    "shadow_s": 265,
+    "catches_measured": false
+  },
+  "history": {
+    "inverted_box_goal_hours": 50,
+    "inverted_box_seconds": 0,
+    "all_patterns_seconds": 1918
+  },
   "goal_hours": 50,
   "min_session_minutes": 15,
-  "updated": "2026-11-22T13:29:37-06:00",
+  "updated": "2026-11-22T13:46:52-06:00",
   "total_seconds": 1918,
   "counted_sessions": 1,
   "latest_coaching": {
