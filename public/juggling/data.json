@@ -1,19 +1,40 @@
 {
   "goal_hours": 50,
   "min_session_minutes": 15,
-  "updated": "2026-11-22T12:14:53-06:00",
+  "updated": "2026-11-22T12:45:35-06:00",
   "total_seconds": 1918,
   "counted_sessions": 1,
-  "latest_coaching": null,
+  "latest_coaching": {
+    "session_id": "2026-11-22_114249",
+    "title": "Juggling coaching, session 1: Your right lane drifts",
+    "page_url": "https://videos.grahampaasch.com/juggling-s001-coaching",
+    "mp4_url": "https://videos.grahampaasch.com/v/juggling-s001-coaching.mp4",
+    "poster_url": null,
+    "fixes": [
+      "Your right lane drifts",
+      "A repeatable top throw"
+    ],
+    "duration_s": 67.5
+  },
   "sessions": [
     {
       "id": "2026-11-22_114249",
       "start": "2026-11-22T11:42:49-06:00",
       "duration_s": 1918,
       "counts": true,
-      "coaching_page_url": null,
-      "headline": null,
-      "metrics": null
+      "coaching_page_url": "https://videos.grahampaasch.com/juggling-s001-coaching",
+      "headline": "Your right lane drifts",
+      "metrics": {
+        "column_width_cm": 25.3,
+        "vertical_height_cm": {
+          "L": 21.6,
+          "R": 20.0
+        },
+        "pass_clearance_cm": 55.5,
+        "sync_error_ms": 217.3,
+        "throws_tracked": 366,
+        "longest_run": 11
+      }
     }
   ]
 }
