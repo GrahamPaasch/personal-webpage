@@ -51,6 +51,7 @@ video{width:100%;border-radius:12px;background:#000;display:block;aspect-ratio:1
 .tag{display:inline-block;font-size:12px;border-radius:999px;padding:1px 9px;margin-right:6px;font-weight:600}
 .tag.yes{background:rgba(47,214,195,.14);color:var(--b)}
 .tag.no{background:rgba(154,163,178,.14);color:var(--mute)}
+.tag.pat{background:rgba(255,159,67,.14);color:#ffb873}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .chip{font-size:12px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:1px 8px;color:#c9ccd3;font-variant-numeric:tabular-nums}
 .sess .go{white-space:nowrap;font-size:14px}
@@ -214,6 +215,22 @@ footer .more{display:flex;flex-wrap:wrap;gap:8px 18px;margin:6px 0 10px}
   function metricChips(m) {
     if (!m || typeof m !== 'object') return '';
     const out = [];
+    // seven-ball sessions (spec 37): runs, flashes, best run, throws per run, vs the ideal
+    if (num(m.runs) != null) {
+      out.push(`${m.runs} attempt${m.runs === 1 ? '' : 's'}`);
+      if (num(m.all_thrown) != null) out.push(`${m.all_thrown} with all 7 thrown`);
+      const sr = m.self_report && typeof m.self_report === 'object' ? m.self_report : null;
+      if (sr && num(sr.flashes) != null) out.push(`${sr.flashes_text || sr.flashes} flashes (Graham's count)`);
+      const per = Array.isArray(m.throws_per_run) ? m.throws_per_run.filter((v) => num(v) != null) : [];
+      if (per.length) out.push(`balls thrown per attempt: ${per.join(', ')}`);
+      const vi = m.vs_ideal && typeof m.vs_ideal === 'object' ? m.vs_ideal : {};
+      const pk = num(m.peak_cm), dh = num(vi.height_cm);
+      if (pk != null) out.push(`peaks ${Math.round(pk)} cm${dh != null ? ` (${dh > 0 ? '+' : ''}${Math.round(dh)} vs ideal)` : ''}`);
+      const wd = num(m.width_cm), dw = num(vi.width_cm);
+      if (wd != null) out.push(`width ${Math.round(wd)} cm${dw != null ? ` (${dw > 0 ? '+' : ''}${Math.round(dw)} vs ideal)` : ''}`);
+      const sh = num(m.shadow_s); if (sh != null && sh >= 60) out.push(`${Math.round(sh / 60)} min shadow-juggling in VR`);
+      return `<div class="chips">${out.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}</div>`;
+    }
     const cw = num(m.column_width_cm); if (cw != null) out.push(`columns ${cw.toFixed(1)} cm apart`);
     const vh = m.vertical_height_cm;
     if (vh && typeof vh === 'object') {
@@ -244,7 +261,7 @@ footer .more{display:flex;flex-wrap:wrap;gap:8px 18px;margin:6px 0 10px}
       : `<p><a href="${esc(page)}" target="_blank" rel="noopener">Watch the coaching video &rarr;</a></p>`;
     el.innerHTML = `<div class="video-wrap"><div>${vid}</div><div>
       <h3 style="margin:0 0 4px;font-size:19px">${esc(c.title || 'Coaching video')}</h3>
-      <div class="muted small">${sid ? `Session ${esc(sid)}` : ''}${num(c.duration_s) ? ` &middot; ${fmtDur(c.duration_s)}` : ''}</div>
+      <div class="muted small">${c.pattern ? `${esc(c.pattern)} &middot; ` : ''}${sid ? `Session ${esc(sid)}` : ''}${num(c.duration_s) ? ` &middot; ${fmtDur(c.duration_s)}` : ''}</div>
       ${fixes.length ? `<p style="margin:12px 0 0"><b>Fixes for next time</b></p><ol class="fixes">${fixes.map((f) => `<li>${esc(f)}</li>`).join('')}</ol>` : ''}
       ${page ? `<a href="${esc(page)}" target="_blank" rel="noopener">Open on videos.grahampaasch.com &rarr;</a>` : ''}
     </div></div>`;
@@ -265,6 +282,7 @@ footer .more{display:flex;flex-wrap:wrap;gap:8px 18px;margin:6px 0 10px}
         <div class="when">${esc(date)}<small>${esc(time)}${time ? ' &middot; ' : ''}${fmtDur(s.duration_s)}</small></div>
         <div class="body">
           <span class="tag ${counts ? 'yes' : 'no'}">${counts ? 'counts' : `warm-up (under ${minMin} min)`}</span>
+          ${s.pattern ? `<span class="tag pat">${esc(s.pattern)}</span>` : ''}
           ${s.headline ? `<span>${esc(s.headline)}</span>` : ''}
           ${metricChips(s.metrics)}
         </div>
