@@ -36,6 +36,9 @@ ol.ahead{margin:6px 0 0;padding-left:22px;color:var(--mute)}ol.ahead li.cur{colo
 
 <div class="card today" id="today"></div>
 
+<h2>🎼 Daily Bach counterpoint <span class="note" style="font-weight:400">(after the lesson, 5–10 min)</span></h2>
+<div class="card" id="bach"></div>
+
 <h2>📅 Timeline</h2>
 <div class="card">
 <p class="note" style="margin-top:0">Each day shows the lesson that was planned and whether you did it. Days are only marked done from what you tell me, never guessed. If you did something else instead, it shows as that, not as the planned lesson.</p>
@@ -108,6 +111,29 @@ ${L.parts?`<ol style="margin:0 0 12px;padding-left:22px">${L.parts.map(x=>`<li><
 <div class="row"><a class="btn go" href="${L.video}">▶ Start the video (${L.mins} min)</a><button onclick="setT(30);toggleT()">Start a 30 min timer</button></div>
 ${L.v1?`<p class="note" style="margin:8px 0 0"><a href="${L.v1}" style="color:var(--mute)">v1 (body-work only)</a></p>`:""}
 <p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">Repeat until solid.</b> Do this same lesson every day until it feels solid, then tell me "next" and Day ${L.n+1} takes its place. The calendar never moves on by itself.</p>`;
+
+// Daily Bach counterpoint (spec 38 decision 10): one voice of a WTC fugue against the other voices.
+// Same rule as the lessons: repeat until he says "next", then the next fugue in book order.
+const F="https://videos.grahampaasch.com/f/";
+const FUGUES=[
+ {n:1,title:"Book I, Fugue 1 in C major, BWV 846",voice:"alto",
+  what:"Four voices; you play the alto. It opens the fugue: you start the subject alone in bar 1, then the soprano, tenor and bass come in on top of you. The tracks are piano (soprano, tenor, bass) with a click all the way through. Subject entries are marked on the part: <b>SUBJECT (you)</b> when it's yours, in italics when another voice has it.",
+  tracks:[["Slow, with viola guide","q = 50",V+"/bwv846-alto-slow",1],
+          ["Slow, you alone","q = 50",V+"/bwv846-alto-slow-noguide"],
+          ["Full, with viola guide","q = 66",V+"/bwv846-alto-full"],
+          ["Full, you alone","q = 66",V+"/bwv846-alto-full-noguide"]],
+  part:F+"bwv846-alto-viola-part.pdf",score:F+"bwv846-alto-study-score.pdf",
+  mp3:[F+"bwv846-alto-slow.mp3",F+"bwv846-alto-slow-noguide.mp3",F+"bwv846-alto-full.mp3",F+"bwv846-alto-full-noguide.mp3"]},
+];
+const FUGUES_AHEAD=["Fugue 2 in C minor, BWV 847 (3 voices)","Fugue 3 in C♯ major, BWV 848","Fugue 4 in C♯ minor, BWV 849 (5 voices)","Fugue 5 in D major, BWV 850","…then the rest of Book I in order"];
+const CURRENT_FUGUE=1;
+const FG=FUGUES.find(f=>f.n===CURRENT_FUGUE);
+document.getElementById("bach").innerHTML=`<h3 style="margin:0 0 4px;font-size:1.2rem">${FG.title}: <span style="color:var(--acc)">you play the ${FG.voice}</span></h3>
+<p style="margin:0 0 10px">${FG.what}</p>
+<div class="row">${FG.tracks.map(t=>`<a class="btn${t[3]?" go":""}" href="${t[2]}">${t[0]} <span style="opacity:.75;font-size:.88rem">(${t[1]})</span></a>`).join("")}</div>
+<p class="note" style="margin:10px 0 0">Order: slow with the guide until the notes are there, then slow alone, then full tempo the same way. The goal is to hear the other voices while you play yours.</p>
+<p class="note" style="margin:6px 0 0">📄 <a href="${FG.part}" style="color:var(--acc)">Viola part (alto clef, PDF)</a> · <a href="${FG.score}" style="color:var(--acc)">Study score, all four voices</a> · 🎧 audio only: ${FG.mp3.map((u,i)=>`<a href="${u}" style="color:var(--mute)">${["slow","slow alone","full","full alone"][i]}</a>`).join(" · ")}</p>
+<p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">Repeat until solid,</b> then tell me "next" and the next fugue takes its place. Coming up: ${FUGUES_AHEAD.join(" · ")}</p>`;
 
 // Timeline: last month, this month, next month
 const byDate={};LOG.forEach(e=>byDate[e.date]=e);
