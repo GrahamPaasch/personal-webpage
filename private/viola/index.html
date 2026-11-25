@@ -79,7 +79,7 @@ ol.ahead{margin:6px 0 0;padding-left:22px;color:var(--mute)}ol.ahead li.cur{colo
 
 <script>
 const V="https://videos.grahampaasch.com";
-// Lessons, in book order. Only Day 1 is built so far.
+// Lessons, in book order. Days 1-2 are built so far.
 const LESSONS=[
  {n:1,title:"Chapter 2: Stance, balance and the Hara",mins:31,video:V+"/tuttle-day1-v2",
   v1:V+"/tuttle-day1",
@@ -88,18 +88,24 @@ const LESSONS=[
          ["Form cues","on screen","Chapter 2 stance cues during the scales and the etude, no separate block"],
          ["Scales in C","~10 min","3 octaves in slur groups, Flesch arpeggio cycle, broken thirds, groove pass; click + C drone. Fingerings updated Nov 24 to the standard published ones (Flesch/Karman, Cooper, Raecke)"],
          ["Etude: Kreutzer No. 1","~15 min","Adagio sostenuto (long slow bows), slow pass then a bit faster; viola guide + click"]]},
+ {n:2,title:"Chapter 3: General left-hand concepts",mins:31,video:V+"/tuttle-day2",
+  what:"Same format as Day 1. Chapter 3's left-hand cues (wrist straight or slightly in, support the 4th finger, each finger has its own balance, a soft 1st finger, a thumb that never grips) pop up on screen while you play.",
+  parts:[["Spinning sound","~6 min","slow open-string bows, click at 40, seconds counted on every bow"],
+         ["Left-hand cues","on screen","Chapter 3 cues during the scales and the etude, no separate block"],
+         ["Scales in A minor","~9 min","the next key in Flesch's order (C major, then A minor): A melodic minor 3 octaves, the arpeggio cycle on A, broken thirds, groove pass with A major; click + A drone. Fingerings from the published charts (Raecke, Cooper). The top octave goes to 11th position: the slow pass is there for it"],
+         ["Etude: Kreutzer No. 11","~15 min","the etude the book gives for Chapter 3 (Consolini viola edition, A major). Slow twice, once the book's way (1st finger parked on the C-string side), flowing twice, then Andante; viola guide + click"]]},
 ];
-const AHEAD=["Chapter 3: General left-hand concepts","Chapter 4: Finger action","Chapter 5: Fingerboard","Chapter 6: Shifting","Chapter 7: Double stops","Chapter 8: Trills","Chapter 9: Vibrato","Chapter 10: Right hand / bow-arm concepts","Chapter 11: Bow strokes and articulations","Chapter 12: String crossings","Chapter 13: Bow changes and distribution","Chapter 14: Chords","Chapter 15: Coordination","Etude play-alongs, chapter by chapter"];
+const AHEAD=["Chapter 4: Finger action","Chapter 5: Fingerboard","Chapter 6: Shifting","Chapter 7: Double stops","Chapter 8: Trills","Chapter 9: Vibrato","Chapter 10: Right hand / bow-arm concepts","Chapter 11: Bow strokes and articulations","Chapter 12: String crossings","Chapter 13: Bow changes and distribution","Chapter 14: Chords","Chapter 15: Coordination","Etude play-alongs, chapter by chapter"];
 // The lesson you're on. It only moves when you say "next".
-const CURRENT=1;
+const CURRENT=2;
 // What was planned, by date. Each entry runs until the next one (a new entry is added only
 // when you say "next"), so history keeps showing what was planned on each day.
-const PLAN=[{from:"2026-11-22",lesson:1}];
+const PLAN=[{from:"2026-11-22",lesson:1},{from:"2026-11-25",lesson:2}];
 const PLAN_START=PLAN[0].from;
 // What you actually did, logged only from what you tell me. Examples of the shape:
 //  {date:"2026-11-22",did:1}                       -> did lesson 1 as planned
 //  {date:"2026-11-23",sub:"Gauntlet day 7 instead"} -> did something else; shown as that
-const LOG=[];
+const LOG=[{date:"2026-11-24",did:1}];   // 11/24: played Day 1 v2 start to finish (his report)
 
 const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const now=new Date(),today=ymd(now);
@@ -139,7 +145,8 @@ document.getElementById("bach").innerHTML=`<h3 style="margin:0 0 4px;font-size:1
 const byDate={};LOG.forEach(e=>byDate[e.date]=e);
 function cell(d,inMonth){const k=ymd(d);let tags="";
  const p=PLAN.filter(x=>x.from<=k).pop();
- const planned=p&&(k<=today||k===PLAN_START)?p.lesson:null;
+ // past days: what was planned; from the current plan entry on, the current lesson is planned ("11/25+")
+ const planned=p&&(k<=today||k===PLAN_START||p===PLAN[PLAN.length-1])?p.lesson:null;
  const e=byDate[k];
  if(e&&e.sub)tags+=`<span class="tag sub">${e.sub}</span>`+(planned?`<span class="tag plan">planned: Day ${planned}</span>`:"");
  else if(e&&e.did)tags+=`<span class="tag did">did Day ${e.did}</span>`;
