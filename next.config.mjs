@@ -14,6 +14,7 @@ const STATIC_APP_DIRS = [
   'breathing',
   'cadence',
   'exercise',
+  'overview',
   'cascade',
   'cascade/play',
   'ttl',
