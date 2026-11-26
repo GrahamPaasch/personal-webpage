@@ -26,6 +26,7 @@ const STATIC_APP_DIRS = [
   'labs/multiplane/collectives',
   'juggling',
   'juggling/13-club-feed',
+  'juggling/ed-feed',
   'juggling/extra-club-patterns',
   'juggling/vr',
   'panelclash',
