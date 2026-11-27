@@ -127,7 +127,7 @@ ${L.v1?`<p class="note" style="margin:8px 0 0"><a href="${L.v1}" style="color:va
 <p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">Repeat until solid.</b> Do this same lesson every day until it feels solid, then tell me "next" and Day ${L.n+1} takes its place. The calendar never moves on by itself.</p>`;
 
 // Daily Bach counterpoint (spec 38 decision 10): one voice of a WTC fugue against the other voices.
-// Same rule as the lessons: repeat until he says "next", then the next fugue in book order.
+// Moves with the lessons (11/27 amendment): "next" on the Tuttle lesson also advances to the next fugue in book order.
 const F="https://videos.grahampaasch.com/f/";
 const FUGUES=[
  {n:1,title:"Book I, Fugue 1 in C major, BWV 846",voice:"alto",nv:"four",
@@ -146,9 +146,17 @@ const FUGUES=[
           ["Full, you alone","q = 76",V+"/bwv847-alto-full-noguide"]],
   part:F+"bwv847-alto-viola-part.pdf",score:F+"bwv847-alto-study-score.pdf",
   mp3:[F+"bwv847-alto-slow.mp3",F+"bwv847-alto-slow-noguide.mp3",F+"bwv847-alto-full.mp3",F+"bwv847-alto-full-noguide.mp3"]},
+ {n:3,title:"Book I, Fugue 3 in C♯ major, BWV 848",voice:"alto",nv:"three",
+  what:"Three voices; you play the alto, the middle one. This time the soprano opens (bar 1), you answer in bar 3, and the bass comes in at bar 5. Your part is written in <b>D♭ major (5 flats)</b> instead of Bach's C♯ major (7 sharps): same notes, and his double sharps become plain naturals. A few notes Bach wrote below your C string are an octave up, marked <i>8ve up</i>: one note in bar 23, and bars 35–38, where the bass rests and you are the bottom voice. The top is A♭ on the A string in bar 28. The last bar ends on double stops and a D♭–F–A♭ chord. The tracks are piano (soprano and bass) with a click all the way through. Your subjects are marked <b>SUBJECT (you)</b> (bars 3, 19, the end of 26, and 44); the other voices' entries are in italics.",
+  tracks:[["Slow, with viola guide","q = 56",V+"/bwv848-alto-slow",1],
+          ["Slow, you alone","q = 56",V+"/bwv848-alto-slow-noguide"],
+          ["Full, with viola guide","q = 84",V+"/bwv848-alto-full"],
+          ["Full, you alone","q = 84",V+"/bwv848-alto-full-noguide"]],
+  part:F+"bwv848-alto-viola-part.pdf",score:F+"bwv848-alto-study-score.pdf",
+  mp3:[F+"bwv848-alto-slow.mp3",F+"bwv848-alto-slow-noguide.mp3",F+"bwv848-alto-full.mp3",F+"bwv848-alto-full-noguide.mp3"]},
 ];
-const FUGUES_AHEAD=["Fugue 3 in C♯ major, BWV 848","Fugue 4 in C♯ minor, BWV 849 (5 voices)","Fugue 5 in D major, BWV 850","…then the rest of Book I in order"];
-const CURRENT_FUGUE=2;
+const FUGUES_AHEAD=["Fugue 4 in C♯ minor, BWV 849 (5 voices)","Fugue 5 in D major, BWV 850","…then the rest of Book I in order"];
+const CURRENT_FUGUE=3;
 const FG=FUGUES.find(f=>f.n===CURRENT_FUGUE);
 const PREV=FUGUES.find(f=>f.n===CURRENT_FUGUE-1);
 document.getElementById("bach").innerHTML=`<h3 style="margin:0 0 4px;font-size:1.2rem">${FG.title}: <span style="color:var(--acc)">you play the ${FG.voice}</span></h3>
@@ -156,7 +164,7 @@ document.getElementById("bach").innerHTML=`<h3 style="margin:0 0 4px;font-size:1
 <div class="row">${FG.tracks.map(t=>`<a class="btn${t[3]?" go":""}" href="${t[2]}">${t[0]} <span style="opacity:.75;font-size:.88rem">(${t[1]})</span></a>`).join("")}</div>
 <p class="note" style="margin:10px 0 0">Order: slow with the guide until the notes are there, then slow alone, then full tempo the same way. The goal is to hear the other voices while you play yours.</p>
 <p class="note" style="margin:6px 0 0">📄 <a href="${FG.part}" style="color:var(--acc)">Viola part (alto clef, PDF)</a> · <a href="${FG.score}" style="color:var(--acc)">Study score, all ${FG.nv} voices</a> · 🎧 audio only: ${FG.mp3.map((u,i)=>`<a href="${u}" style="color:var(--mute)">${["slow","slow alone","full","full alone"][i]}</a>`).join(" · ")}</p>
-<p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">Repeat until solid,</b> then tell me "next" and the next fugue takes its place. Coming up: ${FUGUES_AHEAD.join(" · ")}</p>
+<p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">It moves with the lesson:</b> when you tell me "next" on the Tuttle lesson, the next fugue takes this one's place too. Coming up: ${FUGUES_AHEAD.join(" · ")}</p>
 ${PREV?`<p class="note" style="margin:6px 0 0">Previous: <a href="${PREV.tracks[0][2]}" style="color:var(--mute)">${PREV.title}</a> (${PREV.voice}) · <a href="${PREV.part}" style="color:var(--mute)">part</a> · <a href="${PREV.tracks[2][2]}" style="color:var(--mute)">full tempo</a> · <a href="${PREV.tracks[3][2]}" style="color:var(--mute)">full, alone</a></p>`:""}`;
 
 // Timeline: last month, this month, next month
