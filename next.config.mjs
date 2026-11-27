@@ -10,6 +10,7 @@ const composedVersion = short ? `${baseVersion}+${short}` : baseVersion;
  * the actual `foo/index.html`. Every self-contained app needs an entry here.
  */
 const STATIC_APP_DIRS = [
+  'pixel-opera',
   'books',
   'breathing',
   'cadence',
