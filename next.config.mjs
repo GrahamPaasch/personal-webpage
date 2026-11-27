@@ -11,6 +11,7 @@ const composedVersion = short ? `${baseVersion}+${short}` : baseVersion;
  */
 const STATIC_APP_DIRS = [
   'pixel-opera',
+  'pixel-opera/art2',
   'books',
   'breathing',
   'cadence',
