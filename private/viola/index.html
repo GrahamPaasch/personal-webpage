@@ -127,6 +127,7 @@ ${L.v1?`<p class="note" style="margin:8px 0 0"><a href="${L.v1}" style="color:va
 <p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">Repeat until solid.</b> Do this same lesson every day until it feels solid, then tell me "next" and Day ${L.n+1} takes its place. The calendar never moves on by itself.</p>`;
 
 // Daily Bach counterpoint (spec 38 decision 10): one voice of a WTC fugue against the other voices.
+// Slow only (11/27 amendment "Bach block = slow only"): the block links only the slow tracks + PDFs; full-tempo pages stay published, unlinked.
 // Moves with the lessons (11/27 amendment): "next" on the Tuttle lesson also advances to the next fugue in book order.
 const F="https://videos.grahampaasch.com/f/";
 const FUGUES=[
@@ -161,11 +162,11 @@ const FG=FUGUES.find(f=>f.n===CURRENT_FUGUE);
 const PREV=FUGUES.find(f=>f.n===CURRENT_FUGUE-1);
 document.getElementById("bach").innerHTML=`<h3 style="margin:0 0 4px;font-size:1.2rem">${FG.title}: <span style="color:var(--acc)">you play the ${FG.voice}</span></h3>
 <p style="margin:0 0 10px">${FG.what}</p>
-<div class="row">${FG.tracks.map(t=>`<a class="btn${t[3]?" go":""}" href="${t[2]}">${t[0]} <span style="opacity:.75;font-size:.88rem">(${t[1]})</span></a>`).join("")}</div>
-<p class="note" style="margin:10px 0 0">Order: slow with the guide until the notes are there, then slow alone, then full tempo the same way. The goal is to hear the other voices while you play yours.</p>
-<p class="note" style="margin:6px 0 0">📄 <a href="${FG.part}" style="color:var(--acc)">Viola part (alto clef, PDF)</a> · <a href="${FG.score}" style="color:var(--acc)">Study score, all ${FG.nv} voices</a> · 🎧 audio only: ${FG.mp3.map((u,i)=>`<a href="${u}" style="color:var(--mute)">${["slow","slow alone","full","full alone"][i]}</a>`).join(" · ")}</p>
+<div class="row">${FG.tracks.filter(t=>!/-full/.test(t[2])).map(t=>`<a class="btn${t[3]?" go":""}" href="${t[2]}">${t[0]} <span style="opacity:.75;font-size:.88rem">(${t[1]})</span></a>`).join("")}</div>
+<p class="note" style="margin:10px 0 0">Order: slow with the guide until the notes are there, then slow alone. The goal is to hear the other voices while you play yours.</p>
+<p class="note" style="margin:6px 0 0">📄 <a href="${FG.part}" style="color:var(--acc)">Viola part (alto clef, PDF)</a> · <a href="${FG.score}" style="color:var(--acc)">Study score, all ${FG.nv} voices</a> · 🎧 audio only: ${FG.mp3.slice(0,2).map((u,i)=>`<a href="${u}" style="color:var(--mute)">${["slow","slow alone"][i]}</a>`).join(" · ")}</p>
 <p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">It moves with the lesson:</b> when you tell me "next" on the Tuttle lesson, the next fugue takes this one's place too. Coming up: ${FUGUES_AHEAD.join(" · ")}</p>
-${PREV?`<p class="note" style="margin:6px 0 0">Previous: <a href="${PREV.tracks[0][2]}" style="color:var(--mute)">${PREV.title}</a> (${PREV.voice}) · <a href="${PREV.part}" style="color:var(--mute)">part</a> · <a href="${PREV.tracks[2][2]}" style="color:var(--mute)">full tempo</a> · <a href="${PREV.tracks[3][2]}" style="color:var(--mute)">full, alone</a></p>`:""}`;
+${PREV?`<p class="note" style="margin:6px 0 0">Previous: <a href="${PREV.tracks[0][2]}" style="color:var(--mute)">${PREV.title}</a> (${PREV.voice}) · <a href="${PREV.part}" style="color:var(--mute)">part</a></p>`:""}`;
 
 // Timeline: last month, this month, next month
 const byDate={};LOG.forEach(e=>byDate[e.date]=e);
