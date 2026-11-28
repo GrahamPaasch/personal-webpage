@@ -80,7 +80,7 @@ ol.ahead{margin:6px 0 0;padding-left:22px;color:var(--mute)}ol.ahead li.cur{colo
 
 <script>
 const V="https://videos.grahampaasch.com";
-// Lessons, in book order. Days 1-3 are built so far.
+// Lessons, in book order. Days 1-4 are built so far.
 const LESSONS=[
  {n:1,title:"Chapter 2: Stance, balance and the Hara",mins:31,video:V+"/tuttle-day1-v2",
   v1:V+"/tuttle-day1",
@@ -101,19 +101,27 @@ const LESSONS=[
          ["Finger-action cues","on screen","Chapter 4 cues during the scales and the etude, no separate block"],
          ["Scales in F major","~9 min","the next key in Flesch's order (C major, A minor, then F major), quarter notes and eighth notes only: F major 3 octaves, the arpeggio cycle on F, broken thirds, then a short review of A minor and C major (one quarter + one eighth pass each); click + drone. Fingerings from the published charts (Raecke, Cooper), with Primrose colour signs"],
          ["Etude: Kreutzer No. 2","~14 min","the book's Chapter 4 \"first laboratory etude\" for finger action (Consolini viola edition, F major, the edition's own fingerings + Primrose colour signs). Slow twice, once the book's way (plop, one finger down at a time), flowing twice, then moving; viola guide + click"]]},
+ {n:4,title:"Chapter 5: The fingerboard",mins:30,video:V+"/tuttle-day4",
+  what:"Same format as Day 3. Chapter 5's fingerboard cues (three reference points: distance, interval, point of arrival; sing the target note first; slide it like a harmonic; inchworm; stay low, then climb the A string; taste your intonation) pop up on screen while you play.",
+  parts:[["Spinning sound","~6 min","slow open-string bows, click at 40, seconds counted on every bow"],
+         ["Fingerboard cues","on screen","Chapter 5 cues during the scales and the etude, no separate block"],
+         ["Scales in D minor","~12 min","the next key in Flesch's order (C major, A minor, F major, then D minor), quarter notes and eighth notes only: D melodic minor 3 octaves, the arpeggio cycle on D, broken thirds, then a short review of F major, A minor and C major (one quarter + one eighth pass each); click + drone. Fingerings from the published charts (Raecke, Cooper), with Primrose colour signs"],
+         ["Etude: Campagnoli Caprice No. 15","~12 min","the first fingerboard caprice Karen gave LaCourse (Chapter 5, p. 37; Peters/Sitt edition, G major, Allegro moderato, the edition's own fingerings + Primrose colour signs). New rule: you hear it once at the performance tempo (q = 76, from the Misciagna recording), then step up: 60%, 75%, 90% twice, 100% twice; viola guide + click. It sits high on the A string (up to C above the staff's top ledger lines): that is the point of the chapter, so take the slow tracks first"]],
+  ladder:[["100%","q = 76",V+"/tuttle-day4-etude-100"],["90%","q = 68",V+"/tuttle-day4-etude-90"],["75%","q = 57",V+"/tuttle-day4-etude-75"],["60%","q = 46",V+"/tuttle-day4-etude-60"]]},
 ];
-const AHEAD=["Chapter 5: Fingerboard","Chapter 6: Shifting","Chapter 7: Double stops","Chapter 8: Trills","Chapter 9: Vibrato","Chapter 10: Right hand / bow-arm concepts","Chapter 11: Bow strokes and articulations","Chapter 12: String crossings","Chapter 13: Bow changes and distribution","Chapter 14: Chords","Chapter 15: Coordination","Etude play-alongs, chapter by chapter"];
+const AHEAD=["Chapter 6: Shifting","Chapter 7: Double stops","Chapter 8: Trills","Chapter 9: Vibrato","Chapter 10: Right hand / bow-arm concepts","Chapter 11: Bow strokes and articulations","Chapter 12: String crossings","Chapter 13: Bow changes and distribution","Chapter 14: Chords","Chapter 15: Coordination","Etude play-alongs, chapter by chapter"];
 // The lesson you're on. It only moves when you say "next".
-const CURRENT=3;
+const CURRENT=4;
 // What was planned, by date. Each entry runs until the next one (a new entry is added only
 // when you say "next"), so history keeps showing what was planned on each day.
-const PLAN=[{from:"2026-11-22",lesson:1},{from:"2026-11-25",lesson:2},{from:"2026-11-27",lesson:3}];
+const PLAN=[{from:"2026-11-22",lesson:1},{from:"2026-11-25",lesson:2},{from:"2026-11-27",lesson:3},{from:"2026-11-28",lesson:4}];
 const PLAN_START=PLAN[0].from;
 // What you actually did, logged only from what you tell me. Examples of the shape:
 //  {date:"2026-11-22",did:1}                       -> did lesson 1 as planned
 //  {date:"2026-11-23",sub:"Gauntlet day 7 instead"} -> did something else; shown as that
 const LOG=[{date:"2026-11-24",did:1},    // 11/24: played Day 1 v2 start to finish (his report)
-           {date:"2026-11-26",did:2}];   // 11/26: Day 2 done ("That was fun... I feel like I'm making a lot of progress.")
+           {date:"2026-11-26",did:2},    // 11/26: Day 2 done ("That was fun... I feel like I'm making a lot of progress.")
+           {date:"2026-11-27",did:3}];   // 11/27: Day 3 done (the morning of 11/27; he asked for the next lesson that night)
 
 const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const now=new Date(),today=ymd(now);
@@ -123,6 +131,7 @@ document.getElementById("today").innerHTML=`<div style="color:var(--mute);font-w
 <p style="margin:0 0 8px">${L.what}</p>
 ${L.parts?`<ol style="margin:0 0 12px;padding-left:22px">${L.parts.map(x=>`<li><b>${x[0]}</b> <span class="note">(${x[1]})</span>: ${x[2]}</li>`).join("")}</ol>`:""}
 <div class="row"><a class="btn go" href="${L.video}">▶ Start the video (${L.mins} min)</a><button onclick="setT(30);toggleT()">Start a 30 min timer</button></div>
+${L.ladder?`<p class="note" style="margin:10px 0 4px"><b style="color:var(--acc)">Etude play-along tracks, pick by feel (Goldilocks):</b> too fast? drop down; too easy? go up. Click + viola guide in all.</p><div class="row">${L.ladder.map((t,i)=>`<a class="btn${i===0?" go":""}" href="${t[2]}">${t[0]} <span style="opacity:.75;font-size:.88rem">(${t[1]})</span></a>`).join("")}</div>`:""}
 ${L.v1?`<p class="note" style="margin:8px 0 0"><a href="${L.v1}" style="color:var(--mute)">v1 (body-work only)</a></p>`:""}
 <p class="note" style="margin:10px 0 0"><b style="color:var(--acc)">Repeat until solid.</b> Do this same lesson every day until it feels solid, then tell me "next" and Day ${L.n+1} takes its place. The calendar never moves on by itself.</p>`;
 
